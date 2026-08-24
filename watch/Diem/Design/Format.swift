@@ -37,7 +37,8 @@ enum Format {
         var motion: NumeralMotion
     }
 
-    /// Totals: `0 m`, `45 m`, `1.2 h`.
+    /// Totals: `0 m`, `45 m`, `1h 30m`. Past an hour the minutes stay on
+    /// screen — `1h` alone reads as an estimate, `1h 0m` reads as a reading.
     static func total(_ seconds: TimeInterval) -> Measure {
         let seconds = max(0, seconds)
         if seconds < 3600 {
@@ -50,14 +51,15 @@ enum Format {
                 motion: .value(Double(minutes))
             )
         }
-        let tenths = (seconds / 360).rounded(.down)
-        let hours = tenths / 10
+        let totalMinutes = Int(seconds / 60)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
         return Measure(
-            value: String(format: "%.1f", hours),
-            unit: "h",
-            widest: "88.8",
-            spoken: String(format: "%.1f hours", hours),
-            motion: .value(hours)
+            value: "\(hours)h \(minutes)m",
+            unit: nil,
+            widest: "88h 88m",
+            spoken: "\(hours) hour\(hours == 1 ? "" : "s") \(minutes) minute\(minutes == 1 ? "" : "s")",
+            motion: .value(Double(totalMinutes))
         )
     }
 
@@ -104,12 +106,12 @@ enum Format {
         )
     }
 
-    /// A duration being scrubbed: `25m`, `1h 30m`, `2h`.
+    /// A duration being scrubbed: `25m`, `1h 30m`, `2h 0m`. Minutes are never
+    /// dropped — the same reading rule the hero numeral follows.
     static func duration(_ seconds: TimeInterval) -> String {
         let minutes = Int(max(0, seconds) / 60)
         guard minutes >= 60 else { return "\(minutes)m" }
-        let (hours, rest) = (minutes / 60, minutes % 60)
-        return rest == 0 ? "\(hours)h" : "\(hours)h \(rest)m"
+        return "\(minutes / 60)h \(minutes % 60)m"
     }
 
     private static func hms(_ total: Int, forceHours: Bool) -> String {
@@ -117,7 +119,9 @@ enum Format {
         if hours > 0 || forceHours {
             return String(format: "%d:%02d:%02d", hours, minutes, seconds)
         }
-        return String(format: "%d:%02d", minutes, seconds)
+        // Minutes are zero-padded so the running clock holds its width as the
+        // leading digit drops — `25:00` to `09:59` is the same five characters.
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 
     private static func spoken(_ total: Int) -> String {

@@ -77,7 +77,10 @@ struct SettingsView: View {
 
 /// One number, scrubbed with the crown.
 private struct GoalView: View {
+    @Environment(SessionStore.self) private var store
+
     @State private var step: Double
+    @FocusState private var crownFocused: Bool
 
     /// Seeded at init, not in `onAppear`. Assigning the stored goal after the
     /// first render would register as a crown movement and fire a detent the
@@ -89,12 +92,26 @@ private struct GoalView: View {
     private var minutes: Int { GoalScrub.minutes(forStep: Int(step.rounded())) }
 
     var body: some View {
-        VStack(spacing: 6) {
-            HeroNumeral(measure: Format.total(Double(minutes) * 60))
-            Text("per day").sectionLabelStyle()
+        VStack(spacing: 2) {
+            Spacer(minLength: 0)
+            // Title, not hero: this screen carries a navigation bar, and
+            // `12h 45m` at display size would run into both edges.
+            HeroNumeral(
+                measure: Format.total(Double(minutes) * 60),
+                size: Typography.Size.title,
+                tracking: Typography.Size.titleTracking
+            )
+            // Sits directly under the numeral and one step quieter than a
+            // section header — it labels the number, it is not a heading.
+            Text("per day")
+                .sectionLabelStyle()
+                .foregroundStyle(.tertiary)
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .focusable()
+        .containerBackground(.black, for: .navigation)
+        .focusable(true)
+        .focused($crownFocused)
         .digitalCrownRotation(
             $step,
             from: Double(GoalScrub.minStep),
@@ -108,7 +125,11 @@ private struct GoalView: View {
             guard old != new else { return }
             Haptics.crownDetent()
             Settings.shared.dailyGoalMinutes = GoalScrub.minutes(forStep: new)
+            // The goal is half of every gauge the widgets draw, and it lives
+            // outside the interval log that normally triggers a republish.
+            store.refreshSnapshot()
         }
+        .onAppear { crownFocused = true }
         .navigationTitle("Goal")
     }
 }

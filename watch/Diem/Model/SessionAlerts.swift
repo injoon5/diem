@@ -11,31 +11,52 @@ import UserNotifications
 enum SessionAlerts {
     static let identifier = "app.diem.session.complete"
 
-    static func requestAuthorization() async {
-        _ = try? await UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound])
-    }
-
+    /// Scheduling is what needs permission, so scheduling is what asks for it.
+    ///
+    /// Prompting at launch spends the one prompt the system grants before the
+    /// user has started anything — and before there is any way to tell what the
+    /// alert would even be for.
     static func schedule(at date: Date, subject: String?) {
         cancel()
         let delay = date.timeIntervalSinceNow
         guard delay > 0 else { return }
 
-        let content = UNMutableNotificationContent()
-        content.title = subject ?? "Session complete"
-        content.body = subject == nil ? "Time's up." : "Time's up on \(subject!)."
-        content.interruptionLevel = .timeSensitive
+        Task {
+            let center = UNUserNotificationCenter.current()
+            guard await isAuthorized(center) else { return }
 
-        let request = UNNotificationRequest(
-            identifier: identifier,
-            content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
-        )
-        UNUserNotificationCenter.current().add(request)
+            let content = UNMutableNotificationContent()
+            content.title = subject ?? "Session complete"
+            content.body = subject == nil ? "Time's up." : "Time's up on \(subject!)."
+            content.interruptionLevel = .timeSensitive
+
+            try? await center.add(
+                UNNotificationRequest(
+                    identifier: identifier,
+                    content: content,
+                    trigger: UNTimeIntervalNotificationTrigger(
+                        timeInterval: delay,
+                        repeats: false
+                    )
+                )
+            )
+        }
     }
 
     static func cancel() {
         UNUserNotificationCenter.current()
             .removePendingNotificationRequests(withIdentifiers: [identifier])
+    }
+
+    private static func isAuthorized(_ center: UNUserNotificationCenter) async -> Bool {
+        switch await center.notificationSettings().authorizationStatus {
+        case .notDetermined:
+            return (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+        case .denied:
+            // Declined once is an answer. The in-app haptic still fires.
+            return false
+        default:
+            return true
+        }
     }
 }

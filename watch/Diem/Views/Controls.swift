@@ -25,7 +25,7 @@ struct SubjectButton: View {
                 Text(name ?? placeholder)
                     .font(Typography.text(.body))
                     .foregroundStyle(
-                        name == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)
+                        name == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
                     )
                     .lineLimit(1)
                     .id(name ?? placeholder)
@@ -35,7 +35,7 @@ struct SubjectButton: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 10)
-            .frame(minHeight: 44)
+            .frame(minWidth: 44, minHeight: 44)
             .contentShape(.rect)
             // The capsule grows into its new width instead of snapping.
             .animation(Motion.standard, value: name)
@@ -83,9 +83,9 @@ private struct PillButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(.white)
-            .glassEffect(.regular.tint(tint).interactive(), in: .capsule)
+            .glassEffect(.regular.tint(tint.opacity(0.34)).interactive(), in: .capsule)
             .brightness(configuration.isPressed ? 0.08 : 0)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(Motion.standard, value: configuration.isPressed)
     }
 }
@@ -105,7 +105,19 @@ struct CircleControl: View {
                 .frame(width: 44, height: 44)
                 .contentShape(.circle)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(GlassControlStyle(tint: tint))
         .accessibilityLabel(label)
+    }
+}
+
+private struct GlassControlStyle: ButtonStyle {
+    var tint: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .glassEffect(.regular.tint(tint.opacity(0.20)).interactive(), in: .circle)
+            .brightness(configuration.isPressed ? 0.08 : 0)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(Motion.standard, value: configuration.isPressed)
     }
 }

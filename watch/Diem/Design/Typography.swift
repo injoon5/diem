@@ -8,9 +8,19 @@ enum Typography {
     /// definition.
     enum Size {
         static let hero: CGFloat = 54
+        /// `1:36:56` is seven advances wide, and at `hero` that overruns the
+        /// smallest watch. One step down is enough — the clock is still the
+        /// largest thing on the screen by a wide margin.
+        static let heroCompact: CGFloat = 50
         static let heroTracking: CGFloat = -1.2
         /// The unit sits at ~40% of the numeral.
         static let heroUnit: CGFloat = 22
+
+        /// The total inside the Start ring. Sized to the ring rather than to
+        /// the type scale — at `title` it read as a caption in a large empty
+        /// circle.
+        static let ringNumeral: CGFloat = 40
+        static let ringNumeralTracking: CGFloat = -1.0
 
         static let title: CGFloat = 34
         static let titleTracking: CGFloat = -0.8

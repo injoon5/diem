@@ -18,6 +18,22 @@ enum Motion {
     static func fill(reduceMotion: Bool) -> Animation {
         reduceMotion ? .linear(duration: 0.2) : standard
     }
+
+    /// The ring only springs for a discrete mode change. Crown updates remain
+    /// unanimated so the display stays physically attached to the crown.
+    static func ringMode(reduceMotion: Bool) -> Animation {
+        reduceMotion
+            ? .linear(duration: 0.12)
+            : .spring(response: 0.42, dampingFraction: 0.88, blendDuration: 0.12)
+    }
+
+    /// A recorded total arrives infrequently, so it can settle softly without
+    /// looking like a timer or introducing lag into direct manipulation.
+    static func ringProgress(reduceMotion: Bool) -> Animation {
+        reduceMotion
+            ? .linear(duration: 0.16)
+            : .spring(response: 0.5, dampingFraction: 0.94, blendDuration: 0.1)
+    }
 }
 
 extension View {

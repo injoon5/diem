@@ -172,12 +172,13 @@ final class SessionStore {
     }
 
     /// Studied seconds per subject today, most-studied first. `nil` is free time.
-    func todayBySubject(asOf now: Date = .now) -> [(subjectID: UUID?, seconds: TimeInterval)] {
+    func todayBySubject(asOf now: Date = .now) -> [SubjectTotal] {
         var totals: [UUID?: TimeInterval] = [:]
         for interval in intervals(startingIn: Day.start(of: now)..<now.addingTimeInterval(1)) {
             totals[interval.subjectID, default: 0] += interval.duration(asOf: now)
         }
-        return totals.map { (subjectID: $0.key, seconds: $0.value) }.sorted { $0.seconds > $1.seconds }
+        return totals.map { SubjectTotal(subjectID: $0.key, seconds: $0.value) }
+            .sorted { $0.seconds > $1.seconds }
     }
 
     /// Studied seconds per study-day, oldest first.
@@ -366,6 +367,14 @@ final class SessionStore {
         )
     }
 
+    /// Re-publishes to the widgets after something outside the interval log
+    /// changed — the daily goal is the only such input.
+    func refreshSnapshot() { publishSnapshot() }
+
+    /// The last snapshot handed to the widgets, so an unchanged one is never
+    /// written again.
+    private var publishedSnapshot: DiemSnapshot?
+
     private func publishSnapshot() {
         let now = Date.now
         // What's already banked today, excluding the live session — the widget
@@ -390,8 +399,15 @@ final class SessionStore {
                 subjectColorIndex: subject?.colorIndex
             )
         }
-        SnapshotStore.write(snapshot)
-        WidgetCenter.shared.reloadAllTimelines()
+        guard snapshot != publishedSnapshot else { return }
+        publishedSnapshot = snapshot
+        // Writing the file and waking `chronod` are both blocking calls, and
+        // `commit()` runs them on the same tap that started the session. Off
+        // the main actor they cost the tap nothing.
+        Task.detached(priority: .utility) {
+            SnapshotStore.write(snapshot)
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 
     /// The longest an interval can plausibly run before the only explanation is
