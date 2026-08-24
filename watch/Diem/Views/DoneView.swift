@@ -4,11 +4,17 @@ import SwiftUI
 /// interval. Stays until tapped.
 struct DoneView: View {
     @Environment(SessionStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let session: Session
     /// Closing is the root's decision, not this screen's — this is one of the
     /// three root screens rather than something presented over them.
     let onClose: () -> Void
+
+    /// Discard has been tapped once and is waiting to be confirmed.
+    @State private var confirmingDiscard = false
+    /// Withdraws the confirmation if it is left standing.
+    @State private var confirmTimeout: Task<Void, Never>?
 
     var body: some View {
         ScrollView {
@@ -68,10 +74,22 @@ struct DoneView: View {
 
                 // Last, quiet, and unadorned: throwing the session away is the
                 // one action here that cannot be undone.
-                Button("Discard", role: .destructive) { discard() }
-                    .buttonStyle(.plain)
-                    .font(Typography.text(.footnote))
-                    .foregroundStyle(.tertiary)
+                //
+                // And asked twice, because of that. Ending a session — which
+                // keeps it — takes two taps on the screen before this one; a
+                // single tap here deleted it. The second tap is the same
+                // bargain the stop button makes: it withdraws itself rather
+                // than sitting there, since a stale question on a wrist is an
+                // accident waiting for the next tap.
+                Button(confirmingDiscard ? "Discard?" : "Discard", role: .destructive) {
+                    if confirmingDiscard { discard() } else { askToDiscard() }
+                }
+                .buttonStyle(.plain)
+                .font(Typography.text(.footnote))
+                // Brighter while it stands: at the same weight as the label it
+                // replaces, arming it would be a question mark nobody saw.
+                .foregroundStyle(confirmingDiscard ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                .animation(Motion.fill(reduceMotion: reduceMotion), value: confirmingDiscard)
             }
             .padding(.horizontal, 6)
             .padding(.bottom, 8)
@@ -83,6 +101,7 @@ struct DoneView: View {
                 Haptics.stop()
             }
         }
+        .onDisappear { confirmTimeout?.cancel() }
     }
 
     private func swatch(_ id: UUID?) -> AnyShapeStyle {
@@ -99,7 +118,20 @@ struct DoneView: View {
         Haptics.start()
     }
 
+    /// Arms the confirmation, and takes it back if nobody answers.
+    private func askToDiscard() {
+        confirmingDiscard = true
+        Haptics.crownDetent()
+        confirmTimeout?.cancel()
+        confirmTimeout = Task {
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled else { return }
+            confirmingDiscard = false
+        }
+    }
+
     private func discard() {
+        confirmTimeout?.cancel()
         store.discard(sessionID: session.id)
         Haptics.sessionAbandoned()
         onClose()

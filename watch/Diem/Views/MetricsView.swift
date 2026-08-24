@@ -180,7 +180,11 @@ struct MetricsView: View {
     private func cellColor(_ seconds: TimeInterval?, peak: TimeInterval) -> Color {
         guard let seconds, seconds > 0 else { return Palette.ghostTrack }
         let share = peak > 0 ? min(seconds / peak, 1) : 0
-        return Palette.accent.opacity(0.25 + 0.75 * share)
+        // The ring's copper, not the Action Button orange. Both charts on this
+        // screen measure the same thing, and they were measuring it in two
+        // different oranges — with the heatmap using the one the palette
+        // reserves for actions.
+        return Palette.ring.opacity(0.25 + 0.75 * share)
     }
 
     // MARK: - Buckets
