@@ -10,14 +10,15 @@ struct SubjectPicker: View {
     var onPick: (UUID?) -> Void
 
     var body: some View {
+        let subjects = store.subjects()
         List {
             Section {
-                ForEach(store.subjects()) { subject in
+                ForEach(subjects) { subject in
                     row(name: subject.name, colorIndex: subject.colorIndex, id: subject.id)
                 }
                 row(name: "Free", colorIndex: nil, id: nil)
             }
-            if store.subjects().isEmpty {
+            if subjects.isEmpty {
                 Section {
                     Text("Add subjects in Settings.")
                         .font(Typography.text(.footnote))

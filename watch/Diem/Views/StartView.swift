@@ -16,6 +16,10 @@ struct StartView: View {
     @State private var showingSubjects = false
     @State private var showingSettings = false
     @State private var showingMetrics = false
+    /// A fixed anchor, so the minute tick doesn't re-phase on every redraw —
+    /// and the crown, which redraws this view far faster than once a minute,
+    /// doesn't hand the timeline a new schedule on every event.
+    @State private var anchor = Date.now
 
     /// The whole step the crown has settled nearest — what the numeral reads
     /// and what a tap on Start commits.
@@ -29,7 +33,7 @@ struct StartView: View {
     private var isScrubbing: Bool { crownDetent > 0 }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 60)) { context in
+        TimelineView(.periodic(from: anchor, by: 60)) { context in
             content(now: context.date)
         }
         .containerBackground(.black, for: .navigation)
@@ -76,10 +80,13 @@ struct StartView: View {
                 // start action stays pinned to the bottom edge instead of
                 // drifting with the ring's flexible space.
                 ToolbarItem(placement: .bottomBar) {
+                    // Looked up once. The crown redraws this bar on every
+                    // event, and the name and the colour are one subject.
+                    let subject = store.subject(subjectID)
                     HStack(spacing: 6) {
                         SubjectButton(
-                            name: store.subject(subjectID)?.name,
-                            colorIndex: store.subject(subjectID)?.colorIndex
+                            name: subject?.name,
+                            colorIndex: subject?.colorIndex
                         ) {
                             showingSubjects = true
                         }

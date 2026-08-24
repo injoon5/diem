@@ -48,5 +48,16 @@ lighter, tracking loosened, no controls — and no animation at all, because the
 display refreshes about once a minute and queued animations land as stutter on
 the next wake.
 
+**Nothing on a redraw path touches SwiftData.** Every read the store exposes —
+`elapsed`, `remaining`, `isPaused`, `activeSubjectID`, `todaySeconds`,
+`dailySeconds`, `subject(_:)` — is served from a cache held behind
+`@ObservationIgnored` and dropped in `commit()`, which is the only place the log
+changes. The running clock redraws once a second and the crown fires far faster
+than that; a fetch and a session assembly per read put SwiftData on the critical
+path of the numeral roll. A view takes its reading once and passes it down
+(`RunningView.Tick`) rather than asking again per element, and a `TimelineView`
+schedule is anchored to `@State`, never to `.now`, or every redraw hands it a
+new schedule.
+
 **The accent is never on text.** International Orange in Display P3, on the ring
 and the pill fill only. There is deliberately no app-wide tint.

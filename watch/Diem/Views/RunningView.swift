@@ -16,17 +16,26 @@ struct RunningView: View {
     /// A fixed anchor, so the tick doesn't re-phase on every redraw.
     @State private var anchor = Date.now
 
+    /// Dimmed, the display refreshes about once a minute, so a per-second
+    /// schedule there only burns budget. Paused, the numeral is frozen — the
+    /// same waste with the screen lit.
+    private var cadence: TimeInterval {
+        isLuminanceReduced || store.isPaused ? 60 : 1
+    }
+
     var body: some View {
-        // Dimmed, the display refreshes about once a minute — asking for a
-        // per-second schedule there only burns budget.
-        TimelineView(.periodic(from: anchor, by: isLuminanceReduced ? 60 : 1)) { context in
+        TimelineView(.periodic(from: anchor, by: cadence)) { context in
+            // One reading per redraw, taken here and passed down. Everything
+            // below used to ask the store for it again — the measure alone was
+            // built twice, once to size the numeral and once to fill it.
+            let tick = reading(at: context.date)
             // The watch dimming swaps one layout for the other, which would
             // reseed an `onChange` attached to the layout itself and lose the
             // crossing. The container it hangs off has to outlive that swap.
             ZStack {
-                layout(now: context.date)
+                layout(tick)
             }
-            .onChange(of: hasHitZero(now: context.date)) { _, hitZero in
+            .onChange(of: tick.hasHitZero) { _, hitZero in
                 guard hitZero, !announcedZero else { return }
                 announcedZero = true
                 Haptics.sessionComplete()
@@ -90,25 +99,67 @@ struct RunningView: View {
         }
     }
 
-    // MARK: - Layouts
+    // MARK: - The clock
 
-    @ViewBuilder
-    private func layout(now: Date) -> some View {
-        if isLuminanceReduced {
-            alwaysOn(now: now)
-        } else {
-            active(now: now)
+    /// One reading of the live session: the numbers once, and everything the
+    /// two layouts need derived from them without going back to the store.
+    private struct Tick {
+        /// Seconds left on a timed session — `nil` when it is open-ended.
+        let remaining: TimeInterval?
+        let elapsed: TimeInterval
+        let plannedSec: Int?
+
+        var isOvertime: Bool { (remaining ?? 1) < 0 }
+        var hasHitZero: Bool { (remaining ?? 1) <= 0 }
+
+        var measure: Format.Measure {
+            guard let remaining else {
+                return Format.clock(elapsed, span: elapsed, countsDown: false)
+            }
+            if remaining < 0 { return Format.overtime(-remaining, span: -remaining) }
+            return Format.clock(remaining, span: plannedSec.map(Double.init))
+        }
+
+        /// Minutes only, but still unambiguous: `+3 m` dimmed is three minutes
+        /// over, not three minutes left.
+        var alwaysOnMeasure: Format.Measure {
+            var measure = Format.minutesOnly(abs(remaining ?? elapsed))
+            guard isOvertime else { return measure }
+            measure.value = "+" + measure.value
+            measure.widest = "+" + measure.widest
+            measure.spoken += " over"
+            return measure
         }
     }
 
-    private func active(now: Date) -> some View {
+    private func reading(at now: Date) -> Tick {
+        Tick(
+            remaining: store.remaining(asOf: now),
+            elapsed: store.elapsed(asOf: now),
+            plannedSec: store.activePlannedSec
+        )
+    }
+
+    // MARK: - Layouts
+
+    @ViewBuilder
+    private func layout(_ tick: Tick) -> some View {
+        if isLuminanceReduced {
+            alwaysOn(tick)
+        } else {
+            active(tick)
+        }
+    }
+
+    private func active(_ tick: Tick) -> some View {
         let subject = store.subject(store.activeSubjectID)
+        let measure = tick.measure
         return VStack(spacing: 2) {
             Spacer(minLength: 0)
             HeroNumeral(
-                measure: measure(now: now),
-                size: heroSize(for: measure(now: now)),
-                dimmed: isOvertime(now: now),
+                measure: measure,
+                size: heroSize(for: measure),
+                dimmed: tick.isOvertime,
                 drawsAsOneField: true
             )
             .padding(.horizontal, 6)
@@ -180,10 +231,10 @@ struct RunningView: View {
 
     /// A second layout, not a dimmed copy: minutes only, one weight lighter
     /// (dimming optically thickens strokes), tracking loosened, no controls.
-    private func alwaysOn(now: Date) -> some View {
+    private func alwaysOn(_ tick: Tick) -> some View {
         VStack(spacing: 2) {
             HeroNumeral(
-                measure: alwaysOnMeasure(now: now),
+                measure: tick.alwaysOnMeasure,
                 tracking: Typography.Size.heroTracking + 0.6,
                 weight: .regular,
                 drawsAsOneField: true
@@ -206,42 +257,5 @@ struct RunningView: View {
     /// so it never resizes mid-session as digits roll.
     private func heroSize(for measure: Format.Measure) -> CGFloat {
         measure.widest.count > 6 ? Typography.Size.heroCompact : Typography.Size.hero
-    }
-
-    private func displaySeconds(now: Date) -> TimeInterval {
-        if let remaining = store.remaining(asOf: now) { return remaining }
-        return store.elapsed(asOf: now)
-    }
-
-    /// Minutes only, but still unambiguous: `+3 m` dimmed is three minutes over,
-    /// not three minutes left.
-    private func alwaysOnMeasure(now: Date) -> Format.Measure {
-        var measure = Format.minutesOnly(abs(displaySeconds(now: now)))
-        guard isOvertime(now: now) else { return measure }
-        measure.value = "+" + measure.value
-        measure.widest = "+" + measure.widest
-        measure.spoken += " over"
-        return measure
-    }
-
-    private func isOvertime(now: Date) -> Bool {
-        (store.remaining(asOf: now) ?? 1) < 0
-    }
-
-    private func hasHitZero(now: Date) -> Bool {
-        guard let remaining = store.remaining(asOf: now) else { return false }
-        return remaining <= 0
-    }
-
-    private func measure(now: Date) -> Format.Measure {
-        let span = store.activeSession?.plannedSec.map(Double.init)
-        guard let remaining = store.remaining(asOf: now) else {
-            let elapsed = store.elapsed(asOf: now)
-            return Format.clock(elapsed, span: elapsed, countsDown: false)
-        }
-        if remaining < 0 {
-            return Format.overtime(-remaining, span: -remaining)
-        }
-        return Format.clock(remaining, span: span)
     }
 }

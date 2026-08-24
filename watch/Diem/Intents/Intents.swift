@@ -1,6 +1,7 @@
 import AppIntents
 import Foundation
 import SwiftData
+import WatchKit
 
 /// Subjects, as Siri and Shortcuts see them.
 struct SubjectEntity: AppEntity, Identifiable {
@@ -91,13 +92,24 @@ struct EndSessionIntent: AppIntent {
         let store = DiemContainer.store
         guard store.activeSessionID != nil else { return .result(dialog: "Nothing is running.") }
         // Ending from Siri or a widget must not leave a Done screen queued for
-        // whenever the app is next opened.
-        guard let session = store.end(presentingDone: false) else {
+        // whenever the app is next opened. Ending from the Smart Stack card
+        // with the app already on screen behind it is a different thing: that
+        // ends the session the user is looking at, and it should land on the
+        // summary like any other end.
+        guard let session = store.end(presentingDone: Self.appIsOnScreen) else {
             Haptics.sessionAbandoned()
             return .result(dialog: "Too short to keep.")
         }
         Haptics.sessionComplete()
         return .result(dialog: "\(Format.duration(session.studiedSec)) studied.")
+    }
+
+    /// Whether this is the app, foregrounded — not the widget extension, which
+    /// runs the same intent in its own process and has no screen to land on.
+    @MainActor
+    private static var appIsOnScreen: Bool {
+        guard Bundle.main.bundleURL.pathExtension != "appex" else { return false }
+        return WKApplication.shared().applicationState == .active
     }
 }
 

@@ -39,9 +39,68 @@ final class SessionStore {
 
     // MARK: - Live session
 
-    var isRunning: Bool { openInterval() != nil }
-    var isPaused: Bool { activeSessionID != nil && openInterval() == nil }
+    /// Everything the Running screen reads, derived once per change instead of
+    /// once per frame.
+    ///
+    /// The clock redraws at 1Hz and the crown fires far faster than that, so
+    /// the per-frame path has to be arithmetic. A fetch and a session assembly
+    /// behind every read is what put SwiftData on the critical path of the
+    /// numeral roll. The log only ever changes through `commit()`, so this is
+    /// rebuilt there and nowhere else.
+    private struct LiveSummary {
+        let startedAt: Date
+        /// Studied seconds in the intervals that have already closed.
+        let bankedSec: TimeInterval
+        /// Start of the open interval — `nil` while paused.
+        let openedAt: Date?
+        let plannedSec: Int?
+        /// Subject of the open interval, or of the last one while paused.
+        let subjectID: UUID?
 
+        /// Studied seconds, paused gaps excluded.
+        func studied(asOf now: Date) -> TimeInterval {
+            guard let openedAt else { return bankedSec }
+            return bankedSec + max(0, now.timeIntervalSince(openedAt))
+        }
+    }
+
+    /// Doubly optional on purpose: the outer `nil` is "not computed yet", the
+    /// inner one is "computed, and nothing is running".
+    @ObservationIgnored private var liveCache: LiveSummary??
+
+    private func live() -> LiveSummary? {
+        observe()
+        if let liveCache { return liveCache }
+        let summary = buildLive()
+        liveCache = .some(summary)
+        return summary
+    }
+
+    private func buildLive() -> LiveSummary? {
+        guard let activeSessionID else { return nil }
+        let intervals = intervals(inSession: activeSessionID)
+        guard let first = intervals.first, let last = intervals.last else { return nil }
+        let open = intervals.first { $0.isOpen }
+        var banked: TimeInterval = 0
+        for interval in intervals where !interval.isOpen { banked += interval.duration() }
+        return LiveSummary(
+            startedAt: first.startedAt,
+            bankedSec: banked,
+            openedAt: open?.startedAt,
+            plannedSec: first.plannedSec,
+            subjectID: (open ?? last).subjectID
+        )
+    }
+
+    var isRunning: Bool { live()?.openedAt != nil }
+    var isPaused: Bool { live().map { $0.openedAt == nil } ?? false }
+
+    /// The planned length of the live session, without assembling the session
+    /// to get at it — what the running clock needs once a second.
+    var activePlannedSec: Int? { live()?.plannedSec }
+
+    /// The live session as a whole value. Assembling it walks the intervals, so
+    /// the per-frame path uses `elapsed` and `activePlannedSec` instead.
     var activeSession: Session? {
         guard let activeSessionID else { return nil }
         return intervals(inSession: activeSessionID).sessions().first
@@ -49,8 +108,7 @@ final class SessionStore {
 
     /// Studied seconds in the live session. Paused gaps don't count.
     func elapsed(asOf now: Date = .now) -> TimeInterval {
-        guard let activeSessionID else { return 0 }
-        return intervals(inSession: activeSessionID).reduce(0) { $0 + $1.duration(asOf: now) }
+        live()?.studied(asOf: now) ?? 0
     }
 
     /// Seconds left on a timed session. Negative once it rolls into overtime.
@@ -59,18 +117,21 @@ final class SessionStore {
     /// completion (`ended_at - started_at >= planned_sec`) still agrees:
     /// wall-clock span is never shorter than studied time.
     func remaining(asOf now: Date = .now) -> TimeInterval? {
-        guard let planned = activeSession?.plannedSec else { return nil }
-        return Double(planned) - elapsed(asOf: now)
+        guard let live = live(), let planned = live.plannedSec else { return nil }
+        return Double(planned) - live.studied(asOf: now)
     }
 
     var activeSubjectID: UUID? {
         if let pendingSubjectID { return pendingSubjectID }
-        return openInterval()?.subjectID ?? lastInterval()?.subjectID
+        return live()?.subjectID
     }
 
     @discardableResult
     func start(subjectID: UUID?, plannedSec: Int?, at now: Date = .now) -> UUID {
-        if activeSessionID != nil { end(at: now) }
+        // Whatever was running is closed and banked, but its summary is not
+        // what the user asked for — they asked for a new session. Leaving one
+        // queued puts the Done screen in front of a session that is running.
+        if activeSessionID != nil { end(at: now, presentingDone: false) }
         let sessionID = UUID()
         let interval = Interval(
             sessionID: sessionID,
@@ -157,12 +218,33 @@ final class SessionStore {
 
     // MARK: - Metrics
 
-    func seconds(from start: Date, to end: Date, asOf now: Date = .now) -> TimeInterval {
-        intervals(startingIn: start..<end).reduce(0) { $0 + $1.duration(asOf: now) }
-    }
+    /// Study banked today by the intervals that have already closed.
+    ///
+    /// The Start ring reads today's total on every crown event, and the only
+    /// part of it that moves between commits is the open interval — so the
+    /// fetch happens once per change and the live part is added on top.
+    @ObservationIgnored private var todayCache: (dayStart: Date, banked: TimeInterval)?
 
     func todaySeconds(asOf now: Date = .now) -> TimeInterval {
-        seconds(from: Day.start(of: now), to: now.addingTimeInterval(1), asOf: now)
+        observe()
+        let dayStart = Day.start(of: now)
+        let banked: TimeInterval
+        if let todayCache, todayCache.dayStart == dayStart {
+            banked = todayCache.banked
+        } else {
+            // Open-ended upper bound rather than `now`: no interval is ever
+            // recorded in the future, so this is the same set of rows and the
+            // answer no longer depends on the instant it was asked.
+            banked = intervals(startingIn: dayStart..<Date.distantFuture)
+                .reduce(into: 0) { total, interval in
+                    if !interval.isOpen { total += interval.duration() }
+                }
+            todayCache = (dayStart, banked)
+        }
+        guard let live = live(), let openedAt = live.openedAt, openedAt >= dayStart else {
+            return banked
+        }
+        return banked + max(0, now.timeIntervalSince(openedAt))
     }
 
     var goalSeconds: TimeInterval { settings.dailyGoalSeconds }
@@ -181,15 +263,37 @@ final class SessionStore {
             .sorted { $0.seconds > $1.seconds }
     }
 
+    /// Closed-interval totals per study-day, oldest first, held between reads.
+    ///
+    /// Metrics asks for the same window several times while it lays itself out,
+    /// and the aggregation walks a quarter of a year of intervals and as many
+    /// calendar additions. Doing that once per change instead of once per body
+    /// is the difference between the sheet sliding in and the sheet hitching.
+    @ObservationIgnored private var dailyCache: (days: Int, dayStart: Date, entries: [(day: Date, seconds: TimeInterval)])?
+
     /// Studied seconds per study-day, oldest first.
     func dailySeconds(days: Int, asOf now: Date = .now) -> [(day: Date, seconds: TimeInterval)] {
-        let starts = Day.recentStarts(from: now, count: days).reversed()
-        guard let earliest = starts.first else { return [] }
-        var totals: [Date: TimeInterval] = [:]
-        for interval in intervals(startingIn: earliest..<now.addingTimeInterval(1)) {
-            totals[Day.start(of: interval.startedAt), default: 0] += interval.duration(asOf: now)
+        observe()
+        let dayStart = Day.start(of: now)
+        var entries: [(day: Date, seconds: TimeInterval)]
+        if let dailyCache, dailyCache.days == days, dailyCache.dayStart == dayStart {
+            entries = dailyCache.entries
+        } else {
+            let starts = Array(Day.recentStarts(from: now, count: days).reversed())
+            guard let earliest = starts.first else { return [] }
+            var totals: [Date: TimeInterval] = [:]
+            for interval in intervals(startingIn: earliest..<Date.distantFuture) where !interval.isOpen {
+                totals[Day.start(of: interval.startedAt), default: 0] += interval.duration()
+            }
+            entries = starts.map { (day: $0, seconds: totals[$0] ?? 0) }
+            dailyCache = (days, dayStart, entries)
         }
-        return starts.map { (day: $0, seconds: totals[$0] ?? 0) }
+        // The one interval the cache can't hold: the one still running.
+        guard let live = live(), let openedAt = live.openedAt else { return entries }
+        let day = Day.start(of: openedAt)
+        guard let index = entries.firstIndex(where: { $0.day == day }) else { return entries }
+        entries[index].seconds += max(0, now.timeIntervalSince(openedAt))
+        return entries
     }
 
     /// Consecutive days with any study at all. Breaks only on a zero day; today
@@ -219,21 +323,36 @@ final class SessionStore {
 
     // MARK: - Subjects
 
+    /// The subject list is read several times per body — a picker asks for it
+    /// twice, a toolbar button once for the name and once for the colour — and
+    /// it only changes when something writes. One fetch per change covers all
+    /// of them; `revision` is what invalidates it.
+    @ObservationIgnored private var subjectListCache: [Bool: [Subject]] = [:]
+    @ObservationIgnored private var subjectCache: [UUID: Subject?] = [:]
+
     func subjects(includeArchived: Bool = false) -> [Subject] {
         observe()
+        if let cached = subjectListCache[includeArchived] { return cached }
         let descriptor = FetchDescriptor<Subject>(
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
         let all = (try? context.fetch(descriptor)) ?? []
-        return all.filter { $0.deletedAt == nil && (includeArchived || !$0.archived) }
+        let visible = all.filter { $0.deletedAt == nil && (includeArchived || !$0.archived) }
+        subjectListCache[includeArchived] = visible
+        return visible
     }
 
     func subject(_ id: UUID?) -> Subject? {
         observe()
         guard let id else { return nil }
+        // Misses are cached too: the running screen asks once a second, and a
+        // subject that isn't there is exactly as stable as one that is.
+        if let cached = subjectCache[id] { return cached }
         var descriptor = FetchDescriptor<Subject>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
-        return try? context.fetch(descriptor).first
+        let found = try? context.fetch(descriptor).first
+        subjectCache[id] = .some(found)
+        return found
     }
 
     @discardableResult
@@ -287,15 +406,20 @@ final class SessionStore {
             (try? context.fetch(FetchDescriptor<Subject>()))?.map { ($0.id, $0) } ?? [],
             uniquingKeysWith: { first, _ in first }
         )
+        // A pull that changes nothing is the normal case, and committing it
+        // anyway would bump the revision and re-run every body on screen.
+        var changed = false
         for dto in incoming {
             if let local = existing[dto.id] {
                 guard dto.updatedAt > local.updatedAt else { continue }
+                changed = true
                 local.name = dto.name
                 local.colorIndex = dto.colorIndex
                 local.archived = dto.archived
                 local.deletedAt = dto.deletedAt
                 local.updatedAt = dto.updatedAt
             } else {
+                changed = true
                 context.insert(
                     Subject(
                         id: dto.id,
@@ -308,6 +432,7 @@ final class SessionStore {
                 )
             }
         }
+        guard changed else { return }
         commit()
     }
 
@@ -350,8 +475,19 @@ final class SessionStore {
     private func commit() {
         try? context.save()
         revision &+= 1
+        invalidateCaches()
         publishSnapshot()
         rescheduleAlert()
+    }
+
+    /// Everything derived from the log, dropped in one place. The log changes
+    /// only here, so this is the only place it has to happen.
+    private func invalidateCaches() {
+        liveCache = nil
+        todayCache = nil
+        dailyCache = nil
+        subjectListCache.removeAll(keepingCapacity: true)
+        subjectCache.removeAll(keepingCapacity: true)
     }
 
     /// One place decides whether a deadline tap is pending: a timed session that
@@ -380,11 +516,11 @@ final class SessionStore {
         // What's already banked today, excluding the live session — the widget
         // adds the running count itself, so its gauge doesn't freeze between
         // timeline refreshes.
-        let live = activeSession
-        let banked = todaySeconds(asOf: now) - (live?.studiedSec ?? 0)
+        let summary = live()
+        let banked = todaySeconds(asOf: now) - (summary?.studied(asOf: now) ?? 0)
         var snapshot = DiemSnapshot(todaySec: max(0, banked), goalSec: goalSeconds)
-        if let session = live {
-            let studied = session.studiedSec
+        if let session = summary {
+            let studied = session.studied(asOf: now)
             let subject = subject(activeSubjectID)
             snapshot.session = DiemSnapshot.Live(
                 startedAt: session.startedAt,

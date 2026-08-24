@@ -7,6 +7,11 @@ struct MetricsView: View {
 
     private let now = Date.now
 
+    /// Twelve weeks plus the alignment week. Both charts read the same window
+    /// so the store aggregates the log once and hands the second one the same
+    /// answer, instead of walking a quarter of a year twice per layout.
+    private static let window = 7 * 12 + 7
+
     private struct HeatmapCell: Identifiable {
         let id: Date
         let seconds: TimeInterval?
@@ -107,6 +112,9 @@ struct MetricsView: View {
                 let barWidth = min(14, max(8, (proxy.size.width - spacing * 6) / 7))
                 HStack(alignment: .bottom, spacing: spacing) {
                     ForEach(days, id: \.day) { entry in
+                        // Formatted once: the same string labels the bar and
+                        // speaks it, and a `DateFormatter` is not free.
+                        let initial = weekdayInitial(entry.day)
                         VStack(spacing: 3) {
                             ZStack(alignment: .bottom) {
                                 Capsule()
@@ -125,13 +133,13 @@ struct MetricsView: View {
                                 Capsule()
                                     .stroke(.white.opacity(0.04), lineWidth: 1)
                             }
-                            Text(weekdayInitial(entry.day))
+                            Text(initial)
                                 .font(.system(size: 9))
                                 .foregroundStyle(.tertiary)
                         }
                         .frame(maxWidth: .infinity)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(weekdayInitial(entry.day))
+                        .accessibilityLabel(initial)
                         .accessibilityValue(Format.duration(entry.seconds))
                     }
                 }
@@ -182,7 +190,7 @@ struct MetricsView: View {
         let offset = (weekday - calendar.firstWeekday + 7) % 7
         guard let weekStart = calendar.date(byAdding: .day, value: -offset, to: today) else { return [] }
         let totals = Dictionary(
-            uniqueKeysWithValues: store.dailySeconds(days: 14, asOf: now).map { ($0.day, $0.seconds) }
+            uniqueKeysWithValues: store.dailySeconds(days: Self.window, asOf: now).map { ($0.day, $0.seconds) }
         )
         return (0..<7).compactMap { index in
             guard let day = calendar.date(byAdding: .day, value: index, to: weekStart) else { return nil }
@@ -201,7 +209,7 @@ struct MetricsView: View {
         else { return [] }
 
         let totals = Dictionary(
-            uniqueKeysWithValues: store.dailySeconds(days: 7 * 12 + 7, asOf: now).map { ($0.day, $0.seconds) }
+            uniqueKeysWithValues: store.dailySeconds(days: Self.window, asOf: now).map { ($0.day, $0.seconds) }
         )
         return (0..<12).compactMap { week in
             guard let weekDate = calendar.date(byAdding: .day, value: week * 7, to: firstWeekStart) else {
