@@ -60,11 +60,17 @@ The web side is verified end to end: typecheck, build, unit tests, and a live
 run against a real Postgres covering pairing, idempotent interval push,
 last-write-wins subjects, cursored pull, the 4am bucketing and the 401 paths.
 
-Two things from the plan are deliberately not wired yet, both flagged there as
-needing confirmation against the watchOS 27 SDK first:
+Session relevance is now wired: `SnapshotProvider.relevance()` claims a window
+for as long as a session is running, so the Smart Stack surfaces the card on
+session start instead of waiting to be added by hand. It is written against the
+documented watchOS `WidgetRelevance` API but has not been compiled — that needs
+an Apple SDK, like everything else below.
 
-- The Smart Stack `RelevanceConfiguration` — the relevance signal on session
-  start, and points-of-interest relevance for the start card.
+Two things from the plan are still not wired, both flagged there as needing
+confirmation against the watchOS 27 SDK first:
+
+- Points-of-interest relevance, for surfacing the start card at known study
+  locations.
 - `AccessoryWidgetGroup` for the rectangular complication, which is laid out by
   hand instead.
 

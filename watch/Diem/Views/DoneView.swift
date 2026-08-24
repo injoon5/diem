@@ -43,8 +43,8 @@ struct DoneView: View {
                     .padding(.top, 2)
                 }
 
-                GlassEffectContainer(spacing: 8) {
-                    HStack(spacing: 8) {
+                GlassEffectContainer(spacing: 6) {
+                    VStack(spacing: 6) {
                         EndActionButton(
                             title: "Again",
                             systemImage: "arrow.clockwise",
@@ -100,8 +100,9 @@ struct DoneView: View {
     }
 }
 
-/// One of the two glass actions that close the screen. They share a row, so
-/// each takes half the width rather than sizing to its own label.
+/// One of the two glass actions that close the screen. They are stacked rather
+/// than side by side — on a watch face a full-width capsule is a far easier
+/// target than half of one, and neither label has to shrink to fit.
 private struct EndActionButton: View {
     let title: String
     let systemImage: String

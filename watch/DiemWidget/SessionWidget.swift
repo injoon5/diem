@@ -5,13 +5,16 @@ import WidgetKit
 /// The Smart Stack card. Nothing here depends on the app being foregrounded —
 /// crown out and this holds the session.
 ///
-/// Not wired yet: the `RelevanceConfiguration` that floats this to the top of
-/// the stack on session start, and points-of-interest relevance for surfacing
-/// the start card at known study locations. Both want confirming against the
-/// watchOS 27 SDK before being written in.
+/// The provider claims relevance while a session is running, which is what
+/// surfaces this in the stack on its own rather than only after being added by
+/// hand. Points-of-interest relevance for the start card — the one at known
+/// study locations — is still not wired.
 struct SessionWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: SnapshotStore.sessionWidgetKind, provider: SnapshotProvider()) { entry in
+        StaticConfiguration(
+            kind: SnapshotStore.sessionWidgetKind,
+            provider: SnapshotProvider(claimsRelevance: true)
+        ) { entry in
             SessionWidgetView(snapshot: entry.snapshot, now: entry.date)
                 .containerBackground(.clear, for: .widget)
         }
