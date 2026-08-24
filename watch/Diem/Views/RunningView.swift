@@ -52,7 +52,8 @@ struct RunningView: View {
                 // Confirming happens in the same two positions rather than in a
                 // dialog — the left control becomes the way out and the right
                 // one becomes the commitment, so nothing on screen moves and
-                // the thumb is already where it needs to be.
+                // the thumb is already where it needs to be. The question goes
+                // in the gap between them, which is empty until it is asked.
                 ToolbarItem(placement: .bottomBar) {
                     HStack(spacing: 0) {
                         CircleControl(
@@ -71,6 +72,25 @@ struct RunningView: View {
                         }
 
                         Spacer(minLength: 8)
+
+                        // Asked between the two answers rather than from the
+                        // top of the screen — as far from the controls as the
+                        // display allows, and a glance away from the thumb
+                        // about to commit. Short because the gap between two
+                        // 44pt targets is barely 56pt on the smallest watch;
+                        // flanked by an ✕ and a ✓ there is nothing else it
+                        // could be asking. Untinted, like every other label
+                        // here: the accent belongs to the control that commits,
+                        // never to the words next to it.
+                        if confirmingEnd {
+                            Text("End?")
+                                .sectionLabelStyle()
+                                .lineLimit(1)
+                                .fixedSize()
+                                .labelSwap(reduceMotion: reduceMotion)
+
+                            Spacer(minLength: 8)
+                        }
 
                         CircleControl(
                             systemImage: confirmingEnd ? "checkmark" : "stop.fill",
@@ -181,7 +201,6 @@ struct RunningView: View {
             if let status {
                 Text(status)
                     .sectionLabelStyle()
-                    .foregroundStyle(confirmingEnd ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(.secondary))
                     .id(status)
                     .labelSwap(reduceMotion: reduceMotion)
             }
@@ -189,11 +208,10 @@ struct RunningView: View {
         .animation(Motion.fill(reduceMotion: reduceMotion), value: status)
     }
 
-    /// One line, one state: the question outranks the pause it interrupts.
-    private var status: String? {
-        if confirmingEnd { return "End session?" }
-        return store.isPaused ? "Paused" : nil
-    }
+    /// The top line reports state, and nothing else. The question that used to
+    /// outrank it now asks from between the controls that answer it, so a
+    /// paused session stays legible while it is being asked.
+    private var status: String? { store.isPaused ? "Paused" : nil }
 
     // MARK: - Actions
 
