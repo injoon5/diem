@@ -1,0 +1,98 @@
+name: Diem
+options:
+  bundleIdPrefix: app.diem
+  createIntermediateGroups: true
+  deploymentTarget:
+    watchOS: "27.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_TEAM: ""
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    GENERATE_INFOPLIST_FILE: NO
+
+# Model, design and intents are shared with the widget extension; views are not.
+fileGroups:
+  - ../README.md
+
+targets:
+  Diem:
+    type: application
+    platform: watchOS
+    sources:
+      - path: Diem
+    dependencies:
+      - target: DiemWidget
+        embed: true
+    entitlements:
+      path: Diem/Diem.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.app.diem
+    info:
+      path: Diem/Info.plist
+      properties:
+        CFBundleDisplayName: Diem
+        WKApplication: true
+        WKRunsIndependentlyOfCompanionApp: true
+        WKSupportsLiveActivityLaunchAttributes: true
+        UIBackgroundModes:
+          - workout-processing
+        NSHealthShareUsageDescription: ""
+        DiemAPIBaseURL: https://diem.app
+        NSSupportsLiveActivities: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.diem.watchkitapp
+        INFOPLIST_KEY_CFBundleDisplayName: Diem
+
+  DiemWidget:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: DiemWidget
+      - path: Diem/Model
+      - path: Diem/Design
+      - path: Diem/Intents
+      - path: Diem/Sync/DTO.swift
+    entitlements:
+      path: DiemWidget/DiemWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.app.diem
+    info:
+      path: DiemWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Diem
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.diem.watchkitapp.widget
+
+  DiemTests:
+    type: bundle.unit-test
+    platform: watchOS
+    sources:
+      - path: DiemTests
+    dependencies:
+      - target: Diem
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.diem.watchkitapp.tests
+
+schemes:
+  Diem:
+    build:
+      targets:
+        Diem: all
+        DiemWidget: all
+    test:
+      targets:
+        - DiemTests
+    run:
+      config: Debug
