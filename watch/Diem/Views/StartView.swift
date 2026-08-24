@@ -7,6 +7,11 @@ struct StartView: View {
 
     @State private var crownStep: Double = 0
     @State private var subjectID: UUID?
+    /// The picker has been opened at least once, so "Free" stays chosen instead
+    /// of being overwritten by the last subject on the next appearance.
+    @State private var subjectChosen = false
+    /// Set while the crown is reset in code, so the reset doesn't click.
+    @State private var resettingCrown = false
     @State private var showingSubjects = false
     @State private var showingSettings = false
     @State private var showingMetrics = false
@@ -32,7 +37,10 @@ struct StartView: View {
             isHapticFeedbackEnabled: false
         )
         .onChange(of: Int(crownStep.rounded())) { old, new in
-            guard old != new else { return }
+            guard old != new, !resettingCrown else {
+                resettingCrown = false
+                return
+            }
             Haptics.crownDetent()
         }
         .toolbar {
@@ -53,12 +61,16 @@ struct StartView: View {
         .sheet(isPresented: $showingSubjects) {
             SubjectPicker(selection: subjectID) { picked in
                 subjectID = picked
+                subjectChosen = true
                 showingSubjects = false
             }
         }
         .sheet(isPresented: $showingSettings) { SettingsView() }
         .sheet(isPresented: $showingMetrics) { MetricsView() }
-        .onAppear { if subjectID == nil { subjectID = Settings.shared.lastSubjectID } }
+        .onAppear {
+            guard !subjectChosen else { return }
+            subjectID = Settings.shared.lastSubjectID
+        }
     }
 
     private func content(now: Date) -> some View {
@@ -71,13 +83,24 @@ struct StartView: View {
                     namespace: ring
                 )
                 HeroNumeral(
-                    measure: isScrubbing ? Format.total(scrubSeconds) : Format.total(store.todaySeconds(asOf: now)),
+                    measure: isScrubbing
+                        ? Format.total(scrubSeconds)
+                        : Format.total(store.todaySeconds(asOf: now)),
                     size: Typography.Size.title,
                     tracking: Typography.Size.titleTracking
                 )
                 .padding(.horizontal, 10)
+                // Today's total and the duration being scrubbed are different
+                // quantities. Rolling one into the other would read as the
+                // number counting itself down, so the swap replaces instead —
+                // in the same beat as the ring's cross-fade.
+                .id(isScrubbing)
+                .transition(reduceMotion ? .opacity : .blurReplace)
             }
             .frame(maxHeight: .infinity)
+            .animation(Motion.fill(reduceMotion: reduceMotion), value: isScrubbing)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(isScrubbing ? "Session length" : "Today")
 
             if !isLuminanceReduced {
                 SubjectButton(
@@ -103,6 +126,7 @@ struct StartView: View {
         let planned = isScrubbing ? Int(scrubSeconds) : nil
         store.start(subjectID: subjectID, plannedSec: planned)
         Haptics.start()
+        resettingCrown = crownStep != 0
         crownStep = 0
     }
 }

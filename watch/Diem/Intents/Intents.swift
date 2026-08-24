@@ -90,7 +90,9 @@ struct EndSessionIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let store = DiemContainer.store
         guard store.activeSessionID != nil else { return .result(dialog: "Nothing is running.") }
-        guard let session = store.end() else {
+        // Ending from Siri or a widget must not leave a Done screen queued for
+        // whenever the app is next opened.
+        guard let session = store.end(presentingDone: false) else {
             Haptics.sessionAbandoned()
             return .result(dialog: "Too short to keep.")
         }

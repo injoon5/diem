@@ -188,9 +188,14 @@ struct MetricsView: View {
         }
     }
 
-    private func weekdayInitial(_ date: Date) -> String {
+    /// One formatter, not one per cell per redraw.
+    private static let weekdayFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "EEEEE"
-        return formatter.string(from: date)
+        formatter.setLocalizedDateFormatFromTemplate("EEEEE")
+        return formatter
+    }()
+
+    private func weekdayInitial(_ date: Date) -> String {
+        Self.weekdayFormatter.string(from: date)
     }
 }

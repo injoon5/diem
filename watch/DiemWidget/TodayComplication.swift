@@ -6,7 +6,7 @@ import WidgetKit
 struct TodayComplication: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: SnapshotStore.widgetKind, provider: SnapshotProvider()) { entry in
-            TodayComplicationView(snapshot: entry.snapshot)
+            TodayComplicationView(snapshot: entry.snapshot, now: entry.date)
                 .containerBackground(.clear, for: .widget)
         }
         .configurationDisplayName("Today")
@@ -23,14 +23,18 @@ struct TodayComplication: Widget {
 struct TodayComplicationView: View {
     @Environment(\.widgetFamily) private var family
     let snapshot: DiemSnapshot
+    var now: Date = .now
+
+    private var today: String { snapshot.compactToday(asOf: now) }
+    private var progress: Double { snapshot.progress(asOf: now) }
 
     var body: some View {
         switch family {
         case .accessoryCircular:
-            Gauge(value: snapshot.progress) {
-                Text(snapshot.compactToday)
+            Gauge(value: progress) {
+                Text(today)
             } currentValueLabel: {
-                Text(snapshot.compactToday)
+                Text(today)
                     .font(Typography.numeral(15))
                     .monospacedDigit()
             }
@@ -42,8 +46,8 @@ struct TodayComplicationView: View {
                 .font(.title3)
                 .widgetAccentable()
                 .widgetLabel {
-                    Gauge(value: snapshot.progress) {
-                        Text(snapshot.compactToday)
+                    Gauge(value: progress) {
+                        Text(today)
                     }
                 }
 
@@ -53,21 +57,21 @@ struct TodayComplicationView: View {
                 Text("TODAY")
                     .font(.system(.caption2, design: .default))
                     .foregroundStyle(.secondary)
-                Text(snapshot.compactToday)
+                Text(today)
                     .font(Typography.numeral(22))
                     .monospacedDigit()
                     .widgetAccentable()
-                Gauge(value: snapshot.progress) { EmptyView() }
+                Gauge(value: progress) { EmptyView() }
                     .gaugeStyle(.accessoryLinearCapacity)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
         case .accessoryInline:
             // No control over font or colour here — only the string is ours.
-            Text(snapshot.inlineToday)
+            Text(snapshot.inlineToday(asOf: now))
 
         default:
-            Text(snapshot.compactToday)
+            Text(today)
         }
     }
 }

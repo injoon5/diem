@@ -132,16 +132,26 @@ struct ScrubTests {
 
 @Suite("Sessions from intervals")
 struct SessionTests {
+    /// Session assembly is pure arithmetic over the log, so it can be tested
+    /// without a store behind it.
+    private struct Span: IntervalRecord {
+        var sessionID: UUID
+        var subjectID: UUID?
+        var startedAt: Date
+        var endedAt: Date?
+        var plannedSec: Int?
+    }
+
     private let start = ISO8601.parse("2026-03-04T09:00:00Z")!
 
-    private func interval(
+    private func span(
         session: UUID,
-        subject: UUID?,
+        subject: UUID? = nil,
         offset: TimeInterval,
         length: TimeInterval?,
         planned: Int? = nil
-    ) -> Interval {
-        Interval(
+    ) -> Span {
+        Span(
             sessionID: session,
             subjectID: subject,
             startedAt: start.addingTimeInterval(offset),
@@ -154,8 +164,8 @@ struct SessionTests {
     func pauseGap() {
         let session = UUID()
         let log = [
-            interval(session: session, subject: nil, offset: 0, length: 600, planned: 1500),
-            interval(session: session, subject: nil, offset: 900, length: 900),
+            span(session: session, offset: 0, length: 600, planned: 1500),
+            span(session: session, offset: 900, length: 900),
         ]
         let assembled = log.sessions().first
         #expect(assembled?.studiedSec == 1500)
@@ -163,19 +173,29 @@ struct SessionTests {
         #expect(assembled?.intervalCount == 2)
     }
 
-    @Test("Completion is derived from the wall clock span")
+    @Test("A session with an interval still open has not ended")
+    func openSession() {
+        let session = UUID()
+        let log = [
+            span(session: session, offset: 0, length: 600),
+            span(session: session, offset: 600, length: nil),
+        ]
+        #expect(log.sessions().first?.endedAt == nil)
+    }
+
+    @Test("Completion is derived from the wall-clock span")
     func completion() {
         let session = UUID()
-        let done = [interval(session: session, subject: nil, offset: 0, length: 1500, planned: 1500)]
+        let done = [span(session: session, offset: 0, length: 1500, planned: 1500)]
         #expect(done.sessions().first?.isComplete == true)
 
-        let short = [interval(session: session, subject: nil, offset: 0, length: 900, planned: 1500)]
+        let short = [span(session: session, offset: 0, length: 900, planned: 1500)]
         #expect(short.sessions().first?.isComplete == false)
     }
 
-    @Test("A free session is one with no subject and nothing else")
+    @Test("A free session has no plan and no subject, and nothing else marks it")
     func freeSession() {
-        let log = [interval(session: UUID(), subject: nil, offset: 0, length: 600)]
+        let log = [span(session: UUID(), offset: 0, length: 600)]
         let assembled = log.sessions().first
         #expect(assembled?.plannedSec == nil)
         #expect(assembled?.bySubject.first?.subjectID == nil)
@@ -186,8 +206,8 @@ struct SessionTests {
         let session = UUID()
         let (math, physics) = (UUID(), UUID())
         let log = [
-            interval(session: session, subject: math, offset: 0, length: 600),
-            interval(session: session, subject: physics, offset: 600, length: 1200),
+            span(session: session, subject: math, offset: 0, length: 600),
+            span(session: session, subject: physics, offset: 600, length: 1200),
         ]
         let assembled = log.sessions().first
         #expect(assembled?.bySubject.count == 2)
@@ -197,12 +217,25 @@ struct SessionTests {
         #expect(assembled?.studiedSec == 1800)
     }
 
+    @Test("Again repeats what was running at the end, not the biggest slice")
+    func lastSubjectWins() {
+        let session = UUID()
+        let (math, physics) = (UUID(), UUID())
+        let log = [
+            span(session: session, subject: math, offset: 0, length: 1800),
+            span(session: session, subject: physics, offset: 1800, length: 600),
+        ]
+        let assembled = log.sessions().first
+        #expect(assembled?.bySubject.first?.subjectID == math)
+        #expect(assembled?.lastSubjectID == physics)
+    }
+
     @Test("Sessions come back most recent first")
     func ordering() {
         let (first, second) = (UUID(), UUID())
         let log = [
-            interval(session: first, subject: nil, offset: 0, length: 600),
-            interval(session: second, subject: nil, offset: 3600, length: 600),
+            span(session: first, offset: 0, length: 600),
+            span(session: second, offset: 3600, length: 600),
         ]
         #expect(log.sessions().map(\.id) == [second, first])
     }

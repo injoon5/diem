@@ -31,12 +31,13 @@ struct SnapshotProvider: TimelineProvider {
 extension DiemSnapshot {
     /// `accessoryCircular` centre text fits about four characters, so the
     /// decimal goes past ten hours.
-    var compactToday: String {
-        let hours = todaySec / 3600
-        if todaySec < 3600 { return "\(Int(todaySec / 60))m" }
+    func compactToday(asOf now: Date = .now) -> String {
+        let seconds = today(asOf: now)
+        let hours = seconds / 3600
+        if seconds < 3600 { return "\(Int(seconds / 60))m" }
         if hours >= 10 { return "\(Int(hours))h" }
-        return String(format: "%.1fh", (todaySec / 360).rounded(.down) / 10)
+        return String(format: "%.1fh", (seconds / 360).rounded(.down) / 10)
     }
 
-    var inlineToday: String { "\(compactToday) studied" }
+    func inlineToday(asOf now: Date = .now) -> String { "\(compactToday(asOf: now)) studied" }
 }

@@ -16,6 +16,9 @@ final class SessionStore {
 
     /// Set while a session is running or paused; cleared on end or discard.
     private(set) var activeSessionID: UUID?
+    /// A subject picked while paused. Intervals are immutable once ended, so the
+    /// choice waits for the next one rather than rewriting the last.
+    private(set) var pendingSubjectID: UUID??
     /// Bumped whenever the log changes, so views recompute derived values.
     private(set) var revision = 0
 
@@ -55,7 +58,10 @@ final class SessionStore {
         return Double(planned) - elapsed(asOf: now)
     }
 
-    var activeSubjectID: UUID? { openInterval()?.subjectID ?? lastInterval()?.subjectID }
+    var activeSubjectID: UUID? {
+        if let pendingSubjectID { return pendingSubjectID }
+        return openInterval()?.subjectID ?? lastInterval()?.subjectID
+    }
 
     @discardableResult
     func start(subjectID: UUID?, plannedSec: Int?, at now: Date = .now) -> UUID {
@@ -69,6 +75,7 @@ final class SessionStore {
         )
         context.insert(interval)
         activeSessionID = sessionID
+        pendingSubjectID = nil
         settings.lastSubjectID = subjectID
         commit()
         return sessionID
@@ -83,12 +90,10 @@ final class SessionStore {
     func resume(at now: Date = .now) {
         guard let activeSessionID, openInterval() == nil else { return }
         // A new interval inherits nothing but the session and the subject.
+        let subjectID = pendingSubjectID ?? lastInterval()?.subjectID
+        pendingSubjectID = nil
         context.insert(
-            Interval(
-                sessionID: activeSessionID,
-                subjectID: lastInterval()?.subjectID,
-                startedAt: now
-            )
+            Interval(sessionID: activeSessionID, subjectID: subjectID, startedAt: now)
         )
         commit()
     }
@@ -98,8 +103,9 @@ final class SessionStore {
     func switchSubject(to subjectID: UUID?, at now: Date = .now) {
         guard let activeSessionID else { return }
         guard let open = openInterval() else {
-            // Paused: remember the choice, the next interval picks it up.
-            lastInterval()?.subjectID = subjectID
+            // Paused: remember the choice for the next interval. Rewriting the
+            // closed one would edit a record the server may already hold.
+            pendingSubjectID = .some(subjectID)
             settings.lastSubjectID = subjectID
             commit()
             return
@@ -114,12 +120,13 @@ final class SessionStore {
     /// Ends the live session. Sessions under a minute are discarded silently and
     /// return `nil`.
     @discardableResult
-    func end(at now: Date = .now) -> Session? {
+    func end(at now: Date = .now, presentingDone: Bool = true) -> Session? {
         guard let activeSessionID else { return nil }
         let intervals = intervals(inSession: activeSessionID)
         for interval in intervals where interval.isOpen { interval.endedAt = now }
         let session = intervals.sessions(asOf: now).first
         self.activeSessionID = nil
+        self.pendingSubjectID = nil
 
         guard let session, session.studiedSec >= 60 else {
             for interval in intervals { context.delete(interval) }
@@ -127,7 +134,7 @@ final class SessionStore {
             return nil
         }
         commit()
-        finished = session
+        if presentingDone { finished = session }
         return session
     }
 
@@ -135,7 +142,10 @@ final class SessionStore {
     func discard(sessionID: UUID? = nil, at now: Date = .now) {
         guard let target = sessionID ?? activeSessionID ?? finished?.id else { return }
         for interval in intervals(inSession: target) { context.delete(interval) }
-        if activeSessionID == target { activeSessionID = nil }
+        if activeSessionID == target {
+            activeSessionID = nil
+            pendingSubjectID = nil
+        }
         if finished?.id == target { finished = nil }
         commit()
     }
@@ -326,12 +336,31 @@ final class SessionStore {
         try? context.save()
         revision &+= 1
         publishSnapshot()
+        rescheduleAlert()
+    }
+
+    /// One place decides whether a deadline tap is pending: a timed session that
+    /// is actually running, and nothing else.
+    private func rescheduleAlert() {
+        guard isRunning, let remaining = remaining(), remaining > 0 else {
+            SessionAlerts.cancel()
+            return
+        }
+        SessionAlerts.schedule(
+            at: Date.now.addingTimeInterval(remaining),
+            subject: subject(activeSubjectID)?.name
+        )
     }
 
     private func publishSnapshot() {
         let now = Date.now
-        var snapshot = DiemSnapshot(todaySec: todaySeconds(asOf: now), goalSec: goalSeconds)
-        if let session = activeSession {
+        // What's already banked today, excluding the live session — the widget
+        // adds the running count itself, so its gauge doesn't freeze between
+        // timeline refreshes.
+        let live = activeSession
+        let banked = todaySeconds(asOf: now) - (live?.studiedSec ?? 0)
+        var snapshot = DiemSnapshot(todaySec: max(0, banked), goalSec: goalSeconds)
+        if let session = live {
             let studied = session.studiedSec
             let subject = subject(activeSubjectID)
             snapshot.session = DiemSnapshot.Live(
@@ -351,13 +380,28 @@ final class SessionStore {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
-    /// Reopens the session that was live when the app was last killed.
+    /// The longest an interval can plausibly run before the only explanation is
+    /// that the app went away while it was open.
+    private static let maxPlausibleInterval: TimeInterval = 12 * 3600
+
+    /// Reopens the session that was live when the app last went away.
+    ///
+    /// An interval left open for longer than anyone studies is not a session
+    /// still running — it is one the app never got to close. It is closed at its
+    /// own start rather than credited with the hours in between; inventing study
+    /// time is worse than losing it.
     private static func recoverActiveSession(in context: ModelContext) -> UUID? {
-        var descriptor = FetchDescriptor<Interval>(
+        let descriptor = FetchDescriptor<Interval>(
             predicate: #Predicate { $0.endedAt == nil },
             sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
         )
-        descriptor.fetchLimit = 1
-        return (try? context.fetch(descriptor))?.first?.sessionID
+        let open = (try? context.fetch(descriptor)) ?? []
+        guard let latest = open.first else { return nil }
+
+        let stale = open.filter { Date.now.timeIntervalSince($0.startedAt) > maxPlausibleInterval }
+        for interval in stale { interval.endedAt = interval.startedAt }
+        if !stale.isEmpty { try? context.save() }
+
+        return stale.contains(where: { $0.id == latest.id }) ? nil : latest.sessionID
     }
 }

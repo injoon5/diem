@@ -12,7 +12,7 @@ import WidgetKit
 struct SessionWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: SnapshotStore.sessionWidgetKind, provider: SnapshotProvider()) { entry in
-            SessionWidgetView(snapshot: entry.snapshot)
+            SessionWidgetView(snapshot: entry.snapshot, now: entry.date)
                 .containerBackground(.clear, for: .widget)
         }
         .configurationDisplayName("Session")
@@ -23,6 +23,7 @@ struct SessionWidget: Widget {
 
 struct SessionWidgetView: View {
     let snapshot: DiemSnapshot
+    var now: Date = .now
 
     var body: some View {
         if let session = snapshot.session {
@@ -49,7 +50,7 @@ struct SessionWidgetView: View {
             HStack(spacing: 6) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("TODAY").font(.caption2).foregroundStyle(.secondary)
-                    Text(snapshot.compactToday)
+                    Text(snapshot.compactToday(asOf: now))
                         .font(Typography.numeral(22))
                         .monospacedDigit()
                         .widgetAccentable()

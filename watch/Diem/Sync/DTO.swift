@@ -58,13 +58,15 @@ extension JSONEncoder {
 }
 
 enum ISO8601 {
-    private static let withFraction: ISO8601DateFormatter = {
+    // Formatters are safe to share for read-only use, and building one per
+    // interval on a sync of a few hundred is waste.
+    nonisolated(unsafe) private static let withFraction: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
 
-    private static let plain: ISO8601DateFormatter = {
+    nonisolated(unsafe) private static let plain: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter

@@ -60,9 +60,10 @@ struct DoneView: View {
         return AnyShapeStyle(Palette.subject(subject.colorIndex))
     }
 
-    /// Same duration and subject.
+    /// Same duration, and whatever was being studied when it ended — not
+    /// whichever subject happened to take the most of the session.
     private func again() {
-        let subjectID = session.bySubject.first?.subjectID
+        let subjectID = session.lastSubjectID
         store.finished = nil
         store.start(subjectID: subjectID, plannedSec: session.plannedSec)
         Haptics.start()

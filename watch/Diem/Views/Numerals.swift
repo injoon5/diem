@@ -12,9 +12,22 @@ struct NumeralText: View {
     var size: CGFloat
     var tracking: CGFloat
     var weight: Font.Weight = .medium
-    var countsDown = false
+    var motion: NumeralMotion = .countUp
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Reduce Motion swaps the roll for a plain fade.
+    private var transition: ContentTransition {
+        guard !reduceMotion else { return .opacity }
+        switch motion {
+        // A total can jump by any amount, so the system gets the number itself
+        // and works out the direction and distance of the roll.
+        case .value(let number): return .numericText(value: number)
+        // A count only ever goes one way, and its magnitude means nothing.
+        case .countdown: return .numericText(countsDown: true)
+        case .countUp: return .numericText(countsDown: false)
+        }
+    }
 
     private var groups: [(value: String, widest: String)] {
         let parts = value.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
@@ -47,9 +60,7 @@ struct NumeralText: View {
             .overlay {
                 Text(text)
                     .numeralStyle(size: size, tracking: tracking, weight: weight)
-                    .contentTransition(
-                        reduceMotion ? .opacity : .numericText(countsDown: countsDown)
-                    )
+                    .contentTransition(transition)
                     .fixedSize()
             }
     }
@@ -65,8 +76,12 @@ struct HeroNumeral: View {
     var size: CGFloat = Typography.Size.hero
     var tracking: CGFloat = Typography.Size.heroTracking
     var weight: Font.Weight = .medium
-    var countsDown = false
     var dimmed = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// What this numeral *is*, held steady while its value changes.
+    private var fieldID: String { "\(measure.unit ?? "")-\(measure.motion.kind)" }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 2) {
@@ -76,8 +91,14 @@ struct HeroNumeral: View {
                 size: size,
                 tracking: tracking,
                 weight: weight,
-                countsDown: countsDown
+                motion: measure.motion
             )
+            // `59 m` becoming `1.2 h`, or `0:00` becoming `+0:00`, is not a
+            // digit rolling over — it is a different quantity in a different
+            // field. Rolling one into the other reads as a glitch, so the whole
+            // numeral is replaced instead.
+            .id(fieldID)
+            .transition(reduceMotion ? .opacity : .blurReplace)
             if let unit = measure.unit {
                 Text("m")
                     .font(Typography.unit(size * 0.4))
@@ -90,6 +111,7 @@ struct HeroNumeral: View {
                     }
             }
         }
+        .animation(Motion.standard, value: fieldID)
         .foregroundStyle(dimmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(measure.spoken)

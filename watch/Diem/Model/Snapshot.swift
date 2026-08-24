@@ -6,6 +6,7 @@ import Foundation
 /// the shared App Group container instead. It is rewritten on every state
 /// change, so a complication never has to open the database.
 struct DiemSnapshot: Codable, Equatable {
+    /// Study banked today, not counting the live session.
     var todaySec: Double = 0
     var goalSec: Double = 2 * 3600
     /// Set while a session is running or paused.
@@ -33,9 +34,19 @@ struct DiemSnapshot: Codable, Equatable {
         }
     }
 
-    var progress: Double { goalSec > 0 ? min(todaySec / goalSec, 1) : 0 }
+    /// Everything studied today, including whatever is running right now.
+    func today(asOf now: Date = .now) -> TimeInterval {
+        todaySec + (session?.elapsed(asOf: now) ?? 0)
+    }
+
+    func progress(asOf now: Date = .now) -> Double {
+        goalSec > 0 ? min(today(asOf: now) / goalSec, 1) : 0
+    }
+
     /// Laps past the goal, for the overflow arc.
-    var overflow: Double { goalSec > 0 ? max(0, todaySec / goalSec - 1) : 0 }
+    func overflow(asOf now: Date = .now) -> Double {
+        goalSec > 0 ? max(0, today(asOf: now) / goalSec - 1) : 0
+    }
 }
 
 enum SnapshotStore {

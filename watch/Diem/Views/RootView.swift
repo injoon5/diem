@@ -18,7 +18,9 @@ struct RootView: View {
         .fullScreenCover(item: finishedBinding) { session in
             DoneView(session: session)
         }
-        .tint(Palette.accent)
+        // No app-wide tint: the accent belongs to the ring and the pill fill,
+        // never to text. Everything else is primary or secondary on black, so
+        // the display edge disappears into the bezel.
     }
 
     private var finishedBinding: Binding<Session?> {
