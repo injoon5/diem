@@ -9,6 +9,10 @@ struct RunningView: View {
 
     @State private var showingSubjects = false
     @State private var announcedZero = false
+    /// The stop button has been tapped once and is waiting to be confirmed.
+    @State private var confirmingEnd = false
+    /// Withdraws the confirmation if it is left standing.
+    @State private var confirmTimeout: Task<Void, Never>?
     /// A fixed anchor, so the tick doesn't re-phase on every redraw.
     @State private var anchor = Date.now
 
@@ -32,25 +36,52 @@ struct RunningView: View {
         .navigationBarBackButtonHidden()
         .toolbar {
             if !isLuminanceReduced {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    CircleControl(
-                        systemImage: store.isPaused ? "play.fill" : "pause.fill",
-                        label: store.isPaused ? "Resume" : "Pause"
-                    ) {
-                        if store.isPaused {
-                            store.resume()
-                        } else {
-                            store.pause()
+                // Both controls live in the bottom bar, pushed to opposite
+                // edges: the thumb reaches either without crossing the numeral,
+                // and the two targets can each keep their full 44pt.
+                //
+                // Confirming happens in the same two positions rather than in a
+                // dialog — the left control becomes the way out and the right
+                // one becomes the commitment, so nothing on screen moves and
+                // the thumb is already where it needs to be.
+                ToolbarItem(placement: .bottomBar) {
+                    HStack(spacing: 0) {
+                        CircleControl(
+                            systemImage: confirmingEnd
+                                ? "xmark"
+                                : (store.isPaused ? "play.fill" : "pause.fill"),
+                            label: confirmingEnd
+                                ? "Keep going"
+                                : (store.isPaused ? "Resume" : "Pause")
+                        ) {
+                            if confirmingEnd {
+                                withdrawConfirmation()
+                            } else {
+                                togglePause()
+                            }
                         }
-                        Haptics.crownDetent()
+
+                        Spacer(minLength: 8)
+
+                        CircleControl(
+                            systemImage: confirmingEnd ? "checkmark" : "stop.fill",
+                            label: confirmingEnd ? "End session" : "End session\u{2026}",
+                            tint: Palette.accent
+                        ) {
+                            if confirmingEnd { endSession() } else { askToEnd() }
+                        }
                     }
-                    CircleControl(systemImage: "stop.fill", label: "End session") {
-                        if store.end() == nil { Haptics.sessionAbandoned() }
-                    }
+                    .frame(maxWidth: .infinity)
+                    .animation(Motion.fill(reduceMotion: reduceMotion), value: confirmingEnd)
                 }
             }
         }
-        .onChange(of: store.activeSessionID) { _, _ in announcedZero = false }
+        .onChange(of: store.activeSessionID) { _, _ in
+            announcedZero = false
+            confirmingEnd = false
+        }
+        // A confirmation nobody answered is not a decision to hold onto.
+        .onDisappear { confirmTimeout?.cancel() }
         .sheet(isPresented: $showingSubjects) {
             SubjectPicker(selection: store.activeSubjectID) { subjectID in
                 store.switchSubject(to: subjectID)
@@ -74,7 +105,13 @@ struct RunningView: View {
         let subject = store.subject(store.activeSubjectID)
         return VStack(spacing: 2) {
             Spacer(minLength: 0)
-            HeroNumeral(measure: measure(now: now), dimmed: isOvertime(now: now))
+            HeroNumeral(
+                measure: measure(now: now),
+                size: heroSize(for: measure(now: now)),
+                dimmed: isOvertime(now: now),
+                drawsAsOneField: true
+            )
+            .padding(.horizontal, 6)
             SubjectButton(
                 name: subject?.name,
                 colorIndex: subject?.colorIndex,
@@ -90,13 +127,55 @@ struct RunningView: View {
         }
         .frame(maxWidth: .infinity)
         .overlay(alignment: .top) {
-            if store.isPaused {
-                Text("Paused")
+            if let status {
+                Text(status)
                     .sectionLabelStyle()
-                    .transition(.opacity)
+                    .foregroundStyle(confirmingEnd ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(.secondary))
+                    .id(status)
+                    .labelSwap(reduceMotion: reduceMotion)
             }
         }
-        .animation(Motion.fill(reduceMotion: reduceMotion), value: store.isPaused)
+        .animation(Motion.fill(reduceMotion: reduceMotion), value: status)
+    }
+
+    /// One line, one state: the question outranks the pause it interrupts.
+    private var status: String? {
+        if confirmingEnd { return "End session?" }
+        return store.isPaused ? "Paused" : nil
+    }
+
+    // MARK: - Actions
+
+    private func togglePause() {
+        if store.isPaused { store.resume() } else { store.pause() }
+        Haptics.crownDetent()
+    }
+
+    /// Arms the confirmation. It withdraws itself rather than sitting there:
+    /// a stale question on a wrist is an accident waiting for the next tap.
+    private func askToEnd() {
+        confirmingEnd = true
+        Haptics.crownDetent()
+        confirmTimeout?.cancel()
+        confirmTimeout = Task {
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled else { return }
+            confirmingEnd = false
+        }
+    }
+
+    private func withdrawConfirmation() {
+        confirmTimeout?.cancel()
+        confirmingEnd = false
+        Haptics.crownDetent()
+    }
+
+    private func endSession() {
+        confirmTimeout?.cancel()
+        confirmingEnd = false
+        // Under a minute there is no summary to show, so this is the only
+        // acknowledgement the session gets.
+        if store.end() == nil { Haptics.sessionAbandoned() }
     }
 
     /// A second layout, not a dimmed copy: minutes only, one weight lighter
@@ -106,8 +185,10 @@ struct RunningView: View {
             HeroNumeral(
                 measure: alwaysOnMeasure(now: now),
                 tracking: Typography.Size.heroTracking + 0.6,
-                weight: .regular
+                weight: .regular,
+                drawsAsOneField: true
             )
+            .padding(.horizontal, 6)
             if let name = store.subject(store.activeSubjectID)?.name {
                 Text(name)
                     .font(Typography.text(.footnote))
@@ -120,6 +201,12 @@ struct RunningView: View {
     }
 
     // MARK: - Derived
+
+    /// The clock is sized by the field it has to fill, not by the value in it,
+    /// so it never resizes mid-session as digits roll.
+    private func heroSize(for measure: Format.Measure) -> CGFloat {
+        measure.widest.count > 6 ? Typography.Size.heroCompact : Typography.Size.hero
+    }
 
     private func displaySeconds(now: Date) -> TimeInterval {
         if let remaining = store.remaining(asOf: now) { return remaining }

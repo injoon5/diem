@@ -22,6 +22,16 @@ extension IntervalRecord {
     }
 }
 
+/// Studied seconds under one subject. `nil` is free time — a real row, so it
+/// carries a non-optional `id`: an optional identity is not something SwiftUI's
+/// `ForEach` diffing survives.
+struct SubjectTotal: Identifiable, Hashable {
+    let subjectID: UUID?
+    let seconds: TimeInterval
+
+    var id: String { subjectID?.uuidString ?? "free" }
+}
+
 /// A session assembled from its intervals. Derived, never stored.
 struct Session: Identifiable, Hashable {
     let id: UUID
@@ -31,7 +41,7 @@ struct Session: Identifiable, Hashable {
     /// Studied seconds — the sum of the intervals, excluding paused gaps.
     let studiedSec: TimeInterval
     /// Per-subject studied seconds, most-studied first. A `nil` key is free time.
-    let bySubject: [(subjectID: UUID?, seconds: TimeInterval)]
+    let bySubject: [SubjectTotal]
     /// What was being studied when the session ended — what "Again" repeats.
     let lastSubjectID: UUID?
     let intervalCount: Int
@@ -69,7 +79,7 @@ extension Collection where Element: IntervalRecord {
                     plannedSec: first.plannedSec,
                     studiedSec: ordered.reduce(0) { $0 + $1.duration(asOf: now) },
                     bySubject: totals
-                        .map { (subjectID: $0.key, seconds: $0.value) }
+                        .map { SubjectTotal(subjectID: $0.key, seconds: $0.value) }
                         .sorted { $0.seconds > $1.seconds },
                     lastSubjectID: last.subjectID,
                     intervalCount: ordered.count

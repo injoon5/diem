@@ -13,6 +13,13 @@ struct NumeralText: View {
     var tracking: CGFloat
     var weight: Font.Weight = .medium
     var motion: NumeralMotion = .countUp
+    /// Draw the string as one field instead of splitting it on the colon.
+    ///
+    /// Splitting puts the colon in its own `Text` at half opacity, laid out on
+    /// its own metrics between two digit groups whose baseline box it does not
+    /// share — which is what left it sitting visibly off-centre. A clock is one
+    /// field: same face, same baseline, colon included.
+    var drawsAsOneField = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -29,20 +36,31 @@ struct NumeralText: View {
         }
     }
 
-    private var groups: [(value: String, widest: String)] {
+    private struct DigitGroup: Identifiable {
+        let id: Int
+        let value: String
+        let widest: String
+    }
+
+    private var groups: [DigitGroup] {
+        if drawsAsOneField {
+            return [DigitGroup(id: 0, value: value, widest: widest)]
+        }
         let parts = value.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
         let reserved = widest.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
         guard parts.count == reserved.count else {
             let fallback = value.count > widest.count ? value : widest
-            return [(value, fallback)]
+            return [DigitGroup(id: 0, value: value, widest: fallback)]
         }
-        return Array(zip(parts, reserved))
+        return zip(parts, reserved).enumerated().map { index, pair in
+            DigitGroup(id: index, value: pair.0, widest: pair.1)
+        }
     }
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
-                if index > 0 {
+            ForEach(groups) { group in
+                if group.id > 0 {
                     Text(":")
                         .numeralStyle(size: size, tracking: 0, weight: weight)
                         .opacity(0.5)
@@ -53,16 +71,40 @@ struct NumeralText: View {
         .animation(Motion.numeric(reduceMotion: reduceMotion), value: value)
     }
 
+    /// The field is reserved at its widest value and the current one is drawn
+    /// inside it, so shorter strings sit centred instead of shifting the layout.
     private func digits(_ text: String, reserving widest: String) -> some View {
-        Text(widest)
-            .numeralStyle(size: size, tracking: tracking, weight: weight)
+        number(widest)
             .hidden()
             .overlay {
-                Text(text)
-                    .numeralStyle(size: size, tracking: tracking, weight: weight)
+                number(text)
                     .contentTransition(transition)
                     .fixedSize()
             }
+    }
+
+    private func number(_ text: String) -> some View {
+        styled(text)
+            .numeralStyle(size: size, tracking: tracking, weight: weight)
+            .lineLimit(1)
+    }
+
+    /// Colons are concatenated into the same `Text` rather than laid out beside
+    /// it. One text run means the font places them — correct advance, correct
+    /// baseline — while still letting them be styled down so the digits lead.
+    /// A separate `Text` gets neither, which is what made them sit oddly.
+    private func styled(_ text: String) -> Text {
+        let parts = text.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count > 1 else { return Text(text) }
+        // The colon is centred on the x-height while the digits are lining
+        // figures, so it sits low between them. Lifting it to the middle of the
+        // digit is a typographic correction, not a nudge.
+        let colon = Text(":")
+            .foregroundStyle(.tertiary)
+            .baselineOffset(size * 0.06)
+        return parts.dropFirst().reduce(Text(String(parts[0]))) { running, part in
+            running + colon + Text(String(part))
+        }
     }
 }
 
@@ -77,26 +119,45 @@ struct HeroNumeral: View {
     var tracking: CGFloat = Typography.Size.heroTracking
     var weight: Font.Weight = .medium
     var dimmed = false
+    var drawsAsOneField = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// What this numeral *is*, held steady while its value changes.
     private var fieldID: String { "\(measure.unit ?? "")-\(measure.motion.kind)" }
+    /// Totals over an hour keep their semantic `1h 30m` value, but the units
+    /// are drawn separately so they remain subordinate to the digits.
+    private var isHoursMinutes: Bool {
+        measure.unit == nil && measure.value.contains("h")
+    }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 2) {
-            NumeralText(
-                value: measure.value,
-                widest: measure.widest,
-                size: size,
-                tracking: tracking,
-                weight: weight,
-                motion: measure.motion
-            )
-            // `59 m` becoming `1.2 h`, or `0:00` becoming `+0:00`, is not a
-            // digit rolling over — it is a different quantity in a different
-            // field. Rolling one into the other reads as a glitch, so the whole
-            // numeral is replaced instead.
+            Group {
+                if isHoursMinutes {
+                    HoursMinutesNumeral(
+                        value: measure.value,
+                        size: size,
+                        tracking: tracking,
+                        weight: weight,
+                        motion: measure.motion
+                    )
+                } else {
+                    NumeralText(
+                        value: measure.value,
+                        widest: measure.widest,
+                        size: size,
+                        tracking: tracking,
+                        weight: weight,
+                        motion: measure.motion,
+                        drawsAsOneField: drawsAsOneField
+                    )
+                }
+                // `59 m` becoming `1h 30m`, or `0:00` becoming `+0:00`, is not a
+                // digit rolling over — it is a different quantity in a different
+                // field. Rolling one into the other reads as a glitch, so the whole
+                // numeral is replaced instead.
+            }
             .id(fieldID)
             .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
             if let unit = measure.unit {
@@ -115,5 +176,64 @@ struct HeroNumeral: View {
         .foregroundStyle(dimmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(measure.spoken)
+    }
+}
+
+/// `1h 30m`, with the digits carrying the visual weight and the unit symbols
+/// acting as quiet labels. Minutes are always present — a total that drops to
+/// `1h` on the hour reads as a rounded estimate rather than a measurement.
+private struct HoursMinutesNumeral: View {
+    let value: String
+    let size: CGFloat
+    let tracking: CGFloat
+    let weight: Font.Weight
+    let motion: NumeralMotion
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// `1h 30m` split back into its two numbers. Parsing the formatted string
+    /// keeps `Format` the single place that decides how a total reads.
+    private var parts: (hours: String, minutes: String) {
+        let pieces = value
+            .split(whereSeparator: { $0 == "h" || $0 == "m" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        return (pieces.first ?? "0", pieces.count > 1 ? pieces[1] : "0")
+    }
+
+    private var digitTransition: ContentTransition {
+        guard !reduceMotion else { return .opacity }
+        switch motion {
+        case .value(let number): return .numericText(value: number)
+        case .countdown: return .numericText(countsDown: true)
+        case .countUp: return .numericText(countsDown: false)
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 1) {
+            digits(parts.hours)
+            unit("h")
+            // A wider gap before the minutes than inside either pair, so the
+            // total reads as two quantities rather than four glyphs in a row.
+            Spacer().frame(width: size * 0.14)
+            digits(parts.minutes)
+            unit("m")
+        }
+        .animation(Motion.numeric(reduceMotion: reduceMotion), value: value)
+    }
+
+    private func digits(_ value: String) -> some View {
+        Text(value)
+            .numeralStyle(size: size, tracking: tracking, weight: weight)
+            .monospacedDigit()
+            .contentTransition(digitTransition)
+            .fixedSize()
+    }
+
+    private func unit(_ value: String) -> some View {
+        Text(value)
+            .font(Typography.unit(size * 0.36))
+            .foregroundStyle(.secondary)
+            .fixedSize()
     }
 }

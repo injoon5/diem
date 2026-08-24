@@ -10,10 +10,7 @@ struct DiemApp: App {
         WindowGroup {
             RootView()
                 .environment(store)
-                .task {
-                    await SessionAlerts.requestAuthorization()
-                    await SyncEngine.run(store: store)
-                }
+                .task { await SyncEngine.run(store: store) }
         }
         .modelContainer(DiemContainer.shared)
         .onChange(of: scenePhase) { _, phase in

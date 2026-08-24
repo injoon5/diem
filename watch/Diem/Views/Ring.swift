@@ -2,9 +2,9 @@ import SwiftUI
 
 /// One arc, possibly lapped.
 ///
-/// Under a full turn it is a plain arc. Past one turn the completed lap stays
-/// solid and the remainder is drawn over it with a drop shadow, so an
-/// overlapping band reads as in front rather than as a second colour.
+/// Under a full turn it is a plain arc. Past one turn the completed lap dims
+/// on the same path and the overflow restores only the completed portion. The
+/// ring never grows a second track or competes with the content inside it.
 struct RingArc: View {
     /// Total revolutions. 1.0 is a closed ring.
     var turns: Double
@@ -26,15 +26,19 @@ struct RingArc: View {
         ZStack {
             if lapped {
                 Circle()
+                    .stroke(color.opacity(0.42), style: .init(lineWidth: lineWidth, lineCap: .round))
+                Circle()
+                    .trim(from: 0, to: fraction)
+                    .stroke(lapColor, style: .init(lineWidth: lineWidth, lineCap: .round))
+                    // The only shadow in the ring, and it earns its place: it
+                    // is what makes the second lap read as lying over the first.
+                    .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+            }
+            if !lapped {
+                Circle()
+                    .trim(from: 0, to: fraction)
                     .stroke(color, style: .init(lineWidth: lineWidth, lineCap: .round))
             }
-            Circle()
-                .trim(from: 0, to: fraction)
-                .stroke(
-                    lapped ? lapColor : color,
-                    style: .init(lineWidth: lineWidth, lineCap: .round)
-                )
-                .shadow(color: .black.opacity(lapped ? 0.85 : 0), radius: 3, x: 0, y: 1)
         }
         .rotationEffect(.degrees(-90))
     }
@@ -43,45 +47,43 @@ struct RingArc: View {
 /// The Start screen ring: today's progress at rest, the duration being scrubbed
 /// while the crown turns.
 ///
-/// The two arcs share a `matchedGeometryEffect` identity, so the change of mode
-/// moves one continuous object instead of dissolving one arc into another. The
-/// ghost track stays in both modes — it is what the overflow shadow falls on.
+/// One persistent arc handles both modes. The crown remains direct while
+/// scrubbing; only the transition into and out of that mode is springed.
 struct StartRing: View {
     var goalTurns: Double
     var scrubTurns: Double
     var isScrubbing: Bool
-    var namespace: Namespace.ID
-    var lineWidth: CGFloat = 9
+    var lineWidth: CGFloat = 10
 
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var accent: Color { Palette.accent(luminanceReduced: isLuminanceReduced) }
+    private var ringColor: Color {
+        isScrubbing
+            ? Palette.accent(luminanceReduced: isLuminanceReduced).opacity(0.72)
+            : Palette.ring(luminanceReduced: isLuminanceReduced)
+    }
+    private var turns: Double { isScrubbing ? scrubTurns : goalTurns }
+    private var lapColor: Color { ringColor.opacity(isScrubbing ? 0.9 : 0.72) }
 
     var body: some View {
         ZStack {
-            Circle().stroke(Palette.ghostTrack, style: .init(lineWidth: lineWidth, lineCap: .round))
+            // One track, one arc. The halo and inner hairline that used to sit
+            // under this turned the empty ring into a murky band instead of a
+            // groove for the arc to run in.
+            Circle()
+                .stroke(Palette.ghostTrack, style: .init(lineWidth: lineWidth, lineCap: .round))
 
-            if isScrubbing {
-                // One revolution is 60 minutes. Bound straight to the crown —
-                // a spring here would put lag between the crown and the arc.
-                RingArc(turns: scrubTurns, color: accent, lapColor: accent, lineWidth: lineWidth)
-                    .matchedGeometryEffect(id: "ring.arc", in: namespace)
-                    .transition(.opacity)
-            } else {
-                RingArc(
-                    turns: goalTurns,
-                    color: accent,
-                    lapColor: accent.opacity(0.55),
-                    lineWidth: lineWidth
-                )
-                .matchedGeometryEffect(id: "ring.arc", in: namespace)
-                .transition(.opacity)
-            }
+            // One revolution is 60 minutes while scrubbing. This view stays in
+            // place throughout both states, so there is no cross-fade seam.
+            RingArc(turns: turns, color: ringColor, lapColor: lapColor, lineWidth: lineWidth)
         }
-        .animation(Motion.fill(reduceMotion: reduceMotion), value: isScrubbing)
-        .animation(isScrubbing ? nil : Motion.fill(reduceMotion: reduceMotion), value: goalTurns)
+        .animation(Motion.ringMode(reduceMotion: reduceMotion), value: isScrubbing)
+        .animation(isScrubbing ? nil : Motion.ringProgress(reduceMotion: reduceMotion), value: turns)
         .stillWhenDimmed(isLuminanceReduced)
-        .padding(lineWidth / 2)
+        .padding(lineWidth / 2 + 1)
+        // A Circle in a non-square frame draws an ellipse. Keep it round and as
+        // large as the screen allows instead of pinning a fixed size.
+        .aspectRatio(1, contentMode: .fit)
     }
 }

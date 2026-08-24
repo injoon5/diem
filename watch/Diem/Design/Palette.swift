@@ -10,6 +10,12 @@ enum Palette {
     /// muddy brown.
     static let accentDimmed = Color(.displayP3, red: 0.86, green: 0.26, blue: 0.02)
 
+    /// A restrained copper used only for progress surfaces. Keeping it apart
+    /// from the Action Button orange lets the ring read as data, not a call to
+    /// action.
+    static let ring = Color(.displayP3, red: 0.78, green: 0.31, blue: 0.12)
+    static let ringDimmed = Color(.displayP3, red: 0.62, green: 0.22, blue: 0.09)
+
     /// The empty ring. White, not a dim orange — a desaturated accent reads as a
     /// second data value rather than an empty track.
     static let ghostTrack = Color.white.opacity(0.10)
@@ -19,6 +25,10 @@ enum Palette {
 
     static func accent(luminanceReduced: Bool) -> Color {
         luminanceReduced ? accentDimmed : accent
+    }
+
+    static func ring(luminanceReduced: Bool) -> Color {
+        luminanceReduced ? ringDimmed : ring
     }
 
     /// A fixed palette for subjects, excluding orange and its neighbours so a

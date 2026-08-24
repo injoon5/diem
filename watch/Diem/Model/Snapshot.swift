@@ -5,14 +5,14 @@ import Foundation
 /// The app owns the SwiftData store; the extensions get a small JSON file in
 /// the shared App Group container instead. It is rewritten on every state
 /// change, so a complication never has to open the database.
-struct DiemSnapshot: Codable, Equatable {
+struct DiemSnapshot: Codable, Equatable, Sendable {
     /// Study banked today, not counting the live session.
     var todaySec: Double = 0
     var goalSec: Double = 2 * 3600
     /// Set while a session is running or paused.
     var session: Live?
 
-    struct Live: Codable, Equatable {
+    struct Live: Codable, Equatable, Sendable {
         var startedAt: Date
         /// The instant the count should read now — start of the running
         /// interval minus everything already banked in this session.

@@ -63,10 +63,11 @@ struct FormatTests {
         #expect(Format.total(0).unit == "m")
     }
 
-    @Test("An hour and over reads in tenths of an hour")
+    @Test("An hour and over reads as hours and minutes")
     func hours() {
-        #expect(Format.total(72 * 60).value == "1.2")
-        #expect(Format.total(72 * 60).unit == "h")
+        #expect(Format.total(60 * 60).value == "1h 0m")
+        #expect(Format.total(72 * 60).value == "1h 12m")
+        #expect(Format.total(72 * 60).unit == nil)
     }
 
     @Test("Countdowns reserve the width they can grow into")
@@ -77,16 +78,21 @@ struct FormatTests {
         #expect(Format.clock(90 * 60, span: 90 * 60).value == "1:30:00")
     }
 
+    @Test("Minutes hold two digits so the clock never shifts")
+    func clockMinutesPadded() {
+        #expect(Format.clock(5 * 60, span: 25 * 60).value == "05:00")
+    }
+
     @Test("Overtime carries its sign")
     func overtime() {
-        #expect(Format.overtime(200).value == "+3:20")
+        #expect(Format.overtime(200).value == "+03:20")
     }
 
     @Test("Scrubbed durations read plainly")
     func durations() {
         #expect(Format.duration(25 * 60) == "25m")
         #expect(Format.duration(90 * 60) == "1h 30m")
-        #expect(Format.duration(120 * 60) == "2h")
+        #expect(Format.duration(120 * 60) == "2h 0m")
     }
 }
 
@@ -114,6 +120,23 @@ struct ScrubTests {
     @Test("Stepping round-trips", arguments: [0, 25, 60, 65, 240, 255, 480])
     func roundTrip(minutes: Int) {
         #expect(DurationScrub.minutes(forStep: DurationScrub.step(forMinutes: minutes)) == minutes)
+    }
+
+    @Test("A fractional crown position lands between its two detents")
+    func fractional() {
+        #expect(DurationScrub.seconds(forFractionalStep: 10) == 600)
+        #expect(DurationScrub.seconds(forFractionalStep: 10.5) == 630)
+        // The curve coarsens past an hour, and the interpolation follows it.
+        #expect(DurationScrub.seconds(forFractionalStep: 60.5) == 3750)
+    }
+
+    @Test("A fractional position never leaves the range")
+    func fractionalClamped() {
+        #expect(DurationScrub.seconds(forFractionalStep: -4) == 0)
+        #expect(
+            DurationScrub.seconds(forFractionalStep: Double(DurationScrub.maxStep) + 4)
+                == DurationScrub.seconds(forStep: DurationScrub.maxStep)
+        )
     }
 
     @Test("One revolution is sixty minutes")

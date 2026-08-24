@@ -4,21 +4,27 @@ import SwiftUI
 /// interval. Stays until tapped.
 struct DoneView: View {
     @Environment(SessionStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
 
     let session: Session
+    /// Closing is the root's decision, not this screen's — this is one of the
+    /// three root screens rather than something presented over them.
+    let onClose: () -> Void
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 Text(session.isComplete ? "Complete" : "Ended")
                     .sectionLabelStyle()
 
-                HeroNumeral(measure: Format.total(session.studiedSec))
+                HeroNumeral(
+                    measure: Format.total(session.studiedSec),
+                    size: Typography.Size.title,
+                    tracking: Typography.Size.titleTracking
+                )
 
                 if session.intervalCount > 1 {
                     VStack(spacing: 4) {
-                        ForEach(session.bySubject, id: \.subjectID) { entry in
+                        ForEach(session.bySubject) { entry in
                             HStack(spacing: 6) {
                                 Circle()
                                     .fill(swatch(entry.subjectID))
@@ -37,19 +43,33 @@ struct DoneView: View {
                     .padding(.top, 2)
                 }
 
-                VStack(spacing: 6) {
-                    GlassPill(title: "Again", systemImage: "arrow.clockwise") { again() }
-                    Button("Discard", role: .destructive) { discard() }
-                        .font(Typography.text(.footnote))
-                    Button("Done") { dismiss() }
-                        .font(Typography.text(.footnote))
-                        .foregroundStyle(.secondary)
+                GlassEffectContainer(spacing: 8) {
+                    HStack(spacing: 8) {
+                        EndActionButton(
+                            title: "Again",
+                            systemImage: "arrow.clockwise",
+                            tint: Palette.accent
+                        ) { again() }
+
+                        EndActionButton(
+                            title: "Done",
+                            systemImage: "checkmark",
+                            tint: .white.opacity(0.10)
+                        ) { onClose() }
+                    }
                 }
-                .padding(.top, 4)
+                .padding(.top, 2)
+
+                // Last, quiet, and unadorned: throwing the session away is the
+                // one action here that cannot be undone.
+                Button("Discard", role: .destructive) { discard() }
+                    .buttonStyle(.plain)
+                    .font(Typography.text(.footnote))
+                    .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 6)
+            .padding(.bottom, 8)
         }
-        .containerBackground(.black, for: .navigation)
         .onAppear {
             if session.isComplete {
                 Haptics.sessionComplete()
@@ -71,12 +91,45 @@ struct DoneView: View {
         store.finished = nil
         store.start(subjectID: subjectID, plannedSec: session.plannedSec)
         Haptics.start()
-        dismiss()
     }
 
     private func discard() {
         store.discard(sessionID: session.id)
         Haptics.sessionAbandoned()
-        dismiss()
+        onClose()
+    }
+}
+
+/// One of the two glass actions that close the screen. They share a row, so
+/// each takes half the width rather than sizing to its own label.
+private struct EndActionButton: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(Typography.text(.footnote).weight(.medium))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(.capsule)
+        }
+        .buttonStyle(EndActionButtonStyle(tint: tint))
+        .accessibilityLabel(title)
+    }
+}
+
+private struct EndActionButtonStyle: ButtonStyle {
+    let tint: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .glassEffect(.regular.tint(tint).interactive(), in: .capsule)
+            .brightness(configuration.isPressed ? 0.08 : 0)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(Motion.standard, value: configuration.isPressed)
     }
 }

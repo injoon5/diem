@@ -7,6 +7,16 @@ struct MetricsView: View {
 
     private let now = Date.now
 
+    private struct HeatmapCell: Identifiable {
+        let id: Date
+        let seconds: TimeInterval?
+    }
+
+    private struct HeatmapWeek: Identifiable {
+        let id: Date
+        let days: [HeatmapCell]
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -29,15 +39,17 @@ struct MetricsView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Today").sectionLabelStyle()
 
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 HeroNumeral(
                     measure: Format.total(store.todaySeconds(asOf: now)),
                     size: Typography.Size.title,
                     tracking: Typography.Size.titleTracking
                 )
+                // Wide enough to stay a separate phrase: at a tighter gap the
+                // unit and the goal ran together into `m of 2h 0m`.
                 Text("of \(Format.duration(store.goalSeconds))")
                     .font(Typography.text(.caption2))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             }
 
             let entries = store.todayBySubject(asOf: now)
@@ -48,7 +60,7 @@ struct MetricsView: View {
             } else {
                 let peak = entries.map(\.seconds).max() ?? 1
                 VStack(spacing: 5) {
-                    ForEach(entries, id: \.subjectID) { entry in
+                    ForEach(entries) { entry in
                         subjectRow(entry, peak: peak)
                     }
                 }
@@ -56,10 +68,7 @@ struct MetricsView: View {
         }
     }
 
-    private func subjectRow(
-        _ entry: (subjectID: UUID?, seconds: TimeInterval),
-        peak: TimeInterval
-    ) -> some View {
+    private func subjectRow(_ entry: SubjectTotal, peak: TimeInterval) -> some View {
         let subject = store.subject(entry.subjectID)
         let color = subject.map { Palette.subject($0.colorIndex) } ?? Color.white.opacity(0.35)
         return VStack(alignment: .leading, spacing: 2) {
@@ -90,53 +99,69 @@ struct MetricsView: View {
         let peak = max(days.map(\.seconds).max() ?? 0, store.goalSeconds)
         return VStack(alignment: .leading, spacing: 6) {
             Text("This Week").sectionLabelStyle()
-            HStack(alignment: .bottom, spacing: 4) {
-                ForEach(days, id: \.day) { entry in
-                    VStack(spacing: 3) {
-                        ZStack(alignment: .bottom) {
-                            Capsule().fill(Palette.ghostTrack).frame(width: 8)
-                            Capsule()
-                                .fill(entry.seconds >= store.goalSeconds ? Palette.accent : Palette.accent.opacity(0.55))
-                                .frame(width: 8, height: barHeight(entry.seconds, peak: peak))
+            GeometryReader { proxy in
+                let spacing: CGFloat = 5
+                // Capped, and centred in whatever is left over. Seven bars
+                // stretched across the full width read as blocks rather than
+                // as a chart.
+                let barWidth = min(14, max(8, (proxy.size.width - spacing * 6) / 7))
+                HStack(alignment: .bottom, spacing: spacing) {
+                    ForEach(days, id: \.day) { entry in
+                        VStack(spacing: 3) {
+                            ZStack(alignment: .bottom) {
+                                Capsule()
+                                    .fill(Palette.ghostTrack)
+                                Capsule()
+                                    .fill(
+                                        entry.seconds >= store.goalSeconds
+                                            ? Palette.ring
+                                            : Palette.ring.opacity(0.68)
+                                    )
+                                    .frame(height: barHeight(entry.seconds, peak: peak))
+                            }
+                            .frame(width: barWidth, height: 44)
+                            .clipShape(.capsule)
+                            .overlay {
+                                Capsule()
+                                    .stroke(.white.opacity(0.04), lineWidth: 1)
+                            }
+                            Text(weekdayInitial(entry.day))
+                                .font(.system(size: 9))
+                                .foregroundStyle(.tertiary)
                         }
-                        .frame(height: 44)
-                        Text(weekdayInitial(entry.day))
-                            .font(.system(size: 9))
-                            .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(weekdayInitial(entry.day))
+                        .accessibilityValue(Format.duration(entry.seconds))
                     }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(weekdayInitial(entry.day))
-                    .accessibilityValue(Format.duration(entry.seconds))
                 }
             }
-            .frame(maxWidth: .infinity)
+            .frame(height: 58)
         }
     }
 
     private func barHeight(_ seconds: TimeInterval, peak: TimeInterval) -> CGFloat {
         guard peak > 0, seconds > 0 else { return 0 }
-        return max(3, 44 * CGFloat(min(seconds / peak, 1)))
+        return max(4, 44 * CGFloat(min(seconds / peak, 1)))
     }
 
     // MARK: - Twelve weeks
 
     private var heatmapSection: some View {
         let weeks = heatmapWeeks()
-        let peak = weeks.flatMap { $0 }.compactMap { $0 }.max() ?? 1
+        let peak = weeks.flatMap(\.days).compactMap(\.seconds).max() ?? 1
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 12)
         return VStack(alignment: .leading, spacing: 6) {
             Text("12 Weeks").sectionLabelStyle()
-            HStack(spacing: 2) {
-                ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
-                    VStack(spacing: 2) {
-                        ForEach(Array(week.enumerated()), id: \.offset) { _, seconds in
-                            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                .fill(cellColor(seconds, peak: peak))
-                                .frame(width: 10, height: 10)
-                        }
+            LazyVGrid(columns: columns, spacing: 4) {
+                ForEach(0..<7, id: \.self) { day in
+                    ForEach(weeks, id: \.id) { week in
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(cellColor(week.days[day].seconds, peak: peak))
+                            .aspectRatio(1, contentMode: .fit)
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Last twelve weeks")
         }
@@ -166,7 +191,7 @@ struct MetricsView: View {
     }
 
     /// 12 columns of 7 days, oldest week first, aligned to the week start.
-    private func heatmapWeeks() -> [[TimeInterval?]] {
+    private func heatmapWeeks() -> [HeatmapWeek] {
         let calendar = Calendar.current
         let today = Day.start(of: now)
         let weekday = calendar.component(.weekday, from: today)
@@ -178,13 +203,17 @@ struct MetricsView: View {
         let totals = Dictionary(
             uniqueKeysWithValues: store.dailySeconds(days: 7 * 12 + 7, asOf: now).map { ($0.day, $0.seconds) }
         )
-        return (0..<12).map { week in
-            (0..<7).map { day -> TimeInterval? in
-                guard let date = calendar.date(byAdding: .day, value: week * 7 + day, to: firstWeekStart),
-                      date <= today
-                else { return nil }
-                return totals[date] ?? 0
+        return (0..<12).compactMap { week in
+            guard let weekDate = calendar.date(byAdding: .day, value: week * 7, to: firstWeekStart) else {
+                return nil
             }
+            let days = (0..<7).compactMap { day -> HeatmapCell? in
+                guard let date = calendar.date(byAdding: .day, value: week * 7 + day, to: firstWeekStart) else {
+                    return nil
+                }
+                return HeatmapCell(id: date, seconds: date <= today ? (totals[date] ?? 0) : nil)
+            }
+            return HeatmapWeek(id: weekDate, days: days)
         }
     }
 

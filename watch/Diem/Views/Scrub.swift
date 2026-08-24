@@ -28,6 +28,20 @@ enum DurationScrub {
         }
     }
 
+    /// Seconds at a fractional crown position, interpolated across the
+    /// stepping curve.
+    ///
+    /// The value that gets committed is always a whole step — this exists so
+    /// the ring can track the crown continuously between two detents instead of
+    /// jumping a sixth of a degree at a time.
+    static func seconds(forFractionalStep step: Double) -> TimeInterval {
+        let clamped = min(max(step, Double(minStep)), Double(maxStep))
+        let low = Int(clamped.rounded(.down))
+        let high = min(low + 1, maxStep)
+        let t = clamped - Double(low)
+        return seconds(forStep: low) * (1 - t) + seconds(forStep: high) * t
+    }
+
     /// One full revolution of the ring is 60 minutes.
     static func turns(forSeconds seconds: TimeInterval) -> Double {
         seconds / 3600
