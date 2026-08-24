@@ -189,6 +189,57 @@ struct SessionTests {
         )
     }
 
+    @Test("The live summary reads the same total as the session it stands in for")
+    func liveSummaryAgrees() {
+        let session = UUID()
+        let now = start.addingTimeInterval(2400)
+        let log = [
+            span(session: session, offset: 0, length: 600, planned: 1500),
+            span(session: session, offset: 900, length: nil),
+        ]
+        let summary = log.liveSummary()
+        #expect(summary?.studied(asOf: now) == log.sessions(asOf: now).first?.studiedSec)
+        #expect(summary?.studied(asOf: now) == 2100)
+        #expect(summary?.startedAt == start)
+        #expect(summary?.plannedSec == 1500)
+        #expect(summary?.isPaused == false)
+    }
+
+    @Test("A paused summary holds the count where it stopped")
+    func liveSummaryPaused() {
+        let session = UUID()
+        let log = [
+            span(session: session, offset: 0, length: 600),
+            span(session: session, offset: 900, length: 300),
+        ]
+        let summary = log.liveSummary()
+        #expect(summary?.isPaused == true)
+        // Long past the last interval, and the count hasn't moved.
+        #expect(summary?.studied(asOf: start.addingTimeInterval(9000)) == 900)
+    }
+
+    @Test("The live subject is whatever is open, or the last one while paused")
+    func liveSummarySubject() {
+        let session = UUID()
+        let (math, physics) = (UUID(), UUID())
+        let running = [
+            span(session: session, subject: math, offset: 0, length: 600),
+            span(session: session, subject: physics, offset: 600, length: nil),
+        ]
+        #expect(running.liveSummary()?.subjectID == physics)
+
+        let paused = [
+            span(session: session, subject: physics, offset: 0, length: 600),
+            span(session: session, subject: math, offset: 600, length: 300),
+        ]
+        #expect(paused.liveSummary()?.subjectID == math)
+    }
+
+    @Test("Nothing to summarise is nil, not zero")
+    func liveSummaryEmpty() {
+        #expect([Span]().liveSummary() == nil)
+    }
+
     @Test("A pause leaves a real gap and the studied total skips it")
     func pauseGap() {
         let session = UUID()

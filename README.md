@@ -50,11 +50,19 @@ See `web/README.md`. `npm run check && npm test && npm run build`.
 ## What's verified, and what isn't
 
 The Foundation-only core of the watch app — the day boundary, the number
-formats, the crown stepping curve and session assembly — compiles and its 23
-tests pass under Swift 6.3 on Linux (`watch/DiemTests`, run on a Mac through the
-`Diem` scheme, or standalone against those four files). Every Swift file parses
-clean. Everything that touches SwiftUI, SwiftData, WatchKit or AppIntents has
-**not** been compiled, because that needs an Apple SDK.
+formats, the crown stepping curve, session assembly and the live-session summary
+behind the running clock — compiles and its 31 tests pass under Swift 6.3 on
+Linux (`watch/DiemTests`, run on a Mac through the `Diem` scheme, or standalone
+against `Day`, `Format`, `Scrub`, `SessionAssembly` and the `ISO8601` helper out
+of `Sync/DTO`). Every Swift file parses clean under `-swift-version 6`.
+Everything that touches SwiftUI, SwiftData, WatchKit or AppIntents has **not**
+been compiled, because that needs an Apple SDK.
+
+Anything on a redraw path that can be pulled out into that core should be: the
+store's derived reads are held in a cache, and `liveSummary()` is where the
+arithmetic behind them lives precisely so it can be tested here rather than
+taken on faith. It is checked against `sessions()` — the assembly it stands in
+for — so the fast path can't drift from the slow one unnoticed.
 
 The web side is verified end to end: typecheck, build, unit tests, and a live
 run against a real Postgres covering pairing, idempotent interval push,

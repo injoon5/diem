@@ -39,31 +39,15 @@ final class SessionStore {
 
     // MARK: - Live session
 
-    /// Everything the Running screen reads, derived once per change instead of
-    /// once per frame.
+    /// The live session's timing, derived once per change instead of once per
+    /// frame.
     ///
     /// The clock redraws at 1Hz and the crown fires far faster than that, so
     /// the per-frame path has to be arithmetic. A fetch and a session assembly
     /// behind every read is what put SwiftData on the critical path of the
     /// numeral roll. The log only ever changes through `commit()`, so this is
     /// rebuilt there and nowhere else.
-    private struct LiveSummary {
-        let startedAt: Date
-        /// Studied seconds in the intervals that have already closed.
-        let bankedSec: TimeInterval
-        /// Start of the open interval — `nil` while paused.
-        let openedAt: Date?
-        let plannedSec: Int?
-        /// Subject of the open interval, or of the last one while paused.
-        let subjectID: UUID?
-
-        /// Studied seconds, paused gaps excluded.
-        func studied(asOf now: Date) -> TimeInterval {
-            guard let openedAt else { return bankedSec }
-            return bankedSec + max(0, now.timeIntervalSince(openedAt))
-        }
-    }
-
+    ///
     /// Doubly optional on purpose: the outer `nil` is "not computed yet", the
     /// inner one is "computed, and nothing is running".
     @ObservationIgnored private var liveCache: LiveSummary??
@@ -71,29 +55,13 @@ final class SessionStore {
     private func live() -> LiveSummary? {
         observe()
         if let liveCache { return liveCache }
-        let summary = buildLive()
+        let summary = activeSessionID.flatMap { intervals(inSession: $0).liveSummary() }
         liveCache = .some(summary)
         return summary
     }
 
-    private func buildLive() -> LiveSummary? {
-        guard let activeSessionID else { return nil }
-        let intervals = intervals(inSession: activeSessionID)
-        guard let first = intervals.first, let last = intervals.last else { return nil }
-        let open = intervals.first { $0.isOpen }
-        var banked: TimeInterval = 0
-        for interval in intervals where !interval.isOpen { banked += interval.duration() }
-        return LiveSummary(
-            startedAt: first.startedAt,
-            bankedSec: banked,
-            openedAt: open?.startedAt,
-            plannedSec: first.plannedSec,
-            subjectID: (open ?? last).subjectID
-        )
-    }
-
     var isRunning: Bool { live()?.openedAt != nil }
-    var isPaused: Bool { live().map { $0.openedAt == nil } ?? false }
+    var isPaused: Bool { live()?.isPaused ?? false }
 
     /// The planned length of the live session, without assembling the session
     /// to get at it — what the running clock needs once a second.
