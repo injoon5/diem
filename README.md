@@ -50,11 +50,12 @@ See `web/README.md`. `npm run check && npm test && npm run build`.
 ## What's verified, and what isn't
 
 The Foundation-only core of the watch app — the day boundary, the number
-formats, the crown stepping curve, session assembly and the live-session summary
-behind the running clock — compiles and its 31 tests pass under Swift 6.3 on
-Linux (`watch/DiemTests`, run on a Mac through the `Diem` scheme, or standalone
-against `Day`, `Format`, `Scrub`, `SessionAssembly` and the `ISO8601` helper out
-of `Sync/DTO`). Every Swift file parses clean under `-swift-version 6`.
+formats, the crown stepping curve, session assembly, the live-session summary
+behind the running clock and the goal lap the ring and the complication's bar
+both draw — compiles and its 38 tests pass under Swift 6.3 on Linux
+(`watch/DiemTests`, run on a Mac through the `Diem` scheme, or standalone
+against `Day`, `Format`, `Scrub`, `SessionAssembly`, `Snapshot` and the
+`ISO8601` helper out of `Sync/DTO`). Every Swift file parses clean under `-swift-version 6`.
 Everything that touches SwiftUI, SwiftData, WatchKit or AppIntents has **not**
 been compiled, because that needs an Apple SDK.
 
@@ -79,8 +80,10 @@ confirmation against the watchOS 27 SDK first:
 
 - Points-of-interest relevance, for surfacing the start card at known study
   locations.
-- `AccessoryWidgetGroup` for the rectangular complication, which is laid out by
-  hand instead.
+- `AccessoryWidgetGroup` for the rectangular complication. It stays laid out by
+  hand, and the goal bar with it: a stock `accessoryLinearCapacity` gauge draws
+  the same thing at 100% and at 200%, where the ring laps. Worth revisiting only
+  if the group buys back something the hand layout can't do.
 
 And two to check on hardware, as the plan says: the overflow ring's drop shadow
 depends on real OLED contrast, and the crown detent haptics want prototyping

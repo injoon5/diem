@@ -159,6 +159,52 @@ struct ScrubTests {
     }
 }
 
+@Suite("Goal laps")
+struct LapTests {
+    @Test("Under the goal, the fraction is the progress")
+    func partial() {
+        #expect(Lap(turns: 0.5).fraction == 0.5)
+        #expect(Lap(turns: 0.5).isLapped == false)
+    }
+
+    @Test("Exactly the goal is a full track, not a lap")
+    func exact() {
+        #expect(Lap(turns: 1).fraction == 1)
+        #expect(Lap(turns: 1).isLapped == false)
+    }
+
+    @Test("Past the goal, what's drawn is the overflow over the completed pass")
+    func lapped() {
+        #expect(Lap(turns: 1.25).isLapped == true)
+        #expect(Lap(turns: 1.25).fraction == 0.25)
+    }
+
+    @Test("A whole number of laps reads full, never empty")
+    func wholeLaps() {
+        #expect(Lap(turns: 2).isLapped == true)
+        #expect(Lap(turns: 2).fraction == 1)
+    }
+
+    @Test("Nothing studied leaves the track empty")
+    func empty() {
+        #expect(Lap(turns: 0).fraction == 0)
+        #expect(Lap(turns: -1).fraction == 0)
+        #expect(Lap(turns: -1).isLapped == false)
+    }
+
+    @Test("A snapshot laps against its own goal")
+    func fromSnapshot() {
+        let lap = DiemSnapshot(todaySec: 3 * 3600, goalSec: 2 * 3600).lap()
+        #expect(lap.isLapped)
+        #expect(lap.fraction == 0.5)
+    }
+
+    @Test("No goal is no reading")
+    func noGoal() {
+        #expect(DiemSnapshot(todaySec: 3600, goalSec: 0).lap().turns == 0)
+    }
+}
+
 @Suite("Sessions from intervals")
 struct SessionTests {
     /// Session assembly is pure arithmetic over the log, so it can be tested
