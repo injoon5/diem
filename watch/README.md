@@ -28,8 +28,11 @@ rather than the database.
 `.monospacedDigit()`, tracking set per size. `.monospacedDigit()` fixes per-digit
 width but not total string width, so every hero numeral reserves the frame of
 the widest value its field can hold and centres shorter strings inside it —
-nothing moves. Colons are drawn separately at half opacity, and each digit group
-rolls on its own.
+nothing moves. Where the unit sits inside the numeral rather than after it —
+`1h 30m` — the minutes are zero-padded for the same reason: a group that sizes
+to its own value drags the label along with it, and under a fast crown that is
+the whole reading skating about. Colons are drawn separately at half opacity,
+and each digit group rolls on its own.
 
 **Rolls versus replaces.** A total gets `.numericText(value:)`, so the system
 knows both the direction and the size of the jump. A count gets

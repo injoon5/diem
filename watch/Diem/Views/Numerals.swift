@@ -112,7 +112,9 @@ struct NumeralText: View {
 ///
 /// The unit is its own `Text` at ~40% of the numeral, `.regular`, `.secondary`,
 /// baseline-aligned — and width-reserved, so the numeral group stays centred
-/// rather than sliding as `m` becomes `h`.
+/// rather than sliding as `m` becomes `h`. It sits inside the field that gets
+/// replaced, so it leaves with the digits it belongs to instead of blinking
+/// out from under them.
 struct HeroNumeral: View {
     let measure: Format.Measure
     var size: CGFloat = Typography.Size.hero
@@ -132,7 +134,10 @@ struct HeroNumeral: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 2) {
+        // One child, and it stays one child: the animation has to hang off a
+        // view that outlives the `.id` below, or the transition it is meant to
+        // drive is destroyed along with the numeral it was driving.
+        HStack(spacing: 0) {
             Group {
                 if isHoursMinutes {
                     HoursMinutesNumeral(
@@ -143,15 +148,32 @@ struct HeroNumeral: View {
                         motion: measure.motion
                     )
                 } else {
-                    NumeralText(
-                        value: measure.value,
-                        widest: measure.widest,
-                        size: size,
-                        tracking: tracking,
-                        weight: weight,
-                        motion: measure.motion,
-                        drawsAsOneField: drawsAsOneField
-                    )
+                    // The unit travels with the digits. Left outside this
+                    // group it wasn't part of the swap, so crossing the hour
+                    // blurred `59` into `1h 00m` while the `m` beside it
+                    // simply stopped existing.
+                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        NumeralText(
+                            value: measure.value,
+                            widest: measure.widest,
+                            size: size,
+                            tracking: tracking,
+                            weight: weight,
+                            motion: measure.motion,
+                            drawsAsOneField: drawsAsOneField
+                        )
+                        if let unit = measure.unit {
+                            Text("m")
+                                .font(Typography.unit(size * 0.4))
+                                .hidden()
+                                .overlay {
+                                    Text(unit)
+                                        .font(Typography.unit(size * 0.4))
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize()
+                                }
+                        }
+                    }
                 }
                 // `59 m` becoming `1h 30m`, or `0:00` becoming `+0:00`, is not a
                 // digit rolling over — it is a different quantity in a different
@@ -160,17 +182,6 @@ struct HeroNumeral: View {
             }
             .id(fieldID)
             .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
-            if let unit = measure.unit {
-                Text("m")
-                    .font(Typography.unit(size * 0.4))
-                    .hidden()
-                    .overlay {
-                        Text(unit)
-                            .font(Typography.unit(size * 0.4))
-                            .foregroundStyle(.secondary)
-                            .fixedSize()
-                    }
-            }
         }
         .animation(Motion.standard, value: fieldID)
         .foregroundStyle(dimmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
@@ -181,7 +192,12 @@ struct HeroNumeral: View {
 
 /// `1h 30m`, with the digits carrying the visual weight and the unit symbols
 /// acting as quiet labels. Minutes are always present — a total that drops to
-/// `1h` on the hour reads as a rounded estimate rather than a measurement.
+/// `1h` on the hour reads as a rounded estimate rather than a measurement — and
+/// always two digits, because these units sit *inside* the numeral rather than
+/// after it. A minute group that sizes to its own value pushes the `m` along
+/// with it and re-centres the whole reading, which under a fast crown is the
+/// labels skating about twice a second. `Format.total` pads them for that
+/// reason; the group is a fixed width from `1h 00m` to `9h 59m`.
 private struct HoursMinutesNumeral: View {
     let value: String
     let size: CGFloat

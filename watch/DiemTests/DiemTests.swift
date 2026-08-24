@@ -65,9 +65,15 @@ struct FormatTests {
 
     @Test("An hour and over reads as hours and minutes")
     func hours() {
-        #expect(Format.total(60 * 60).value == "1h 0m")
+        #expect(Format.total(60 * 60).value == "1h 00m")
         #expect(Format.total(72 * 60).value == "1h 12m")
         #expect(Format.total(72 * 60).unit == nil)
+    }
+
+    @Test("A total's minutes hold two digits so the unit labels never shift")
+    func totalMinutesPadded() {
+        #expect(Format.total(65 * 60).value == "1h 05m")
+        #expect(Format.total(65 * 60).widest == "88h 88m")
     }
 
     @Test("Countdowns reserve the width they can grow into")
