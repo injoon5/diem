@@ -20,8 +20,10 @@ enum Palette {
     /// second data value rather than an empty track.
     static let ghostTrack = Color.white.opacity(0.10)
 
-    /// The lap past 100%.
-    static let overflow = accent.opacity(0.55)
+    /// The pass already completed, left showing beneath the overflow drawn over
+    /// the top of it. The ring and the complication's bar dim it by the same
+    /// amount, or they are not the same reading in two shapes.
+    static func lapped(_ color: Color) -> Color { color.opacity(0.42) }
 
     static func accent(luminanceReduced: Bool) -> Color {
         luminanceReduced ? accentDimmed : accent

@@ -17,7 +17,10 @@ struct SettingsView: View {
                         HStack {
                             Text("Daily")
                             Spacer()
-                            Text(Format.duration(Settings.shared.dailyGoalSeconds))
+                            // The same spelling the screen behind this link
+                            // shows. `duration` drops the padding, so the row
+                            // read `2h 0m` against the numeral's `2h 00m`.
+                            Text(Format.total(Settings.shared.dailyGoalSeconds).text)
                                 .monospacedDigit()
                                 .foregroundStyle(.secondary)
                         }
@@ -81,6 +84,8 @@ private struct GoalView: View {
 
     @State private var step: Double
     @FocusState private var crownFocused: Bool
+    /// Waits for the crown to settle before telling the widgets.
+    @State private var republish: Task<Void, Never>?
 
     /// Seeded at init, not in `onAppear`. Assigning the stored goal after the
     /// first render would register as a crown movement and fire a detent the
@@ -126,10 +131,26 @@ private struct GoalView: View {
             Haptics.crownDetent()
             Settings.shared.dailyGoalMinutes = GoalScrub.minutes(forStep: new)
             // The goal is half of every gauge the widgets draw, and it lives
-            // outside the interval log that normally triggers a republish.
-            store.refreshSnapshot()
+            // outside the interval log that normally triggers a republish — but
+            // a detent is not a decision. One pass of the crown is forty-seven
+            // of them, and republishing each one writes the snapshot file and
+            // wakes `chronod` forty-seven times for a number the user is still
+            // choosing. The ring on this screen reads the setting directly, so
+            // nothing on screen waits for this.
+            republish?.cancel()
+            republish = Task {
+                try? await Task.sleep(for: .milliseconds(400))
+                guard !Task.isCancelled else { return }
+                store.refreshSnapshot()
+            }
         }
         .onAppear { crownFocused = true }
+        // Leaving early is a settled crown too. Publishing twice is free — an
+        // unchanged snapshot is never written.
+        .onDisappear {
+            republish?.cancel()
+            store.refreshSnapshot()
+        }
         .navigationTitle("Goal")
     }
 }
@@ -211,16 +232,21 @@ private struct NameField: View {
     var onCommit: (String) -> Void
 
     var body: some View {
-        VStack(spacing: 8) {
-            TextField(title, text: $text)
-                .textInputAutocapitalization(.words)
-                .submitLabel(.done)
-                .onSubmit(commit)
-            Button("Save", action: commit)
-                .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+        // Presented as a bare sheet, the title had nothing to draw in — so the
+        // one thing that says whether this is a new subject or a rename never
+        // appeared.
+        NavigationStack {
+            VStack(spacing: 8) {
+                TextField(title, text: $text)
+                    .textInputAutocapitalization(.words)
+                    .submitLabel(.done)
+                    .onSubmit(commit)
+                Button("Save", action: commit)
+                    .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .padding(.horizontal, 8)
+            .navigationTitle(title)
         }
-        .padding(.horizontal, 8)
-        .navigationTitle(title)
     }
 
     private func commit() {

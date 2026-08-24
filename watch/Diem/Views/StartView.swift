@@ -62,20 +62,24 @@ struct StartView: View {
             Haptics.crownDetent()
         }
         .toolbar {
-            // Keep the two utility actions in the top corners.
-            ToolbarItem(placement: .topBarLeading) {
-                Button { showingSettings = true } label: {
-                    Image(systemName: "gearshape")
-                }
-                .accessibilityLabel("Settings")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { showingMetrics = true } label: {
-                    Image(systemName: "chart.bar")
-                }
-                .accessibilityLabel("Metrics")
-            }
+            // Nothing on screen is tappable while the wrist is down, so nothing
+            // is drawn: the bottom bar already went, and the top two were left
+            // lit on their own — which also pulled the ring off centre, since
+            // only one of the two bars was giving its space back.
             if !isLuminanceReduced {
+                // Keep the two utility actions in the top corners.
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showingSettings = true } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingMetrics = true } label: {
+                        Image(systemName: "chart.bar")
+                    }
+                    .accessibilityLabel("Metrics")
+                }
                 // The subject picker is a bottom-leading control, while the
                 // start action stays pinned to the bottom edge instead of
                 // drifting with the ring's flexible space.

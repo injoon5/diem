@@ -133,11 +133,7 @@ struct RunningView: View {
         var hasHitZero: Bool { (remaining ?? 1) <= 0 }
 
         var measure: Format.Measure {
-            guard let remaining else {
-                return Format.clock(elapsed, span: elapsed, countsDown: false)
-            }
-            if remaining < 0 { return Format.overtime(-remaining, span: -remaining) }
-            return Format.clock(remaining, span: plannedSec.map(Double.init))
+            Format.count(remaining: remaining, elapsed: elapsed, plannedSec: plannedSec)
         }
 
         /// Minutes only, but still unambiguous: `+3 m` dimmed is three minutes
@@ -266,6 +262,16 @@ struct RunningView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // The one thing this layout cannot say on its own. Dimmed, the numeral
+        // only moves once a minute anyway, so a held count and a running one
+        // are the same picture — a wrist glance would read a paused session as
+        // studying. Pinned to the top, where the lit layout puts the same word,
+        // and as an overlay so the numeral doesn't shift down to make room.
+        .overlay(alignment: .top) {
+            if store.isPaused {
+                Text("Paused").sectionLabelStyle()
+            }
+        }
         .stillWhenDimmed(true)
     }
 

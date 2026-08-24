@@ -51,8 +51,10 @@ struct MetricsView: View {
                     tracking: Typography.Size.titleTracking
                 )
                 // Wide enough to stay a separate phrase: at a tighter gap the
-                // unit and the goal ran together into `m of 2h 0m`.
-                Text("of \(Format.duration(store.goalSeconds))")
+                // unit and the goal ran together into `m of 2h 0m`. Same
+                // spelling as the numeral it sits against, too — `duration`
+                // drops the padding and put `1h 05m of 2h 0m` on one line.
+                Text("of \(Format.total(store.goalSeconds).text)")
                     .font(Typography.text(.caption2))
                     .foregroundStyle(.tertiary)
             }
@@ -82,7 +84,7 @@ struct MetricsView: View {
                     .font(Typography.text(.footnote))
                     .lineLimit(1)
                 Spacer(minLength: 4)
-                Text(Format.duration(entry.seconds))
+                Text(Format.total(entry.seconds).text)
                     .font(Typography.text(.caption2))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -221,6 +223,10 @@ struct MetricsView: View {
                 }
                 return HeatmapCell(id: date, seconds: date <= today ? (totals[date] ?? 0) : nil)
             }
+            // The grid indexes every week by weekday, so a short one would be
+            // a crash rather than a gap. Calendar arithmetic doesn't fail in
+            // practice; a chart is not the place to find out it can.
+            guard days.count == 7 else { return nil }
             return HeatmapWeek(id: weekDate, days: days)
         }
     }

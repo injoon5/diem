@@ -76,6 +76,13 @@ struct FormatTests {
         #expect(Format.total(65 * 60).widest == "88h 88m")
     }
 
+    @Test("A measure spells itself the same way in prose as in the numeral")
+    func measureText() {
+        #expect(Format.total(2 * 3600).text == "2h 00m")
+        #expect(Format.total(15 * 60).text == "15m")
+        #expect(Format.clock(25 * 60, span: 25 * 60).text == "25:00")
+    }
+
     @Test("Countdowns reserve the width they can grow into")
     func countdownWidth() {
         #expect(Format.clock(25 * 60, span: 25 * 60).value == "25:00")
@@ -87,6 +94,22 @@ struct FormatTests {
     @Test("Minutes hold two digits so the clock never shifts")
     func clockMinutesPadded() {
         #expect(Format.clock(5 * 60, span: 25 * 60).value == "05:00")
+    }
+
+    @Test("The count says the same thing running or held")
+    func count() {
+        // A timed session reads what is left, whether it is running or paused.
+        let timed = Format.count(remaining: 900, elapsed: 600, plannedSec: 1500)
+        #expect(timed.value == "15:00")
+        #expect(timed.motion == .countdown)
+
+        // An open-ended one reads what it has done.
+        let free = Format.count(remaining: nil, elapsed: 600, plannedSec: nil)
+        #expect(free.value == "10:00")
+        #expect(free.motion == .countUp)
+
+        // Past the deadline it rolls into overtime rather than freezing at zero.
+        #expect(Format.count(remaining: -200, elapsed: 1700, plannedSec: 1500).value == "+03:20")
     }
 
     @Test("Overtime carries its sign")

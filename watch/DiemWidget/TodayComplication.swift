@@ -60,7 +60,11 @@ struct TodayComplicationView: View {
                 Text("TODAY")
                     .font(.system(.caption2, design: .default))
                     .foregroundStyle(.secondary)
-                Text(today)
+                // The one family with room for the reading the app itself
+                // shows. `compactToday` exists because a circular complication
+                // fits four characters; spending that thrift here left the
+                // card saying `1.5h` for a total the app was calling `1h 30m`.
+                Text(Format.total(snapshot.today(asOf: now)).text)
                     .font(Typography.numeral(22))
                     .monospacedDigit()
                     .widgetAccentable()
@@ -70,7 +74,9 @@ struct TodayComplicationView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Today")
-            .accessibilityValue("\(today) of \(Format.duration(snapshot.goalSec))")
+            .accessibilityValue(
+                "\(Format.duration(snapshot.today(asOf: now))) of \(Format.duration(snapshot.goalSec))"
+            )
 
         case .accessoryInline:
             // No control over font or colour here — only the string is ours.
@@ -102,7 +108,7 @@ private struct GoalBar: View {
 
                 if lap.isLapped {
                     Capsule()
-                        .fill(Palette.ring.opacity(0.42))
+                        .fill(Palette.lapped(Palette.ring))
                         .widgetAccentable()
                 }
 

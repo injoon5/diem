@@ -34,6 +34,14 @@ to its own value drags the label along with it, and under a fast crown that is
 the whole reading skating about. Colons are drawn separately at half opacity,
 and each digit group rolls on its own.
 
+**Visible durations and spoken ones are different formatters.** Anything drawn
+on screen uses `Format.total(_:)` — `.text` where it needs to be one string
+rather than a numeral — so a total and the goal beside it are spelled the same
+way. `Format.duration(_:)` is what's left: Siri dialogs and accessibility
+values, where the padding that holds a numeral still would be heard as "one h
+oh five m". `Format.count(_:)` decides what a running session reads, once, for
+the app and the widget both.
+
 **Rolls versus replaces.** A total gets `.numericText(value:)`, so the system
 knows both the direction and the size of the jump. A count gets
 `.numericText(countsDown:)`, because its direction is fixed and its magnitude

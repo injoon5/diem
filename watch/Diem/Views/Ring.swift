@@ -22,7 +22,7 @@ struct RingArc: View {
         ZStack {
             if lapped {
                 Circle()
-                    .stroke(color.opacity(0.42), style: .init(lineWidth: lineWidth, lineCap: .round))
+                    .stroke(Palette.lapped(color), style: .init(lineWidth: lineWidth, lineCap: .round))
                 Circle()
                     .trim(from: 0, to: fraction)
                     .stroke(lapColor, style: .init(lineWidth: lineWidth, lineCap: .round))

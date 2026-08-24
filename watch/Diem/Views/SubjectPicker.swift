@@ -11,22 +11,27 @@ struct SubjectPicker: View {
 
     var body: some View {
         let subjects = store.subjects()
-        List {
-            Section {
-                ForEach(subjects) { subject in
-                    row(name: subject.name, colorIndex: subject.colorIndex, id: subject.id)
-                }
-                row(name: "Free", colorIndex: nil, id: nil)
-            }
-            if subjects.isEmpty {
+        // Its own stack, the way `SettingsView` and `MetricsView` carry theirs.
+        // Presented as a bare sheet the title below has nothing to draw in, so
+        // the picker arrived unlabelled.
+        NavigationStack {
+            List {
                 Section {
-                    Text("Add subjects in Settings.")
-                        .font(Typography.text(.footnote))
-                        .foregroundStyle(.secondary)
+                    ForEach(subjects) { subject in
+                        row(name: subject.name, colorIndex: subject.colorIndex, id: subject.id)
+                    }
+                    row(name: "Free", colorIndex: nil, id: nil)
+                }
+                if subjects.isEmpty {
+                    Section {
+                        Text("Add subjects in Settings.")
+                            .font(Typography.text(.footnote))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
+            .navigationTitle("Subject")
         }
-        .navigationTitle("Subject")
     }
 
     private func row(name: String, colorIndex: Int?, id: UUID?) -> some View {

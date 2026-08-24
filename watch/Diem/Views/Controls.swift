@@ -46,50 +46,6 @@ struct SubjectButton: View {
     }
 }
 
-/// The primary action: a Liquid Glass pill at the bottom of the screen.
-struct GlassPill: View {
-    var title: String
-    var systemImage: String?
-    var tint: Color = Palette.accent
-    var action: () -> Void
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                Text(title)
-                    .font(Typography.text(.body).weight(.medium))
-                    .lineLimit(1)
-                    .id(title)
-                    .labelSwap(reduceMotion: reduceMotion)
-            }
-            .padding(.horizontal, 18)
-            .frame(minHeight: 44)
-            .contentShape(.capsule)
-        }
-        .buttonStyle(PillButtonStyle(tint: tint))
-        .animation(Motion.standard, value: title)
-    }
-}
-
-private struct PillButtonStyle: ButtonStyle {
-    var tint: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(.white)
-            .glassEffect(.regular.tint(tint.opacity(0.34)).interactive(), in: .capsule)
-            .brightness(configuration.isPressed ? 0.08 : 0)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(Motion.standard, value: configuration.isPressed)
-    }
-}
-
 /// A round toolbar button for the bottom bar.
 struct CircleControl: View {
     var systemImage: String

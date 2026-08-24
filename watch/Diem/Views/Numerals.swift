@@ -164,11 +164,11 @@ struct HeroNumeral: View {
                         )
                         if let unit = measure.unit {
                             Text("m")
-                                .font(Typography.unit(size * 0.4))
+                                .font(Typography.unit(size * Typography.Size.unitRatio))
                                 .hidden()
                                 .overlay {
                                     Text(unit)
-                                        .font(Typography.unit(size * 0.4))
+                                        .font(Typography.unit(size * Typography.Size.unitRatio))
                                         .foregroundStyle(.secondary)
                                         .fixedSize()
                                 }
@@ -248,7 +248,7 @@ private struct HoursMinutesNumeral: View {
 
     private func unit(_ value: String) -> some View {
         Text(value)
-            .font(Typography.unit(size * 0.36))
+            .font(Typography.unit(size * Typography.Size.inlineUnitRatio))
             .foregroundStyle(.secondary)
             .fixedSize()
     }

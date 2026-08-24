@@ -35,6 +35,11 @@ enum Format {
         var widest: String
         var spoken: String
         var motion: NumeralMotion
+
+        /// Value and unit as one string, for prose set beside a numeral drawn
+        /// from the same reading. Two spellings of one quantity on one line —
+        /// `1h 05m` next to `2h 0m` — read as two different numbers.
+        var text: String { value + (unit ?? "") }
     }
 
     /// Totals: `0 m`, `45 m`, `1h 30m`. Past an hour the minutes stay on
@@ -111,10 +116,31 @@ enum Format {
         )
     }
 
-    /// A duration being scrubbed: `25m`, `1h 30m`, `2h 0m`. Minutes are never
-    /// dropped — the same reading rule the hero numeral follows. Unpadded,
-    /// unlike the numeral: this one is prose, set in a label that is free to
-    /// take whatever width it needs.
+    /// The running count, whatever the session is: what's left of a timed one,
+    /// what an open-ended one has done, and overtime once a timed one runs past
+    /// its deadline.
+    ///
+    /// One place decides, because two surfaces read it. The widget used to work
+    /// this out for itself and got a different answer while paused — a timed
+    /// session counting down to `15:00` would hold at `10m`, the same clock
+    /// suddenly reporting studied time instead of time left.
+    static func count(
+        remaining: TimeInterval?,
+        elapsed: TimeInterval,
+        plannedSec: Int?
+    ) -> Measure {
+        guard let remaining else {
+            return clock(elapsed, span: elapsed, countsDown: false)
+        }
+        if remaining < 0 { return overtime(-remaining, span: -remaining) }
+        return clock(remaining, span: plannedSec.map(Double.init))
+    }
+
+    /// A duration, spoken: `25m`, `1h 30m`, `2h 0m`. Minutes are never dropped —
+    /// the same reading rule the hero numeral follows. Unpadded, unlike the
+    /// numeral: what reads as `1h 05m` on a screen is heard as "one h oh five
+    /// m", so anything visible uses `total(_:).text` and this is left to Siri,
+    /// dialogs and accessibility values.
     static func duration(_ seconds: TimeInterval) -> String {
         let minutes = Int(max(0, seconds) / 60)
         guard minutes >= 60 else { return "\(minutes)m" }

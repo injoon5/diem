@@ -13,8 +13,6 @@ enum Typography {
         /// largest thing on the screen by a wide margin.
         static let heroCompact: CGFloat = 50
         static let heroTracking: CGFloat = -1.2
-        /// The unit sits at ~40% of the numeral.
-        static let heroUnit: CGFloat = 22
 
         /// The total inside the Start ring. Sized to the ring rather than to
         /// the type scale — at `title` it read as a caption in a large empty
@@ -24,10 +22,19 @@ enum Typography {
 
         static let title: CGFloat = 34
         static let titleTracking: CGFloat = -0.8
-        static let titleUnit: CGFloat = 14
 
         static let label: CGFloat = 13
         static let labelTracking: CGFloat = 0.3
+
+        /// The unit sits at a fraction of the numeral it labels rather than at
+        /// a size of its own: the same numeral is drawn at 54, 40 and 34, and a
+        /// fixed point size can only be right for one of them. Two fixed ones
+        /// used to be declared here and read by nothing, quietly disagreeing
+        /// with what the numerals actually drew.
+        static let unitRatio: CGFloat = 0.40
+        /// A shade smaller where the unit sits inside the reading — `1h 30m` —
+        /// rather than trailing it, so it stays a label between two numbers.
+        static let inlineUnitRatio: CGFloat = 0.36
     }
 
     /// Numerals: SF Compact Rounded, `.medium` — at display sizes bold closes

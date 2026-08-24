@@ -22,7 +22,10 @@ struct DoneView: View {
                     tracking: Typography.Size.titleTracking
                 )
 
-                if session.intervalCount > 1 {
+                // More than one subject, not more than one interval: a
+                // session paused once and resumed on the same subject has two
+                // intervals and one row, which restates the total above it.
+                if session.bySubject.count > 1 {
                     VStack(spacing: 4) {
                         ForEach(session.bySubject) { entry in
                             HStack(spacing: 6) {
@@ -33,11 +36,14 @@ struct DoneView: View {
                                     .font(Typography.text(.footnote))
                                     .lineLimit(1)
                                 Spacer(minLength: 4)
-                                Text(Format.duration(entry.seconds))
+                                Text(Format.total(entry.seconds).text)
                                     .font(Typography.text(.footnote))
                                     .monospacedDigit()
                                     .foregroundStyle(.secondary)
                             }
+                            // One row, one reading — the way the same row
+                            // reads in Metrics.
+                            .accessibilityElement(children: .combine)
                         }
                     }
                     .padding(.top, 2)
