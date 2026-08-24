@@ -3,7 +3,6 @@ import SwiftUI
 /// The subject list, and one number.
 struct SettingsView: View {
     @Environment(SessionStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
 
     @State private var newSubjectName = ""
     @State private var addingSubject = false
@@ -13,7 +12,7 @@ struct SettingsView: View {
             List {
                 Section("Goal") {
                     NavigationLink {
-                        GoalView()
+                        GoalView(minutes: Settings.shared.dailyGoalMinutes)
                     } label: {
                         HStack {
                             Text("Daily")
@@ -38,7 +37,11 @@ struct SettingsView: View {
                                     .opacity(subject.archived ? 0.4 : 1)
                                 Text(subject.name)
                                     .lineLimit(1)
-                                    .foregroundStyle(subject.archived ? .secondary : .primary)
+                                    .foregroundStyle(
+                                        subject.archived
+                                            ? AnyShapeStyle(.secondary)
+                                            : AnyShapeStyle(.primary)
+                                    )
                                 if subject.archived {
                                     Spacer(minLength: 4)
                                     Image(systemName: "archivebox")
@@ -74,8 +77,14 @@ struct SettingsView: View {
 
 /// One number, scrubbed with the crown.
 private struct GoalView: View {
-    @State private var step: Double = 0
-    @State private var loaded = false
+    @State private var step: Double
+
+    /// Seeded at init, not in `onAppear`. Assigning the stored goal after the
+    /// first render would register as a crown movement and fire a detent the
+    /// user never made.
+    init(minutes: Int) {
+        _step = State(initialValue: Double(GoalScrub.step(forMinutes: minutes)))
+    }
 
     private var minutes: Int { GoalScrub.minutes(forStep: Int(step.rounded())) }
 
@@ -99,11 +108,6 @@ private struct GoalView: View {
             guard old != new else { return }
             Haptics.crownDetent()
             Settings.shared.dailyGoalMinutes = GoalScrub.minutes(forStep: new)
-        }
-        .onAppear {
-            guard !loaded else { return }
-            step = Double(GoalScrub.step(forMinutes: Settings.shared.dailyGoalMinutes))
-            loaded = true
         }
         .navigationTitle("Goal")
     }

@@ -12,7 +12,9 @@ struct RingArc: View {
     var lapColor: Color
     var lineWidth: CGFloat
 
-    private var lapped: Bool { turns >= 1 }
+    /// Exactly one turn is a closed ring, not a lap: the overflow band only
+    /// appears once there is something to draw over the top.
+    private var lapped: Bool { turns > 1 }
     private var fraction: Double {
         guard turns > 0 else { return 0 }
         guard lapped else { return min(turns, 1) }

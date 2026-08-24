@@ -95,7 +95,7 @@ struct StartView: View {
                 // number counting itself down, so the swap replaces instead —
                 // in the same beat as the ring's cross-fade.
                 .id(isScrubbing)
-                .transition(reduceMotion ? .opacity : .blurReplace)
+                .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
             }
             .frame(maxHeight: .infinity)
             .animation(Motion.fill(reduceMotion: reduceMotion), value: isScrubbing)

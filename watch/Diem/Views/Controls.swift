@@ -7,6 +7,9 @@ struct SubjectButton: View {
     var name: String?
     var colorIndex: Int?
     var showsDot = false
+    /// What no subject reads as. A prompt on the Start screen; on the Running
+    /// screen "Free" is the state the session is actually in.
+    var placeholder: String = "Subject"
     var action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -19,11 +22,13 @@ struct SubjectButton: View {
                         .fill(Palette.subject(colorIndex))
                         .frame(width: 6, height: 6)
                 }
-                Text(name ?? "Subject")
+                Text(name ?? placeholder)
                     .font(Typography.text(.body))
-                    .foregroundStyle(name == nil ? .tertiary : .primary)
+                    .foregroundStyle(
+                        name == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary)
+                    )
                     .lineLimit(1)
-                    .id(name ?? "")
+                    .id(name ?? placeholder)
                     .labelSwap(reduceMotion: reduceMotion)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .semibold))
@@ -37,7 +42,7 @@ struct SubjectButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Subject")
-        .accessibilityValue(name ?? "None")
+        .accessibilityValue(name ?? placeholder)
     }
 }
 
@@ -89,7 +94,7 @@ private struct PillButtonStyle: ButtonStyle {
 struct CircleControl: View {
     var systemImage: String
     var label: String
-    var tint: Color = .white
+    var tint: Color = .primary
     var action: () -> Void
 
     var body: some View {

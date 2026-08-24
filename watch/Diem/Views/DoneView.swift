@@ -51,7 +51,11 @@ struct DoneView: View {
         }
         .containerBackground(.black, for: .navigation)
         .onAppear {
-            session.isComplete ? Haptics.sessionComplete() : Haptics.stop()
+            if session.isComplete {
+                Haptics.sessionComplete()
+            } else {
+                Haptics.stop()
+            }
         }
     }
 

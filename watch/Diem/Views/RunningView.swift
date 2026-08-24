@@ -16,12 +16,17 @@ struct RunningView: View {
         // Dimmed, the display refreshes about once a minute — asking for a
         // per-second schedule there only burns budget.
         TimelineView(.periodic(from: anchor, by: isLuminanceReduced ? 60 : 1)) { context in
-            layout(now: context.date)
-                .onChange(of: hasHitZero(now: context.date)) { _, hitZero in
-                    guard hitZero, !announcedZero else { return }
-                    announcedZero = true
-                    Haptics.sessionComplete()
-                }
+            // The watch dimming swaps one layout for the other, which would
+            // reseed an `onChange` attached to the layout itself and lose the
+            // crossing. The container it hangs off has to outlive that swap.
+            ZStack {
+                layout(now: context.date)
+            }
+            .onChange(of: hasHitZero(now: context.date)) { _, hitZero in
+                guard hitZero, !announcedZero else { return }
+                announcedZero = true
+                Haptics.sessionComplete()
+            }
         }
         .containerBackground(.black, for: .navigation)
         .navigationBarBackButtonHidden()
@@ -66,13 +71,17 @@ struct RunningView: View {
     }
 
     private func active(now: Date) -> some View {
-        VStack(spacing: 2) {
+        let subject = store.subject(store.activeSubjectID)
+        return VStack(spacing: 2) {
             Spacer(minLength: 0)
             HeroNumeral(measure: measure(now: now), dimmed: isOvertime(now: now))
             SubjectButton(
-                name: store.subject(store.activeSubjectID)?.name,
-                colorIndex: store.subject(store.activeSubjectID)?.colorIndex,
-                showsDot: true
+                name: subject?.name,
+                colorIndex: subject?.colorIndex,
+                showsDot: true,
+                // Mid-session there is no subject to go and pick — running
+                // without one is what a free session *is*.
+                placeholder: "Free"
             ) {
                 showingSubjects = true
             }
@@ -87,7 +96,7 @@ struct RunningView: View {
                     .transition(.opacity)
             }
         }
-        .animation(Motion.standard, value: store.isPaused)
+        .animation(Motion.fill(reduceMotion: reduceMotion), value: store.isPaused)
     }
 
     /// A second layout, not a dimmed copy: minutes only, one weight lighter

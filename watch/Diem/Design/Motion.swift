@@ -31,6 +31,6 @@ extension View {
 
     /// Cross-fading two different strings reads as a double image.
     func labelSwap(reduceMotion: Bool) -> some View {
-        transition(reduceMotion ? .opacity : .blurReplace)
+        transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
     }
 }

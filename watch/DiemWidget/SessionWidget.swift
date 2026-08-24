@@ -70,8 +70,15 @@ struct SessionWidgetView: View {
     private func count(for session: DiemSnapshot.Live) -> some View {
         if session.isPaused {
             Text(Format.duration(session.pausedElapsedSec))
-        } else if let deadline = session.deadline {
+        } else if let deadline = session.deadline, deadline > now {
             Text(timerInterval: session.countingFrom...deadline, countsDown: true)
+        } else if let deadline = session.deadline {
+            // Past the deadline the session hasn't ended, it has rolled into
+            // overtime. A countdown frozen at zero would say the opposite.
+            HStack(spacing: 0) {
+                Text("+")
+                Text(timerInterval: deadline...deadline.addingTimeInterval(24 * 3600), countsDown: false)
+            }
         } else {
             Text(
                 timerInterval: session.countingFrom...session.countingFrom.addingTimeInterval(24 * 3600),

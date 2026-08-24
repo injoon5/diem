@@ -98,7 +98,7 @@ struct HeroNumeral: View {
             // field. Rolling one into the other reads as a glitch, so the whole
             // numeral is replaced instead.
             .id(fieldID)
-            .transition(reduceMotion ? .opacity : .blurReplace)
+            .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
             if let unit = measure.unit {
                 Text("m")
                     .font(Typography.unit(size * 0.4))

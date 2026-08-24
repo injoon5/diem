@@ -19,7 +19,12 @@ final class SessionStore {
     /// A subject picked while paused. Intervals are immutable once ended, so the
     /// choice waits for the next one rather than rewriting the last.
     private(set) var pendingSubjectID: UUID??
-    /// Bumped whenever the log changes, so views recompute derived values.
+    /// Bumped whenever the log changes.
+    ///
+    /// Everything a view reads here comes back from a fetch, and a fetch is
+    /// invisible to observation — so every read touches this first. A body that
+    /// called `subjects()` then re-runs when the next write lands, without
+    /// having to know that it depends on anything.
     private(set) var revision = 0
 
     /// The session just finished, waiting on the Done screen.
@@ -214,6 +219,7 @@ final class SessionStore {
     // MARK: - Subjects
 
     func subjects(includeArchived: Bool = false) -> [Subject] {
+        observe()
         let descriptor = FetchDescriptor<Subject>(
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
@@ -222,6 +228,7 @@ final class SessionStore {
     }
 
     func subject(_ id: UUID?) -> Subject? {
+        observe()
         guard let id else { return nil }
         var descriptor = FetchDescriptor<Subject>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
@@ -316,6 +323,7 @@ final class SessionStore {
     }
 
     private func intervals(inSession id: UUID) -> [Interval] {
+        observe()
         let descriptor = FetchDescriptor<Interval>(
             predicate: #Predicate { $0.sessionID == id },
             sortBy: [SortDescriptor(\.startedAt)]
@@ -324,6 +332,7 @@ final class SessionStore {
     }
 
     private func intervals(startingIn range: Range<Date>) -> [Interval] {
+        observe()
         let (low, high) = (range.lowerBound, range.upperBound)
         let descriptor = FetchDescriptor<Interval>(
             predicate: #Predicate { $0.startedAt >= low && $0.startedAt < high },
@@ -331,6 +340,11 @@ final class SessionStore {
         )
         return (try? context.fetch(descriptor)) ?? []
     }
+
+    /// Registers the caller's dependency on the log. Reading a tracked property
+    /// inside a fetch is what makes an `@Observable` store work at all when the
+    /// data itself lives in SwiftData.
+    private func observe() { _ = revision }
 
     private func commit() {
         try? context.save()
