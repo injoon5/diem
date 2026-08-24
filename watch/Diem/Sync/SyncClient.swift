@@ -10,6 +10,10 @@ struct SyncClient: Sendable {
 
     var baseURL: URL
     var deviceToken: String
+    /// The server buckets sessions into local days and needs to know which.
+    var timezone: String
+    /// The web shows a goal-hit rate, so it needs a copy of the one setting.
+    var goalMinutes: Int
 
     static let defaultBaseURL = URL(string: "https://diem.app")!
 
@@ -18,7 +22,9 @@ struct SyncClient: Sendable {
         let configured = Bundle.main.object(forInfoDictionaryKey: "DiemAPIBaseURL") as? String
         return SyncClient(
             baseURL: configured.flatMap(URL.init(string:)) ?? defaultBaseURL,
-            deviceToken: Settings.shared.deviceToken
+            deviceToken: Settings.shared.deviceToken,
+            timezone: TimeZone.current.identifier,
+            goalMinutes: Settings.shared.dailyGoalMinutes
         )
     }
 
@@ -71,6 +77,8 @@ struct SyncClient: Sendable {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = method
         request.setValue(deviceToken, forHTTPHeaderField: "X-Diem-Device")
+        request.setValue(timezone, forHTTPHeaderField: "X-Diem-TZ")
+        request.setValue(String(goalMinutes), forHTTPHeaderField: "X-Diem-Goal")
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder.diem.encode(body)
