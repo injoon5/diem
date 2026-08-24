@@ -1,0 +1,46 @@
+import SwiftUI
+
+enum Palette {
+    /// International Orange, matching the Ultra Action Button. Defined in
+    /// Display P3 — sRGB clips the hue visibly duller.
+    static let accent = Color(.displayP3, red: 1.00, green: 0.35, blue: 0.06)
+
+    /// Saturated orange desaturates perceptually as luminance drops, so the
+    /// Always-On variant takes more chroma and less luminance to avoid turning
+    /// muddy brown.
+    static let accentDimmed = Color(.displayP3, red: 0.86, green: 0.26, blue: 0.02)
+
+    /// The empty ring. White, not a dim orange — a desaturated accent reads as a
+    /// second data value rather than an empty track.
+    static let ghostTrack = Color.white.opacity(0.10)
+
+    /// The lap past 100%.
+    static let overflow = accent.opacity(0.55)
+
+    static func accent(luminanceReduced: Bool) -> Color {
+        luminanceReduced ? accentDimmed : accent
+    }
+
+    /// A fixed palette for subjects, excluding orange and its neighbours so a
+    /// subject swatch is never mistaken for the accent. Colour never carries
+    /// meaning alone — watch faces render complications monochrome.
+    static let subjects: [Color] = [
+        Color(.displayP3, red: 0.61, green: 0.80, blue: 0.20),  // lime
+        Color(.displayP3, red: 0.30, green: 0.78, blue: 0.38),  // green
+        Color(.displayP3, red: 0.13, green: 0.75, blue: 0.55),  // emerald
+        Color(.displayP3, red: 0.10, green: 0.72, blue: 0.70),  // teal
+        Color(.displayP3, red: 0.20, green: 0.73, blue: 0.86),  // cyan
+        Color(.displayP3, red: 0.25, green: 0.60, blue: 0.94),  // sky
+        Color(.displayP3, red: 0.31, green: 0.44, blue: 0.95),  // blue
+        Color(.displayP3, red: 0.46, green: 0.38, blue: 0.93),  // indigo
+        Color(.displayP3, red: 0.65, green: 0.36, blue: 0.92),  // violet
+        Color(.displayP3, red: 0.85, green: 0.38, blue: 0.78),  // magenta
+    ]
+
+    static var subjectCount: Int { subjects.count }
+
+    static func subject(_ index: Int?) -> Color {
+        guard let index else { return .secondary }
+        return subjects[((index % subjects.count) + subjects.count) % subjects.count]
+    }
+}
