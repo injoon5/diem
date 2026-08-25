@@ -228,6 +228,17 @@ struct RunningView: View {
             // The colours are resolved here, where the store is. The ring has
             // no way to look a subject up.
             SubjectRing(runs: coloredRuns(tick.runs), lineWidth: 8)
+                // Held, the whole screen steps back together — and the ring is
+                // most of the screen. It was the one thing still at full
+                // brightness behind a clock that had gone quiet, which read as
+                // a session still running with its number turned down. Same
+                // value as the numeral's held state, so they step back as one
+                // picture rather than at two depths.
+                // Not dimmed when held, unlike the clock and the subject above
+                // it. Tried, and it is the wrong reading: what the ring draws
+                // is the session so far, and holding a session does not make
+                // what you have already done less true. The clock steps back
+                // because the clock is the thing that has stopped.
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Session so far")
                 .accessibilityValue(runsDescription(tick.runs))
@@ -238,6 +249,38 @@ struct RunningView: View {
             // descender space and the chip's own padding — about 25 points of
             // air between two pieces of ink that belong together.
             VStack(spacing: -4) {
+                // The state label is a line of the block, and the line is
+                // there whether or not there is anything to say in it.
+                //
+                // It used to be an overlay on the whole screen, pushed down
+                // from the top of the content area by a fixed 22 points — a
+                // number that clears the clock at 44pt with four digits and
+                // lands on top of it at 38pt with six, which is exactly what a
+                // paused session over an hour draws. A hidden word of the same
+                // style reserves the line, so the gap is the label's own metrics
+                // at any text size, the clock cannot be collided with, and it
+                // does not jump when the word arrives or goes.
+                Text("Paused")
+                    .sectionLabelStyle()
+                    .hidden()
+                    .overlay {
+                        if let status = status(tick) {
+                            Text(status)
+                                .sectionLabelStyle()
+                                .id(status)
+                                .labelSwap(reduceMotion: reduceMotion)
+                                .lineLimit(1)
+                                .fixedSize()
+                        }
+                    }
+                    // Pulled under the label's own line box. The clock's
+                    // frame carries ascender space above the digits, so a
+                    // positive gap here is added to one that is already there —
+                    // the word ends up floating a line away from the number it
+                    // is about. Negative six leaves about six points of air
+                    // between the two pieces of ink, which is a caption.
+                    .padding(.bottom, -6)
+
                 HeroNumeral(
                     measure: measure,
                     // Sized by the field it can grow into, seconds included, so
@@ -257,44 +300,27 @@ struct RunningView: View {
                 ) {
                     showingSubjects = true
                 }
+                // Inset well past the clock above it. The ring is a circle and
+                // this sits below its widest point, so the chord it has to fit
+                // inside is a good deal shorter than the one the numeral has —
+                // a long subject name ran out over the arc on both sides and
+                // put the chevron behind it.
+                .padding(.horizontal, 22)
                 // Held, the whole screen steps back together. The numeral above
                 // faded and this snapped beside it.
                 .opacity(store.isPaused ? 0.5 : 1)
                 .animation(Motion.fill(reduceMotion: reduceMotion), value: store.isPaused)
             }
-            // The state label rides on the clock, not on the screen.
-            //
-            // It was an overlay on the container, pushed down from the top of
-            // the content area by a fixed 22 points — a number that clears the
-            // numeral at 44pt with four digits and lands on top of it at 38pt
-            // with six, which is what a paused timed session over an hour
-            // draws. Anchored to the block, the gap is the same whatever face
-            // the clock is set at, and an overlay takes no part in layout so
-            // the clock does not move when the word arrives.
-            .overlay(alignment: .top) {
-                if let status = status(tick) {
-                    Text(status)
-                        .sectionLabelStyle()
-                        .id(status)
-                        .labelSwap(reduceMotion: reduceMotion)
-                        .lineLimit(1)
-                        // Placed by its own bottom edge, six points clear of the
-                        // top of the clock's frame — which is itself a little
-                        // above the digits, the ascender space being part of it.
-                        .alignmentGuide(.top) { $0[.bottom] + 6 }
-                }
-            }
             // Centred on the clock's weight rather than on the block's box.
             //
-            // Padding the top of the pair by `p` leaves the clock
-            // `(subject height - spacing - p) / 2` above the ring's centre: at
-            // `p = 0` the pair is centred as a box and the clock rides 24
-            // points high, which is what it did and what read as wrong; at
-            // `p = 48` the clock is dead centre and the subject hangs off the
-            // bottom on its own. 24 splits it — the clock sits eight points
-            // above centre, which is where a number with a caption under it
-            // wants to be.
-            .padding(.top, 24)
+            // The subject's 44pt target is mostly empty air and the state
+            // label's line is empty most of the time, so centring the block as
+            // a box puts the clock nowhere near the middle of the ring. Padding
+            // the top by `p` leaves the clock `(40 - label line - p) / 2` above
+            // the centre; the label's line comes to about ten points once it is
+            // pulled in, so 14 is the eight points a number with a caption
+            // under it wants to be.
+            .padding(.top, 14)
             // Clear of the arc on both sides at the widest the numeral gets.
             .padding(.horizontal, 14)
         }

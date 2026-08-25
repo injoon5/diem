@@ -30,7 +30,12 @@ What the numeral reads depends on the session:
 
 Above the numeral, one word when there is one to say: "Paused" while held,
 "Complete" for two minutes after the countdown reaches zero. Paused outranks
-Complete — a held clock is the more useful thing to be told.
+Complete — a held clock is the more useful thing to be told. It is a line of the
+block, not an overlay on the screen: the line is reserved by a hidden word of the
+same style whether or not there is anything to say in it, so the clock does not
+move when the word arrives, and the word cannot be drawn on top of the clock —
+which is what a fixed offset from the top of the screen did at 38pt with six
+digits ([B-40](../bug-triage.md#b-40)).
 
 The **session ring** around the clock is not the goal ring from the Start
 screen. It is this session so far, drawn as a bar of coloured bands — one per
@@ -63,7 +68,9 @@ crossing the numeral, and each keeps its full target.
 **Tap Hold** to stop the count where it is. The whole screen steps back
 together — the numeral fades to 45% and the subject button with it — rather than
 leaving one small word to carry the state, because a frozen count still reads as
-a count.
+a count. The ring does not: what it draws is the session so far, and holding a
+session does not make what you have already done less true. The clock steps back
+because the clock is the thing that has stopped.
 
 **Tap Hold again** to resume. Both fire the same click, so hold and resume are
 indistinguishable by feel.
@@ -112,12 +119,13 @@ summary.
 | --- | --- |
 | Timed | Counts down. Has a deadline, an alert, and a Complete state. |
 | Open-ended | Counts up. No deadline, no alert, no Complete — and no way to know how long you meant to go. |
+| A long subject name | Truncates. The button is inset well past the clock above it: it sits below the ring's widest point, where the chord is much shorter, and at the clock's inset a long name ran out over the arc. |
 | Free | The subject button reads "Free" with no dot. Mid-session there is no subject to go and pick; running without one is what a free session *is*. |
 | Reopened mid-session | Lands here directly, with no Start screen behind it. |
 
 | During | What differs |
 | --- | --- |
-| Held | Numeral at 45%, "Paused" above it, Hold becomes Resume. The notification is cancelled. |
+| Held | Numeral at 45%, "Paused" above it, Hold becomes Resume. The ring is unchanged — it draws what has already happened. The notification is cancelled. |
 | Overtime | Numeral at 60% with a `+`. The nudge notification is still ahead. |
 | Question armed | Both controls change meaning; "End?" between them. |
 | Dimmed | Both controls fade out, in place: the bar itself stays, so the safe area never changes and the ring does not move. The numeral loses its seconds — they slide out to the trailing edge and what is left recentres — and the tick drops to once a minute. |
