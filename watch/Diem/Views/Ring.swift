@@ -77,8 +77,8 @@ struct GoalRing: View {
             RingArc(turns: turns, color: ringColor, lapColor: lapColor, lineWidth: lineWidth)
         }
         // Named rather than blanketed: a transaction over the whole ring also
-        // clears the animation on its own frame, and the frame is exactly what
-        // changes when the bars leave.
+        // clears the animation on its own frame and on the colours it is drawn
+        // in, which are the parts that answer the wrist dropping.
         .animation(
             isLuminanceReduced ? nil : Motion.ringMode(reduceMotion: reduceMotion),
             value: isScrubbing

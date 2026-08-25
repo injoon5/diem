@@ -54,8 +54,9 @@ enum Motion {
             : .spring(response: 0.42, dampingFraction: 0.88, blendDuration: 0.12)
     }
 
-    /// The crossing into and out of Always-On, where both bars leave and the
-    /// ring takes back the height between them.
+    /// The crossing into and out of Always-On: the controls fading out of bars
+    /// that keep their height, and the running screen's picture sliding down
+    /// into the middle of what is left lit.
     ///
     /// Critically damped and short on purpose. The display drops to about one
     /// refresh a minute on the way down, so anything with overshoot risks being
@@ -88,6 +89,20 @@ extension View {
         transaction { transaction in
             if isLuminanceReduced { transaction.animation = nil }
         }
+    }
+
+    /// A control that is not there while the wrist is down.
+    ///
+    /// Faded in place, inside a bar that keeps its height — not removed.
+    /// Removing the item hands the content area the bar's space back, and on
+    /// both ring screens that space is most of a ring's diameter arriving in a
+    /// single frame, on a display that refreshes about once a minute. Nothing
+    /// here is tappable while dimmed either way; this way nothing moves.
+    func dimmedAway(_ isLuminanceReduced: Bool, reduceMotion: Bool) -> some View {
+        opacity(isLuminanceReduced ? 0 : 1)
+            .disabled(isLuminanceReduced)
+            .accessibilityHidden(isLuminanceReduced)
+            .animation(Motion.dimming(reduceMotion: reduceMotion), value: isLuminanceReduced)
     }
 
     /// Cross-fading two different strings reads as a double image.

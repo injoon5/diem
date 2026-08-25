@@ -13,6 +13,10 @@ struct RunningView: View {
     @State private var endConfirm = Confirmation()
     /// A fixed anchor, so the tick doesn't re-phase on every redraw.
     @State private var anchor = Date.now
+    /// How much height the bottom bar is holding, measured rather than
+    /// guessed: it is not the same on a 40mm as on a 49mm, and in Always-On
+    /// the picture has to know how far down the middle of the lit screen is.
+    @State private var barHeight: CGFloat = 0
 
     /// Dimmed, the display refreshes about once a minute, so a per-second
     /// schedule there only burns budget. Paused, the numeral is frozen — the
@@ -40,16 +44,34 @@ struct RunningView: View {
             }
         }
         .containerBackground(.black, for: .navigation)
+        // How tall the bottom bar is, asked rather than assumed: it is a
+        // different number on every watch, and larger text sizes move it again.
+        //
+        // A view that ignores the safe area is laid out against the whole
+        // screen, and its proxy reports the insets it stepped over — which is
+        // the only way this view can find out how much height the bar below it
+        // is holding, and so how far the middle of the screen is from the
+        // middle of the space it has been given.
+        .background {
+            Color.clear
+                .ignoresSafeArea()
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.safeAreaInsets.bottom
+                } action: { inset in
+                    barHeight = inset
+                }
+        }
         .navigationBarBackButtonHidden()
         .toolbar {
             // The bar stays in place when the wrist drops, and its contents
             // fade out inside it.
             //
             // Removing the item instead gave the ring the bar's height back, so
-            // the crossing into Always-On was a ring growing and sliding down
-            // the screen — on a display that refreshes about once a minute,
-            // which is the worst possible thing to animate. Nothing is tappable
-            // while dimmed either way; this way nothing moves either.
+            // the crossing into Always-On was a ring growing *and* sliding down
+            // the screen — two things at once on a display that refreshes about
+            // once a minute. Faded in place, the ring keeps its diameter and the
+            // crossing is the one move it is worth making: the picture sliding
+            // down into the middle of the screen the controls have just left.
             //
             // Both controls live in the bottom bar, pushed to opposite
             // edges: the thumb reaches either without crossing the numeral,
@@ -116,10 +138,7 @@ struct RunningView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .opacity(isLuminanceReduced ? 0 : 1)
-                .disabled(isLuminanceReduced)
-                .accessibilityHidden(isLuminanceReduced)
-                .animation(Motion.dimming(reduceMotion: reduceMotion), value: isLuminanceReduced)
+                .dimmedAway(isLuminanceReduced, reduceMotion: reduceMotion)
                 .animation(Motion.swap(reduceMotion: reduceMotion), value: endConfirm.isArmed)
                 // Pause becoming play is a symbol replace, and a symbol
                 // replace needs an animation in the transaction to run in.
@@ -334,6 +353,18 @@ struct RunningView: View {
         // than the width beside them. Letting it reach a little past them — the
         // way an Activity ring does — buys back the diameter.
         .padding(.vertical, -14)
+        // Always-On empties the bottom bar but not its height, so the whole
+        // picture sat in the top two-thirds of a screen with nothing under it.
+        // Dimmed, it slides down to the middle of what is actually lit: half
+        // the bar it is now free to stand in, plus the six points of optical
+        // lift above — a correction for weight that is no longer on screen.
+        //
+        // An offset, not a change of layout. The ring keeps its diameter across
+        // the crossing, one translation carries the arc and the clock inside it
+        // together, and a translation is the cheapest thing there is to animate
+        // on a display about to drop to a refresh a minute.
+        .offset(y: isLuminanceReduced ? barHeight / 2 + 6 : 0)
+        .animation(Motion.dimming(reduceMotion: reduceMotion), value: isLuminanceReduced)
         .animation(Motion.fill(reduceMotion: reduceMotion), value: status(tick))
     }
 

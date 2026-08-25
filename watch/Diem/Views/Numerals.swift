@@ -37,10 +37,15 @@ struct NumeralText: View {
     /// share — which is what left it sitting visibly off-centre. A clock is one
     /// field: same face, same baseline, colon included.
     var drawsAsOneField = false
-    /// Drop the seconds off the end of the reading.
+    /// Strike the seconds out of the reading, leaving dashes in their place.
     ///
-    /// Always-On is the same clock with its last two digits taken away, not a
-    /// screen of its own, so they leave on a slide and come back the same way.
+    /// Always-On refreshes about once a minute, so the seconds it could draw
+    /// would be a lie for most of the minute they are on screen. They used to
+    /// be taken away entirely, which left a bare `24` where a clock had been —
+    /// a number with no unit and no field, easily read as minutes *elapsed*.
+    /// Dashes keep the reading a clock: the field, the colon and the shape of
+    /// `24:--` all say the seconds exist and are simply not being counted for
+    /// you right now.
     var secondsHidden = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -71,9 +76,9 @@ struct NumeralText: View {
         }
     }
 
-    /// The reading either side of its last colon: what stays when the seconds
-    /// are dropped, and the seconds themselves. Each half reserves its own
-    /// width, so dropping one cannot shift the other.
+    /// The reading either side of its last colon: the part that is always a
+    /// live count, and the seconds. Each half reserves its own width, so what
+    /// happens inside one cannot shift the other.
     private var halves: (head: DigitGroup, seconds: DigitGroup?) {
         let whole = DigitGroup(id: 0, value: value, widest: widest)
         guard value.filter({ $0 == ":" }).count == widest.filter({ $0 == ":" }).count,
@@ -91,15 +96,26 @@ struct NumeralText: View {
             if drawsAsOneField {
                 let halves = halves
                 digits(halves.head.value, reserving: halves.head.widest)
-                if let seconds = halves.seconds, !secondsHidden {
-                    digits(seconds.value, reserving: seconds.widest)
-                        // Out to the trailing edge, fading as it goes, while
-                        // what's left recentres in the space it gave up.
-                        .transition(
-                            reduceMotion
-                                ? AnyTransition.opacity
-                                : AnyTransition.move(edge: .trailing).combined(with: .opacity)
+                if let seconds = halves.seconds {
+                    // Stacked, not swapped in place: the digits and the dashes
+                    // reserve the same field and cross over inside it, so the
+                    // minutes in front of them never move.
+                    ZStack {
+                        digits(
+                            secondsHidden ? Self.struckOut(seconds.value) : seconds.value,
+                            reserving: seconds.widest
                         )
+                        // A step back while they are dashes. They are standing
+                        // in for a number nobody is being told, and at full
+                        // weight they read as one.
+                        .foregroundStyle(
+                            secondsHidden
+                                ? AnyShapeStyle(.secondary)
+                                : AnyShapeStyle(.primary)
+                        )
+                        .id(secondsHidden)
+                        .labelSwap(reduceMotion: reduceMotion)
+                    }
                 }
             } else {
                 ForEach(groups) { group in
@@ -114,13 +130,23 @@ struct NumeralText: View {
         }
         // Nothing rolls while dimmed — the display refreshes about once a
         // minute, and a queued roll lands as stutter on the next wake. Named
-        // here rather than blanketed over the view, so the seconds leaving can
-        // still be seen.
+        // here rather than blanketed over the view, so the seconds becoming
+        // dashes can still be seen.
         .animation(
             isLuminanceReduced ? nil : Motion.numeric(reduceMotion: reduceMotion),
             value: value
         )
         .animation(Motion.dimming(reduceMotion: reduceMotion), value: secondsHidden)
+    }
+
+    /// U+2012 FIGURE DASH — cut to the width of a digit in this face, unlike a
+    /// hyphen. The dashes stand exactly where the digits stood, so the colon in
+    /// front of them does not shift as they arrive.
+    private static let figureDash: Character = "\u{2012}"
+
+    /// The seconds group with its digits struck out: `:07` becomes `:‒‒`.
+    private static func struckOut(_ group: String) -> String {
+        String(group.map { $0.isNumber ? Self.figureDash : $0 })
     }
 
     /// The field is reserved at its widest value and the current one is drawn

@@ -83,50 +83,57 @@ struct StartView: View {
             Haptics.crownDetent()
         }
         .toolbar {
-            // Nothing on screen is tappable while the wrist is down, so nothing
-            // is drawn: the bottom bar already went, and the top two were left
-            // lit on their own — which also pulled the ring off centre, since
-            // only one of the two bars was giving its space back.
-            if !isLuminanceReduced {
-                // Keep the two utility actions in the top corners.
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { showingSettings = true } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityLabel("Settings")
+            // Nothing on screen is tappable while the wrist is down, so the
+            // controls fade out — inside bars that stay exactly where they are.
+            //
+            // The items used to be removed instead, which handed the content
+            // area both bars' height at once: the ring took most of a diameter
+            // in a single frame, on a display that refreshes about once a
+            // minute. A ring that changes size on the way into Always-On is the
+            // one thing this screen must not do — it is the same ring, showing
+            // the same day, and it should be the same size.
+            //
+            // Keep the two utility actions in the top corners.
+            ToolbarItem(placement: .topBarLeading) {
+                Button { showingSettings = true } label: {
+                    Image(systemName: "gearshape")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingMetrics = true } label: {
-                        Image(systemName: "chart.bar")
-                    }
-                    .accessibilityLabel("Metrics")
+                .accessibilityLabel("Settings")
+                .dimmedAway(isLuminanceReduced, reduceMotion: reduceMotion)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showingMetrics = true } label: {
+                    Image(systemName: "chart.bar")
                 }
-                // The subject picker is a bottom-leading control, while the
-                // start action stays pinned to the bottom edge instead of
-                // drifting with the ring's flexible space.
-                ToolbarItem(placement: .bottomBar) {
-                    // Looked up once. The crown redraws this bar on every
-                    // event, and the name and the colour are one subject.
-                    let subject = chosenSubject
-                    HStack(spacing: 6) {
-                        SubjectButton(
-                            name: subject?.name,
-                            colorIndex: subject?.colorIndex
-                        ) {
-                            showingSubjects = true
-                        }
+                .accessibilityLabel("Metrics")
+                .dimmedAway(isLuminanceReduced, reduceMotion: reduceMotion)
+            }
+            // The subject picker is a bottom-leading control, while the
+            // start action stays pinned to the bottom edge instead of
+            // drifting with the ring's flexible space.
+            ToolbarItem(placement: .bottomBar) {
+                // Looked up once. The crown redraws this bar on every
+                // event, and the name and the colour are one subject.
+                let subject = chosenSubject
+                HStack(spacing: 6) {
+                    SubjectButton(
+                        name: subject?.name,
+                        colorIndex: subject?.colorIndex
+                    ) {
+                        showingSubjects = true
+                    }
 
-                        Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                        CircleControl(
-                            systemImage: "play.fill",
-                            label: isScrubbing ? "Start \(Format.duration(scrubSeconds))" : "Start",
-                            tint: Palette.accent
-                        ) {
-                            start()
-                        }
+                    CircleControl(
+                        systemImage: "play.fill",
+                        label: isScrubbing ? "Start \(Format.duration(scrubSeconds))" : "Start",
+                        tint: Palette.accent
+                    ) {
+                        start()
                     }
                 }
+                .dimmedAway(isLuminanceReduced, reduceMotion: reduceMotion)
             }
         }
         // Each of these dismisses itself. Clearing the flag here as well
@@ -194,9 +201,10 @@ struct StartView: View {
         // single event and the ring and the numeral were leaving on different
         // curves — close enough to look like a mistake rather than a choice.
         .animation(Motion.ringMode(reduceMotion: reduceMotion), value: isScrubbing)
-        // Both bars leave when the wrist drops, and the ring — bounded by the
-        // height between them, not by the width — takes all of it back at once.
-        // That is most of a ring's diameter arriving in a single frame.
+        // The bars stay, so the ring keeps its size across the crossing and
+        // nothing here moves. What is left to animate is the palette stepping
+        // down for the dimmed display, which crosses on the same timing as the
+        // controls fading out of the bars above and below it.
         .animation(Motion.dimming(reduceMotion: reduceMotion), value: isLuminanceReduced)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(isScrubbing ? "Session length" : "Today")

@@ -101,7 +101,9 @@ detents; the ring tracks between them.
 and it withdraws itself after six seconds.
 
 **Always-On** — the dimmed state, `isLuminanceReduced`. Not a separate screen:
-the same clock with its seconds taken off, and the bars gone.
+the same clock with its seconds struck out to dashes, inside bars that keep
+their height and lose their controls. Nothing resizes across the crossing; on
+the Running screen the whole picture slides down to the middle of what is lit.
 
 ## Outside the app
 

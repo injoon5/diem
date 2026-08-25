@@ -98,14 +98,14 @@ session banked.
 | During | What differs |
 | --- | --- |
 | Crown turning fast | The arc stays welded to the crown; the numeral rolls per minute. Minutes are zero-padded so the `h` and `m` labels do not skate sideways. |
-| Dimmed | Both bars are removed and the ring takes the height back in a single frame, on a short critically damped spring. |
+| Dimmed | The four controls fade out where they stand. Both bars keep their height, so the ring is the same size and in the same place lit or dimmed. |
 | A sheet is open | The screen behind is unchanged, and the crown is claimed again when the last sheet closes — it used to be claimed once, on appearance, and never reclaimed: [B-12b](../bug-triage.md#b-12). |
 
 ## Interrupts
 
 | Interrupt | Effect |
 | --- | --- |
-| Wrist down | Controls leave; the ring grows; the numeral stops rolling. A length being scrubbed is kept. |
+| Wrist down | Controls fade out; the ring stays exactly as it was; the numeral stops rolling. A length being scrubbed is kept. |
 | Crown press | Leaves the app. A length being scrubbed is lost on the next launch. |
 | Session started elsewhere | The root should switch to Running. It will, if the app is in the foreground; if the app was alive in the background it may not, per [B-03](../bug-triage.md#b-03). |
 | 4am boundary | The total and the ring reset on the next minute tick. The screen re-reads once a minute, so this lands within 60 seconds. |
@@ -114,12 +114,16 @@ session banked.
 
 ## Cross-cutting
 
-**Always-On** — the ring is the whole screen. The numeral holds still. This is
-the crossing the app cares most about, and it is animated deliberately: both
-bars leave at once and the ring takes most of a diameter in a single frame, so
-the animation is short and critically damped rather than springy — the display
-drops to about one refresh a minute on the way down, and anything with overshoot
-risks being caught mid-bounce and held there.
+**Always-On** — the ring is the whole screen, and it is the *same* ring: same
+diameter, same place, the four controls around it simply fading out inside bars
+that keep their height. The bars used to be removed instead, which handed the
+content area both of their heights at once and made the crossing most of a
+ring's diameter arriving in a single frame — a ring that resizes on the way into
+Always-On reads as a different reading, when it is the same day shown the same
+way. What crosses now is the palette stepping down and the controls fading, on
+the same short critically damped spring: the display drops to about one refresh
+a minute on the way down, and anything with overshoot risks being caught
+mid-bounce and held there. The numeral holds still.
 
 **Typography** — the total is a hero numeral at 40pt with −1.0 tracking, always
 monospaced digits, the field reserved at its widest value so nothing shifts.
@@ -166,6 +170,6 @@ stateDiagram-v2
 - Three sheets are attached to the same view. Modern SwiftUI generally handles this, but stacked `sheet(isPresented:)` modifiers on one view have historically been unreliable; this wants a device before it is called fine.
 - Whether the "Not saving" banner ever appears in practice. It is the visible half of [B-04](../bug-triage.md#b-04) and is reachable only by corrupting the store; its milder sibling, "Complication not updating", is what an unprovisioned App Group looks like.
 - Whether the −14pt vertical overrun clips the ring against the bezel on the 41mm watch.
-- Whether the optical 12pt lift still reads as centred once the bars are gone in Always-On, where the thing it was correcting for is no longer on screen.
+- Whether the optical 12pt lift still reads as centred in Always-On. The bars now stay, so the ring does not move — but the controls it was correcting for are no longer drawn, and the Running screen answers the same question by sliding its picture down to the middle. Whether this screen should do the same wants a wrist.
 
 Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)
