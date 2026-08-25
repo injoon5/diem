@@ -132,8 +132,12 @@ extension SessionRuntime: WKExtendedRuntimeSessionDelegate {
         didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason,
         error: (any Error)?
     ) {
+        // `WKExtendedRuntimeSession` is not `Sendable`, so the object itself
+        // cannot cross into the closure — only the identity question needs to,
+        // and `ObjectIdentifier` is a value.
+        let invalidated = ObjectIdentifier(session)
         MainActor.assumeIsolated {
-            guard runtime === session else { return }
+            guard let current = runtime, ObjectIdentifier(current) == invalidated else { return }
             runtime = nil
             switch reason {
             case .expired:

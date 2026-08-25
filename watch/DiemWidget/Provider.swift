@@ -60,10 +60,11 @@ struct SnapshotProvider: TimelineProvider {
         guard claimsRelevance, let session = SnapshotStore.read().session else {
             return WidgetRelevance([])
         }
-        // Spelled with the configuration rather than the `Void` shorthand: this
-        // widget is a `StaticConfiguration`, so there is nothing to configure.
+        // No `configuration:` argument: the initializers that take one are
+        // constrained to a `WidgetConfigurationIntent` or an `INIntent`, and
+        // this widget is a `StaticConfiguration` with nothing to configure.
+        // The `Configuration == ()` overload takes the context alone.
         let attribute = WidgetRelevanceAttribute<Void>(
-            configuration: (),
             context: .date(range: session.relevanceWindow(), kind: .scheduled)
         )
         return WidgetRelevance([attribute])

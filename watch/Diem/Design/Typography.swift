@@ -26,6 +26,22 @@ enum Typography {
         static let title: CGFloat = 34
         static let titleTracking: CGFloat = -0.8
 
+        /// The summary's total, sized by the field it has to hold.
+        ///
+        /// It is the only number on its screen and has no ring to fit inside,
+        /// and it was set at `title` — the size for a numeral sharing a screen
+        /// with a navigation bar — which left the one thing the screen exists
+        /// to report smaller than the two buttons under it. `35m` gets the full
+        /// display size; `1h 30m` steps down twice, because it is nearly twice
+        /// the advances wide.
+        static func summary(digits: Int) -> (size: CGFloat, tracking: CGFloat) {
+            switch digits {
+            case ...2: (hero, heroTracking)
+            case 3: (38, -1.0)
+            default: (title, titleTracking)
+            }
+        }
+
         static let label: CGFloat = 13
         static let labelTracking: CGFloat = 0.3
 

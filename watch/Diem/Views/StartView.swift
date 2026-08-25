@@ -66,6 +66,11 @@ struct StartView: View {
             isContinuous: false,
             isHapticFeedbackEnabled: false
         )
+        // The ring *is* the crown's indicator on this screen — it is welded to
+        // the wrist and it is the largest thing here. The system's own green
+        // bar down the right edge says the same thing again, smaller, over the
+        // top of it.
+        .digitalCrownAccessory(.hidden)
         .onChange(of: crownDetent) { _, _ in
             // The reset that follows a commit must not click. It used to arm a
             // latch that only this handler could clear — and a crown turned

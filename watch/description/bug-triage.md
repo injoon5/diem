@@ -222,7 +222,7 @@ Severity: **critical**. Decision: **fix** — a migration plan, and a visible
 Status: suspected.
 Raised by: [session-model](foundations/session-model.md).
 
-**Resolution.** The schema is versioned (`DiemSchemaV1`) behind a `SchemaMigrationPlan` with an empty stage list for the next version to go in. The in-memory fallback sets `DiemContainer.isEphemeral`, and `RootView` puts "Not saving — reopen Diem" across the top of every screen while it holds. The `try!` is gone; an in-memory container that cannot be built is a `fatalError` with the underlying error, because at that point SwiftData itself is unusable.
+**Resolution.** The schema is versioned (`DiemSchemaV1`) behind a `SchemaMigrationPlan` with an empty stage list for the next version to go in. Opening the store now walks three tiers — the App Group container, then the app's own on-disk container, then memory — recorded in `DiemContainer.storage`. The middle tier is what a provisioning problem costs now: an app group missing from the profile, or dropped when the app is re-signed under another team, used to drop the app onto memory and take the day with it, and now only stops the complication. `RootView` puts "Complication not updating" across the top for `.local` and "Not saving — reopen Diem" for `.memory`. The `try!` is gone; an in-memory container that cannot be built is a `fatalError` with the underlying error, because at that point SwiftData itself is unusable.
 
 ## B-05
 
@@ -323,7 +323,7 @@ what the system does with the unentitled level is documented behaviour, not
 observed.
 Raised by: [running-screen](app/running-screen.md).
 
-**Resolution.** `com.apple.developer.usernotifications.time-sensitive` is in the app's entitlements and in `project.yml`, so it survives a regenerate.
+**Resolution.** Taken the other way, per the decision's second option: stop claiming a level the app cannot have. The team provisioning profile for `com.injoon5.diem.watchkitapp` does not carry the Time Sensitive Notifications capability, so declaring the entitlement fails to sign. The entitlement is out of both `Diem/Diem.entitlements` and `project.yml`, and the completion alert now sets `.active` explicitly — the level it was actually being delivered at. The Focus-silencing behaviour described above stands; it is a known cost, not an oversight. Re-add the entitlement if the capability is ever enabled on the profile.
 
 ## B-09
 
@@ -751,7 +751,7 @@ Decision: **fix** — put both keys in the spec and stop tracking the generated
 plist, or stop generating it.
 Status: **confirmed** — the two key lists were diffed directly.
 
-**Resolution.** `WKWatchOnly` and `WKRunsIndependentlyOfCompanionApp` are both in `project.yml`, and the generated `Info.plist` files are no longer tracked — they are in `.gitignore`, because the spec is the source of truth and `xcodegen generate` writes them. The empty `NSHealthShareUsageDescription` went with them: it was left over from the `workout-processing` mode removed in the previous change, and nothing in the app touches HealthKit.
+**Resolution.** `WKWatchOnly` is in `project.yml`, and the generated `Info.plist` files are no longer tracked — they are in `.gitignore`, because the spec is the source of truth and `xcodegen generate` writes them. Both keys were declared at first, which turned out to be its own bug: the installer refuses an app that states `WKWatchOnly` and `WKRunsIndependentlyOfCompanionApp` together, because the two answer the same question and the pair is ambiguous. Only `WKWatchOnly` is stated now — the other key is for a watch app embedded in an iOS app, and there is no iOS target here. The empty `NSHealthShareUsageDescription` went with them: it was left over from the `workout-processing` mode removed in the previous change, and nothing in the app touches HealthKit.
 
 ## B-27
 
@@ -767,7 +767,7 @@ Severity: **low**. Decision: **fix** — remove it, or add it to the spec and to
 the widget if it is wanted.
 Status: **confirmed** — by reading the three files.
 
-**Resolution.** `group.com.injoon5.diem` is gone. One app group, in the app, the widget and the spec.
+**Resolution.** One app group, in the app, the widget and the spec. It was `group.app.diem` at the time; the surviving name is now `group.com.injoon5.diem`, since the bundle identifiers moved to the `com.injoon5.diem` prefix that the team provisioning profile signs. The point of the fix stands either way: one name, in all three places.
 
 ## B-28
 
@@ -846,6 +846,148 @@ notification can carry the older deadline.
 ---
 
 **Resolution.** The title is the subject and the body says "Time's up." once. And scheduling is serialised: each call awaits the one before it, so hold-then-resume can no longer leave the request carrying the older deadline as the survivor.
+
+## B-32
+
+**The widget does not compile against the watchOS 27 SDK, and neither does the runtime session.**
+
+Two errors, both from a real build rather than from reading:
+
+`Provider.relevance()` builds its attribute as
+`WidgetRelevanceAttribute<Void>(configuration: (), context:)`. There is no such
+initializer. The ones taking a `configuration:` are constrained to
+`WidgetConfigurationIntent` or `INIntent`; the `Configuration == ()` overload
+takes the context alone. The comment above it argued for the spelling that does
+not exist.
+
+`SessionRuntime`'s invalidation delegate compares `runtime === session` inside a
+`MainActor.assumeIsolated` closure. `WKExtendedRuntimeSession` is not
+`Sendable`, so under complete strict concurrency that is *sending 'session'
+risks causing data races* — an error, not a warning.
+
+Severity: **high** — nothing installs. Decision: **fix**.
+Status: **confirmed** — by `xcodebuild` against `generic/platform=watchOS`.
+
+**Resolution.** The attribute drops its `configuration:` argument. The delegate takes `ObjectIdentifier(session)` outside the closure and compares identities inside it, so only a value crosses. Worth noting what this says about [B-01](#b-01)'s fix: `Scripts/core-check.sh` covers the Foundation-only core and says so at the top, and both of these live outside it. Nothing without the watchOS SDK can catch them — the check for this class of error is a real build, and it is now part of the loop.
+
+## B-33
+
+**The session ring is sized by the text in front of it.**
+
+`RunningView` hangs `SubjectRing` off the clock as a `.background`, so its
+diameter comes from whatever the numeral and the subject button measure, plus a
+36pt negative padding. On the watch that lands as a circle at about four-fifths
+of the screen's width, floating clear of the bezel and close enough to the
+bottom bar to read as fouling it — and it is visibly smaller than the identical
+ring on the Start screen, so tapping Start shrinks the ring instead of leaving
+it alone. At `lineWidth: 6` the bands of a short session are hairlines besides.
+
+Severity: **medium**. Decision: **fix** — place it as the Start screen places
+its ring.
+Status: **confirmed** — on device.
+
+**Resolution.** The ring is a sibling in a `ZStack` rather than a background, and the clock is centred on it as an overlay rather than as one half of a `VStack` — the subject button's 44pt target used to count towards the block being centred, so the ring centred the *pair* and the numeral sat half a target high inside it. The ring takes the same treatment the Start screen's does: the content area's full width and height, the same 14pt negative vertical padding so it reaches past the bars, and the same 12pt optical lift for the weight of the bottom bar. `lineWidth` is 8 — still thinner than the Start ring, which is the point of the distinction, and no longer a hairline. The bar's two ends are round as well: every band was butt-capped, for a good reason that only applies to the joins *between* bands, and the bar came out squared off at both ends beside a goal ring that is round at both. The joins themselves are now gradients rather than edges — each band holds its colour flat except for about three and a half degrees at any end that meets a *different* colour, where the stop is pulled inwards and an angular gradient carries one into the other. Turn boundaries stay hard, because that is where a later turn is laid over an earlier one. And the clock and the subject are one block again, tightened by four points and centred on the clock's weight rather than on the block's box: the subject's 44pt target is mostly empty air, and centring the box levered the clock 24 points up the ring. The block is padded so the clock sits eight points above the centre, which is where a number with a caption under it wants to be. The crossing into and out of Always-On is animated on `Motion.dimming` too, which it was not: the bar leaves and the ring takes back most of a diameter in one frame.
+
+## B-34
+
+**A control that changes meaning under the thumb takes a third of a second to do it.**
+
+The stop glyph becoming a checkmark, the ✕ arriving beside it, and pause
+becoming play all animate on `Motion.fill` — `standard`, a critically damped
+spring at a 0.35 response. `fill` is the timing for a state change arriving from
+elsewhere. These answer a touch, and at that response the glyph is still
+settling after the finger has lifted, which reads as the watch thinking about it.
+
+Severity: **low**. Decision: **fix**.
+Status: **confirmed** — on device.
+
+**Resolution.** `Motion.swap` — a 0.2 response at 0.9 damping, sibling to `press`, which already made this argument for the press state itself. Used by both controls on the Running screen and by Discard on the summary, which arms the same way.
+
+And the glyph swap itself is no longer `.symbolEffect(.replace)`. That draws one glyph's path into the other's, and a path morph is a thing you watch: on a control answering a thumb it is the slowest possible way to say something instant happened. `CircleControl` now swaps on `labelSwap` — the same blur replace every other label in the app uses — which is over before the finger is off the glass.
+
+## B-35
+
+**Closing the keyboard saves the subject, whether or not you pressed Save.**
+
+`NameField` carries `.onSubmit(commit)`. On the watch a `TextField` hands you a
+full-screen input, and closing that input — with Done, with dictation, or by
+backing out of it — is a submit. So the name is committed and the sheet closes
+the moment the keyboard goes away. The Save button below it, the duplicate-name
+warning above it, and the chance to read back what dictation heard are all
+unreachable: the sheet is gone before any of them can be used.
+
+Severity: **medium** — dictation on a watch mishears often enough that a
+confirmation step is the point. Decision: **fix**.
+Status: **confirmed** — on device.
+
+**Resolution.** No `onSubmit`. Done closes the input and nothing more; Save is the only thing that saves, and it is filled and tinted so it reads as the step it now is.
+
+## B-36
+
+**The summary sets the one number it exists to report smaller than its own buttons.**
+
+`DoneView` draws the session total at `Typography.Size.title` — 34pt, the size
+for a numeral sharing a screen with a navigation bar, which this screen does not
+have. Under it are two full-width capsules whose labels are set at `.footnote`.
+So the screen reads as two large buttons with a caption above them, and every
+gap in it is the same 8pt, which makes a reading, a pair of actions and a way
+out into one list of five rows.
+
+Severity: **low**. Decision: **fix**.
+Status: **confirmed** — on device.
+
+**Resolution.** The total is sized by the field it has to hold — `Typography.Size.summary(digits:)` gives `35m` the full 44pt display size and steps `1h 30m` down twice, because it is nearly twice the advances wide. The capsule labels are `.body` semibold in a 46pt capsule. The spacing is set by hand rather than by one stack spacing: tight under the label that names the number, twelve above the actions, twelve above Discard, and enough off the bottom that the one irreversible action on the screen is not against the edge. It fits without scrolling to the actions.
+
+## B-37
+
+**Crossing the hour slides the numeral sideways before it changes.**
+
+`HeroNumeral` replaces the whole reading when the *field* changes — `59m` to
+`1h 00m` is a different quantity in a different field, and rolling one into the
+other reads as a glitch. That part is right. But the replace happens inside an
+`HStack`, and a blur replace has both numerals alive at once: laid side by side,
+the row widens to hold the pair, so the outgoing reading slides left while the
+incoming one arrives to its right. Coming back down the hour moves to the centre
+early and pushes the `m` out over the ring.
+
+It runs on `Motion.fill` besides — a 0.35 response, which makes the whole thing
+something you watch happen.
+
+Severity: **medium** — it is the most-looked-at moment on the most-looked-at
+screen. Decision: **fix**.
+Status: **confirmed** — on device, in both directions.
+
+**Resolution.** A `ZStack`. The two readings occupy the same place instead of queueing up in a row, so the swap happens where the reading already is, and it runs on `Motion.swap` — fast enough to be something you notice has happened rather than something you watch.
+
+## B-38
+
+**The Start screen draws the crown's position twice.**
+
+The ring is welded to the crown and is the largest thing on the screen. The
+system's green crown indicator says the same thing again, smaller, down the
+right edge and over the top of it.
+
+Severity: **low**. Decision: **fix**.
+Status: **confirmed** — on device.
+
+**Resolution.** `.digitalCrownAccessory(.hidden)` on the Start screen. The Goal screen keeps its indicator: there is no ring there, so the accessory is the only thing reporting the crown besides the number itself.
+
+## B-39
+
+**Going into Always-On moves the ring.**
+
+The Running screen's bottom bar is wrapped in `if !isLuminanceReduced`, so the
+toolbar item is removed when the wrist drops. Removing it hands the bar's height
+back to the content area, and the ring — bounded by that height — grows and
+slides down into the space. The screen the Always-On design is built around
+answers the wrist dropping by animating a ring across it, on a display that
+refreshes about once a minute.
+
+Severity: **medium**. Decision: **fix** — nothing is tappable while dimmed
+either way; the question is only whether anything has to move.
+Status: **confirmed** — on device.
+
+**Resolution.** The bar stays; its contents fade out inside it, and are disabled and hidden from VoiceOver while they are gone. The safe area never changes, so neither does the ring. The container-level dimming animation went with it — there is no longer any geometry for it to carry.
 
 ## Appendix: what happened to the repro suite
 

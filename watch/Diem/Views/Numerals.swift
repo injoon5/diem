@@ -228,7 +228,14 @@ struct HeroNumeral: View {
         // One child, and it stays one child: the animation has to hang off a
         // view that outlives the `.id` below, or the transition it is meant to
         // drive is destroyed along with the numeral it was driving.
-        HStack(spacing: 0) {
+        //
+        // A `ZStack`, not an `HStack`. A blur replace has both numerals alive
+        // at once, and side by side in a row that is what they did — the field
+        // widened to hold both, so `59m` slid left while `1h 00m` arrived to
+        // its right, and the reverse on the way back down pushed the `m` out
+        // over the ring. Stacked, the two occupy the same place and the swap
+        // happens where the reading already is.
+        ZStack {
             Group {
                 if isHoursMinutes {
                     HoursMinutesNumeral(
@@ -277,7 +284,11 @@ struct HeroNumeral: View {
         }
         // Not while dimmed: the display refreshes about once a minute there,
         // and a blur-replace queued against it lands as stutter on the wake.
-        .animation(isLuminanceReduced ? nil : Motion.fill(reduceMotion: reduceMotion), value: fieldID)
+        //
+        // `swap`, not `fill`: crossing the hour is one reading becoming
+        // another, and at `fill`'s 0.35 response the crossing was a thing you
+        // watched happen rather than something you noticed had happened.
+        .animation(isLuminanceReduced ? nil : Motion.swap(reduceMotion: reduceMotion), value: fieldID)
         .opacity(shownOpacity)
         // Suppressed while dimmed like everything else on this screen: the
         // display refreshes about once a minute there, and a fade queued

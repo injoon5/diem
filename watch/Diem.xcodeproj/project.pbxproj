@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -11,8 +11,10 @@
 		102797B8CC0FEF72DB4D01DF /* SubjectPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24E39FFA9907B61D159848BE /* SubjectPicker.swift */; };
 		15AE5DBD05DBE3CE468B12F7 /* SessionAlerts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1309DDF384E2F844653B0B32 /* SessionAlerts.swift */; };
 		17775DC616C6FCDF4313B03A /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8125987321C9C8AEA5B9A8 /* Motion.swift */; };
+		18456788418A185BDEBFF9E6 /* SessionRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CA3439E31625AE5D9A9F009 /* SessionRuntime.swift */; };
 		19F035EDD477589ECFA9596A /* StartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EAB8755B77699528C038DCD /* StartView.swift */; };
 		1C36EEBC95F285CE97B58C5D /* RunningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1190389AF45A3D9D91DE58 /* RunningView.swift */; };
+		38B40E6845BE5EEF066699B0 /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850E867C6B95294573F84B5D /* SnapshotStore.swift */; };
 		3A02C322C2C8A28DB6CD19F7 /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F4A3B1D342701FFD25F739A /* Intents.swift */; };
 		426A581AA6EA3C0383739028 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54334F5537871E2C7EA6BD23 /* Models.swift */; };
 		448FA7D0D0CF39FA4FFA2638 /* SyncClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4764E9AACBF24D7A5C1F3BB4 /* SyncClient.swift */; };
@@ -54,7 +56,9 @@
 		C7588ED70D2F2A49D9D48D4B /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79FEC56E15B2434B72337B47 /* Palette.swift */; };
 		CC53FB880880FB2E5B77428E /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF2ADE59FD605940AF33827A /* RootView.swift */; };
 		CCCC93EDE1365C7BE0936A50 /* StartControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDEC20F754782AA88524FCCA /* StartControl.swift */; };
+		CE93E80364AA84EECC757359 /* Confirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1014A2DC203E5ADC6C6E3C68 /* Confirmation.swift */; };
 		D5C8AD7080992B6F60A6BF1D /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A8808013FF35134425D8B07 /* Typography.swift */; };
+		D97BED35C8FFEBD56BE64AEE /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850E867C6B95294573F84B5D /* SnapshotStore.swift */; };
 		DA6F02583ECFCEB70EB11F0A /* Snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F7012673AE82E08FDA6339B /* Snapshot.swift */; };
 		DF505FA3534DDDAD9C1DC5E7 /* Snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F7012673AE82E08FDA6339B /* Snapshot.swift */; };
 		E03422E7E56F81AD6AFFB433 /* Day.swift in Sources */ = {isa = PBXBuildFile; fileRef = 345FD0320E7194708893ED01 /* Day.swift */; };
@@ -94,6 +98,7 @@
 /* Begin PBXFileReference section */
 		00A63377F93089CCF2F40A27 /* Numerals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Numerals.swift; sourceTree = "<group>"; };
 		03CC00F3B8602DD4FA8190CA /* TodayComplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayComplication.swift; sourceTree = "<group>"; };
+		1014A2DC203E5ADC6C6E3C68 /* Confirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Confirmation.swift; sourceTree = "<group>"; };
 		1309DDF384E2F844653B0B32 /* SessionAlerts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionAlerts.swift; sourceTree = "<group>"; };
 		198653713F9F948208B093AA /* DiemTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DiemTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1EAB8755B77699528C038DCD /* StartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartView.swift; sourceTree = "<group>"; };
@@ -115,8 +120,10 @@
 		6B9823903628D82B230AE4D1 /* DiemWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DiemWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F7012673AE82E08FDA6339B /* Snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snapshot.swift; sourceTree = "<group>"; };
 		79FEC56E15B2434B72337B47 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
+		850E867C6B95294573F84B5D /* SnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotStore.swift; sourceTree = "<group>"; };
 		8ACB09F69A16D15845B39A78 /* Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Format.swift; sourceTree = "<group>"; };
 		8F4A3B1D342701FFD25F739A /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
+		9CA3439E31625AE5D9A9F009 /* SessionRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRuntime.swift; sourceTree = "<group>"; };
 		A431A00C17F2B16602C52A97 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		A4ABBA0C62A1A0B7B450260B /* Provider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Provider.swift; sourceTree = "<group>"; };
 		A55157A3FE9999E61B7D9E5E /* Controls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Controls.swift; sourceTree = "<group>"; };
@@ -147,6 +154,7 @@
 				15101824FB97D042EF050EA2 /* Design */,
 				3E76690061FB770111A737C8 /* Intents */,
 				2A8D23BB1D6884B5710BB740 /* Model */,
+				DEE89DE3E2D2212A526BC712 /* Runtime */,
 				EE330F7EC31DF971D2D35231 /* Sync */,
 				F974C888A3984B357AC11A62 /* Views */,
 			);
@@ -176,6 +184,7 @@
 				A431A00C17F2B16602C52A97 /* SessionStore.swift */,
 				B55D46CCF4E039C2BD138E8D /* Settings.swift */,
 				6F7012673AE82E08FDA6339B /* Snapshot.swift */,
+				850E867C6B95294573F84B5D /* SnapshotStore.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -240,6 +249,14 @@
 			path = ..;
 			sourceTree = "<group>";
 		};
+		DEE89DE3E2D2212A526BC712 /* Runtime */ = {
+			isa = PBXGroup;
+			children = (
+				9CA3439E31625AE5D9A9F009 /* SessionRuntime.swift */,
+			);
+			path = Runtime;
+			sourceTree = "<group>";
+		};
 		EE330F7EC31DF971D2D35231 /* Sync */ = {
 			isa = PBXGroup;
 			children = (
@@ -252,6 +269,7 @@
 		F974C888A3984B357AC11A62 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				1014A2DC203E5ADC6C6E3C68 /* Confirmation.swift */,
 				A55157A3FE9999E61B7D9E5E /* Controls.swift */,
 				FCDC46FDA778F65903E1156E /* DoneView.swift */,
 				31A588ACBD2EE823959933BB /* MetricsView.swift */,
@@ -333,6 +351,17 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					2B944C8E2816BC22DCDCE744 = {
+						DevelopmentTeam = "";
+					};
+					3C7A05BFB9FB2312E47D6253 = {
+						DevelopmentTeam = "";
+					};
+					8727929C810B49A663B16299 = {
+						DevelopmentTeam = "";
+					};
+				};
 			};
 			buildConfigurationList = 7C2C90580456060282A6CF8F /* Build configuration list for PBXProject "Diem" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -344,6 +373,7 @@
 			);
 			mainGroup = 97BAB64FED1CBC4D3E7DBF8B;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -384,6 +414,7 @@
 				0AE7092F32499FD752B1D640 /* SessionWidget.swift in Sources */,
 				BDC2D1BCBC6C0E909B4E6599 /* Settings.swift in Sources */,
 				DA6F02583ECFCEB70EB11F0A /* Snapshot.swift in Sources */,
+				38B40E6845BE5EEF066699B0 /* SnapshotStore.swift in Sources */,
 				CCCC93EDE1365C7BE0936A50 /* StartControl.swift in Sources */,
 				69450172B69DD66640B4CBA9 /* TodayComplication.swift in Sources */,
 				7127006E0B304302ABF54FA3 /* Typography.swift in Sources */,
@@ -394,6 +425,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CE93E80364AA84EECC757359 /* Confirmation.swift in Sources */,
 				B49EBA3B30767EA5875C7C3B /* Container.swift in Sources */,
 				ABE1F285957D3A6DBD5B0360 /* Controls.swift in Sources */,
 				5CCD951ACB80EA46ED4EF632 /* DTO.swift in Sources */,
@@ -415,10 +447,12 @@
 				9C0D8270DF11F8EBADF6C4C9 /* Scrub.swift in Sources */,
 				15AE5DBD05DBE3CE468B12F7 /* SessionAlerts.swift in Sources */,
 				4B2DEDED08E48CC853E5C339 /* SessionAssembly.swift in Sources */,
+				18456788418A185BDEBFF9E6 /* SessionRuntime.swift in Sources */,
 				B70E2786F2C7BBE9BABD279A /* SessionStore.swift in Sources */,
 				4FD05E66B14BE0DA3BDE67CE /* Settings.swift in Sources */,
 				605560B8D8A8C3AB937C33AD /* SettingsView.swift in Sources */,
 				DF505FA3534DDDAD9C1DC5E7 /* Snapshot.swift in Sources */,
+				D97BED35C8FFEBD56BE64AEE /* SnapshotStore.swift in Sources */,
 				19F035EDD477589ECFA9596A /* StartView.swift in Sources */,
 				102797B8CC0FEF72DB4D01DF /* SubjectPicker.swift in Sources */,
 				448FA7D0D0CF39FA4FFA2638 /* SyncClient.swift in Sources */,
@@ -577,7 +611,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = DiemWidget/DiemWidget.entitlements;
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				INFOPLIST_FILE = DiemWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -596,7 +629,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Diem/Diem.entitlements;
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				INFOPLIST_FILE = Diem/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Diem;
 				PRODUCT_BUNDLE_IDENTIFIER = com.injoon5.diem.watchkitapp;
@@ -610,7 +642,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = DiemWidget/DiemWidget.entitlements;
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				INFOPLIST_FILE = DiemWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -629,7 +660,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Diem/Diem.entitlements;
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				INFOPLIST_FILE = Diem/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Diem;
 				PRODUCT_BUNDLE_IDENTIFIER = com.injoon5.diem.watchkitapp;
@@ -643,8 +673,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
-				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -662,8 +690,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
-				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

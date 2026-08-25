@@ -21,29 +21,59 @@ enum DiemMigrationPlan: SchemaMigrationPlan {
 
 /// One container, shared by the app and by intents running out of process.
 enum DiemContainer {
-    /// Whether the real store failed to open and the app is running on memory.
+    /// Where the history actually ended up.
     ///
-    /// Nothing is written to disk in that state, so a session studied now is
-    /// gone at quit. The app used to fall back silently, which made a broken
-    /// install look exactly like a fresh one right up until a day's work
-    /// disappeared. The Start screen reads this and says so.
-    nonisolated(unsafe) private(set) static var isEphemeral = false
+    /// The store lives in the App Group container so that it survives an app
+    /// update — the app bundle is replaced on update, the container is not —
+    /// and so that the widget and out-of-process intents read the same rows.
+    enum Storage {
+        /// The App Group container. The only case where everything works.
+        case group
+        /// The app's own container, on disk. The day is kept across launches
+        /// and across updates, but the widget and intents cannot see it.
+        case local
+        /// Memory. Nothing survives quit.
+        case memory
+    }
+
+    /// Where this process opened its store. Read by the Start screen, which
+    /// says so when it is not `.group`.
+    nonisolated(unsafe) private(set) static var storage: Storage = .group
 
     static let shared: ModelContainer = {
         let schema = Schema(versionedSchema: DiemSchemaV1.self)
-        let configuration = ModelConfiguration(
-            schema: schema,
-            groupContainer: .identifier(SnapshotStore.appGroup)
-        )
+
+        // The App Group store: shared, and preserved across updates.
         do {
             return try ModelContainer(
                 for: schema,
                 migrationPlan: DiemMigrationPlan.self,
-                configurations: configuration
+                configurations: ModelConfiguration(
+                    schema: schema,
+                    groupContainer: .identifier(SnapshotStore.appGroup)
+                )
             )
         } catch {
-            isEphemeral = true
+            storage = .local
         }
+
+        // The group container is a provisioning fact, not a code one: an app
+        // group missing from the profile, or dropped when the app was re-signed
+        // under a different team, takes the shared store down with it. That
+        // used to drop the app straight onto memory, which meant a signing
+        // detail cost the user every session of the day. On-disk-but-private is
+        // worse than shared and far better than gone — the day persists, and
+        // only the widget goes stale.
+        do {
+            return try ModelContainer(
+                for: schema,
+                migrationPlan: DiemMigrationPlan.self,
+                configurations: ModelConfiguration(schema: schema)
+            )
+        } catch {
+            storage = .memory
+        }
+
         // Memory, and said so above. Kept as a `do` rather than a `try!`: a
         // force-unwrap on the recovery path of a failure already being handled
         // is the one place a crash is least excusable.

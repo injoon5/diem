@@ -7,7 +7,7 @@ What a session leaves behind, and the three things you can do about it.
 A scrolling screen, top to bottom:
 
 1. One word — **"Complete"** or **"Ended"** — as a small uppercase label.
-2. The session's studied time as a numeral at 34pt.
+2. The session's studied time as a numeral, sized by the field it holds — 44pt for `35m`, stepping down to 34pt for `1h 30m`.
 3. If the session touched more than one subject, a **breakdown**: one row per subject, a 6pt dot, the name, the time, largest first.
 4. Two full-width glass capsules: **Again** in the accent, **Done** in near-transparent white.
 5. Below them, quiet and unadorned, a **Discard** link.
@@ -90,8 +90,17 @@ than forgetting: [B-06](../bug-triage.md#b-06).
 **Always-On** — not designed for. The screen keeps its full layout dimmed,
 including both glass capsules, which are not tappable while the wrist is down.
 
-**Typography** — the total is the same hero numeral as everywhere else, one size
-down at 34pt because this screen has more than one thing on it. Breakdown rows
+**Typography** — the total is the same hero numeral as everywhere else, sized by
+the field it has to hold rather than by a fixed step: `35m` takes the full 44pt
+display size and `1h 30m` comes down twice, because it is nearly twice the
+advances wide. It was fixed at 34pt — the size for a numeral sharing a screen
+with a navigation bar, which this screen does not have — which left the one
+number the screen exists to report smaller than the buttons under it, whose
+labels were set at footnote inside full-width capsules: [B-36](../bug-triage.md#b-36).
+The capsule labels are body semibold. The gaps are set one at a time rather than
+by a single stack spacing, because the screen is three things — a reading, a pair
+of actions, a way out — and an even gap everywhere made it one list of five rows.
+Breakdown rows
 use footnote text with monospaced digits so the column of times aligns, and the
 same `1h 30m` spelling as the numeral above them, because two spellings of one
 quantity on one screen read as two different quantities.

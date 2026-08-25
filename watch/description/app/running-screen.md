@@ -4,9 +4,20 @@ The session while it runs. One number, one ring behind it, two controls.
 
 ## What you see
 
-A **hero numeral** in the middle of the screen, at 44pt — the largest thing in
-the app by a wide margin. Under it, the subject button with a coloured dot.
-Behind both, a thin **session ring**.
+A **hero numeral** and, tight under it, the subject button with a coloured dot —
+one block, not two things at the same centre. The numeral is 44pt, the largest
+thing in the app by a wide margin. The block is centred on the clock's weight
+rather than on its own box: the subject's 44pt target is mostly empty air, and
+centring the box levered the clock 24 points up the ring. It is padded so the
+clock sits eight points above the ring's centre, which is where a number with a
+caption under it wants to be.
+Around both, a **session ring**, placed exactly as the Start screen's ring is:
+the full content area, reaching a little past both bars, lifted 12pt for the
+weight of the bottom bar. Tapping Start leaves the ring where it was. It is
+drawn a step thinner than the goal ring, because here the ring is the ground
+and not the subject — but only a step: it used to take its diameter from the
+text in front of it, which put it at four-fifths of the screen and made the
+transition from Start a shrink ([B-33](../bug-triage.md#b-33)).
 
 What the numeral reads depends on the session:
 
@@ -21,13 +32,21 @@ Above the numeral, one word when there is one to say: "Paused" while held,
 "Complete" for two minutes after the countdown reaches zero. Paused outranks
 Complete — a held clock is the more useful thing to be told.
 
-The **session ring** behind the clock is not the goal ring from the Start
+The **session ring** around the clock is not the goal ring from the Start
 screen. It is this session so far, drawn as a bar of coloured bands — one per
 run of study, as long as the run, in that subject's colour — bent into a circle,
 one hour to the turn. Past an hour it goes round again over what is already
-there. The bands use butt caps, not round: they abut, and a rounded end on each
-would have every band bulge over its neighbour and read as a gap that is not
-there.
+there. Where two colours meet the bar blends across about three and a half
+degrees rather than changing at an edge — each band holds its colour flat and
+gives up a sliver at any end that abuts a different one, and an angular gradient
+carries the change. Turn boundaries stay hard, because that is where a later
+turn is laid over an earlier one. The bar is round at its two ends and butt
+everywhere inside it: a rounded
+end on *every* band would have each one bulge over its neighbour and read as a
+gap that is not there, but squaring off the bar's own two ends left it looking
+cut next to a goal ring that is round at both. The two ends are drawn round
+underneath and the butt-capped bands laid over them, so the only round caps
+still showing are the two the bar actually has.
 
 The colours are resolved by the screen, which has the store, and handed to the
 ring, which does not. The ring used to be given subject *ids* and ask the palette
@@ -101,7 +120,7 @@ summary.
 | Held | Numeral at 45%, "Paused" above it, Hold becomes Resume. The notification is cancelled. |
 | Overtime | Numeral at 60% with a `+`. The nudge notification is still ahead. |
 | Question armed | Both controls change meaning; "End?" between them. |
-| Dimmed | Both controls are removed. The numeral loses its seconds — they slide out to the trailing edge and what is left recentres — and the tick drops to once a minute. |
+| Dimmed | Both controls fade out, in place: the bar itself stays, so the safe area never changes and the ring does not move. The numeral loses its seconds — they slide out to the trailing edge and what is left recentres — and the tick drops to once a minute. |
 | Held *and* overtime | "Paused" wins. A session past its deadline and held is not measuring either. |
 
 ## Interrupts
@@ -117,7 +136,11 @@ summary.
 
 ## Cross-cutting
 
-**Always-On** — this is the screen Always-On was designed around. It is the same
+**Always-On** — this is the screen Always-On was designed around. Nothing moves
+into it: the bottom bar keeps its space and only its contents fade, because
+removing the bar handed its height to the ring and the crossing became a ring
+growing and sliding down a display that refreshes once a minute
+([B-39](../bug-triage.md#b-39)). It is the same
 clock with its seconds taken off, not a screen of its own: the last two digits
 slide out to the trailing edge, what is left recentres in the space they gave
 up, and they slide back on the wake. One layout means the reading never changes
@@ -131,6 +154,11 @@ decide the face size. Colons are set inside the same text run at tertiary and li
 6% of the size, because a colon is centred on the x-height while the digits are
 lining figures and would otherwise sit low.
 
+A change of *field* — `59m` to `1h 00m`, `0:00` to `+0:00` — replaces the whole
+reading rather than rolling it, and the two readings are stacked rather than laid
+side by side while they swap. In a row the field widened to hold both, so the old
+reading slid left as the new one arrived beside it: [B-37](../bug-triage.md#b-37).
+
 One seam here is worth checking on a device. Overtime under an hour used to add
 a glyph — `25:00` to `+00:07` — while staying at 44pt, because the threshold
 counted characters and a `+` is one ([B-16](../bug-triage.md#b-16)); it now takes
@@ -140,7 +168,13 @@ next; the app handles this as a replace rather than a roll, which is right, but
 it is a large change to make at 44pt.
 
 **Motion** — the picker owns its own dismissal now, so choosing a subject
-animates once rather than twice ([B-19](../bug-triage.md#b-19)). The numeral rolls
+animates once rather than twice ([B-19](../bug-triage.md#b-19)). Both bottom
+controls change meaning under the thumb — stop to checkmark, pause to play — as a
+blur replace on `Motion.swap`, a 0.2-response spring. Not a symbol-replace path
+morph: a glyph drawing itself into another glyph is a thing you watch, and this
+one has to be over before the finger is off the glass. They ran on the timing for a
+state change arriving from elsewhere, which left the glyph settling after the
+finger had lifted ([B-34](../bug-triage.md#b-34)). The numeral rolls
 with a countdown-aware transition, because a
 count's direction is fixed and its magnitude means nothing. Changing quantity —
 `0:00` to `+0:00` — is a blur replace instead, because those are different

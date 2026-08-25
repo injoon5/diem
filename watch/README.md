@@ -21,7 +21,7 @@ xcodegen generate && open Diem.xcodeproj
 | `DiemWidget` | Four complication families, the Smart Stack card, the Control |
 
 `Model`, `Design` and `Intents` are compiled into the widget extension too; the
-app and the extension share a snapshot file in the `group.app.diem` container
+app and the extension share a snapshot file in the `group.com.injoon5.diem` container
 rather than the database. `Runtime` is app-only on purpose — an extension has no
 foreground to claim, and a `WKExtendedRuntimeSession` started from one is a
 session the system refuses.

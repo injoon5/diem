@@ -15,16 +15,23 @@ struct DoneView: View {
     @State private var discardConfirm = Confirmation()
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 8) {
+        let measure = Format.total(session.studiedSec)
+        let face = Typography.Size.summary(digits: measure.widest.filter(\.isNumber).count)
+        return ScrollView {
+            // Spaced by hand rather than by one stack spacing. The screen is
+            // three things — a reading, a pair of actions, and a way out — and
+            // an even gap everywhere made them one list of five items with the
+            // total sitting in it as just another row.
+            VStack(spacing: 0) {
                 Text(session.isComplete ? "Complete" : "Ended")
                     .sectionLabelStyle()
 
-                HeroNumeral(
-                    measure: Format.total(session.studiedSec),
-                    size: Typography.Size.title,
-                    tracking: Typography.Size.titleTracking
-                )
+                // Tight under its label: the word names this number, and a gap
+                // as wide as the one below the number made it float between the
+                // two.
+                HeroNumeral(measure: measure, size: face.size, tracking: face.tracking)
+                    .padding(.top, 2)
+                    .minimumScaleFactor(0.7)
 
                 // More than one subject, not more than one interval: a
                 // session paused once and resumed on the same subject has two
@@ -50,11 +57,11 @@ struct DoneView: View {
                             .accessibilityElement(children: .combine)
                         }
                     }
-                    .padding(.top, 2)
+                    .padding(.top, 10)
                 }
 
-                GlassEffectContainer(spacing: 6) {
-                    VStack(spacing: 6) {
+                GlassEffectContainer(spacing: 8) {
+                    VStack(spacing: 8) {
                         EndActionButton(
                             title: "Again",
                             systemImage: "arrow.clockwise",
@@ -68,7 +75,13 @@ struct DoneView: View {
                         ) { onClose() }
                     }
                 }
-                .padding(.top, 2)
+                // The reading has said its piece; this is the next thing, and
+                // it reads as one only if it is separated from it. Twelve, not
+                // sixteen: the numeral's own descender space is already a third
+                // of the gap, and the screen only fits without scrolling if
+                // every gap is the one it needs rather than the one it looks
+                // like it needs.
+                .padding(.top, 12)
 
                 // Last, quiet, and unadorned: throwing the session away is the
                 // one action here that cannot be undone.
@@ -105,10 +118,15 @@ struct DoneView: View {
                 // Brighter while it stands: at the same weight as the label it
                 // replaces, arming it would be a question mark nobody saw.
                 .foregroundStyle(discardConfirm.isArmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
-                .animation(Motion.fill(reduceMotion: reduceMotion), value: discardConfirm.isArmed)
+                .animation(Motion.swap(reduceMotion: reduceMotion), value: discardConfirm.isArmed)
+                // Clear of the capsule above it, and clear of the bottom of the
+                // screen: it used to sit against both, which put the one
+                // irreversible action on this screen a thumb's width from the
+                // one you press to keep the session.
+                .padding(.top, 12)
             }
             .padding(.horizontal, 6)
-            .padding(.bottom, 8)
+            .padding(.bottom, 12)
         }
         .onAppear {
             if session.isComplete {
@@ -157,11 +175,15 @@ private struct EndActionButton: View {
 
     var body: some View {
         Button(action: action) {
+            // Body, not footnote. These are the two actions the screen is
+            // for, set in a full-width capsule each, and at footnote they were
+            // a caption floating in the middle of one.
             Label(title, systemImage: systemImage)
-                .font(Typography.text(.footnote).weight(.medium))
+                .font(Typography.text(.body).weight(.semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity, minHeight: 46)
                 .contentShape(.capsule)
         }
         .buttonStyle(EndActionButtonStyle(tint: tint))

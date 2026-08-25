@@ -315,11 +315,18 @@ private struct NameField: View {
         // appeared.
         NavigationStack {
             VStack(spacing: 8) {
+                // No `onSubmit`. On the watch a text field hands you a
+                // full-screen input, and closing that input — with Done, with
+                // dictation, or by backing out of it — counts as a submit. So
+                // the name saved and the sheet closed the moment the keyboard
+                // went away, whether or not Save was ever pressed, and there
+                // was no way to look at what you had typed before committing
+                // it. Done now closes the input and nothing more; Save is the
+                // only thing that saves.
                 TextField(title, text: $text)
                     .textInputAutocapitalization(.words)
                     .submitLabel(.done)
                     .focused($typing)
-                    .onSubmit(commit)
                 // Said only when it applies, and where the answer is — under
                 // the field, above the button it is disabling.
                 if duplicate {
@@ -327,7 +334,12 @@ private struct NameField: View {
                         .font(Typography.text(.caption2))
                         .foregroundStyle(.secondary)
                 }
+                // Tinted and filled, because it is now the only way out that
+                // keeps anything: with the submit gone it has to look like the
+                // step it is, not like a second thought under the field.
                 Button("Save", action: commit)
+                    .buttonStyle(.borderedProminent)
+                    .tint(Palette.accent)
                     .disabled(!canSave)
             }
             .padding(.horizontal, 8)
