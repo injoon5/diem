@@ -40,12 +40,10 @@ struct RingArc: View {
     }
 }
 
-/// Today against the goal, as a ring — on the Start screen, and behind the
-/// running clock, so the ring a session starts inside goes on filling while it
-/// runs instead of disappearing for the length of it.
+/// Today against the goal, as a ring: one revolution is the goal met.
 ///
-/// On the Start screen it doubles as the duration being scrubbed while the
-/// crown turns.
+/// It doubles as the duration being scrubbed while the crown turns, where one
+/// revolution is an hour instead.
 ///
 /// One persistent arc handles both modes. The crown remains direct while
 /// scrubbing; only the transition into and out of that mode is springed.
@@ -54,12 +52,6 @@ struct GoalRing: View {
     var scrubTurns: Double = 0
     var isScrubbing = false
     var lineWidth: CGFloat = 10
-    /// Whether a change in the reading is worth settling into.
-    ///
-    /// A recorded total arrives at once and can spring. A live count moves
-    /// every second by a sliver — springing each of those is a spring
-    /// re-targeting at 1Hz for a change nobody can see.
-    var animatesProgress = true
 
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -92,7 +84,7 @@ struct GoalRing: View {
             value: isScrubbing
         )
         .animation(
-            isScrubbing || isLuminanceReduced || !animatesProgress
+            isScrubbing || isLuminanceReduced
                 ? nil
                 : Motion.ringProgress(reduceMotion: reduceMotion),
             value: turns
@@ -100,6 +92,85 @@ struct GoalRing: View {
         .padding(lineWidth / 2 + 1)
         // A Circle in a non-square frame draws an ellipse. Keep it round and as
         // large as the screen allows instead of pinning a fixed size.
+        .aspectRatio(1, contentMode: .fit)
+    }
+}
+
+/// Today's study wound onto the ring, an hour to the turn.
+///
+/// A straight bar of the day — one band per run, in that subject's colour, as
+/// long as the run — bent into a circle. Past an hour it goes round again over
+/// what is already there, so the band on top is always the most recent hour and
+/// the turn beneath shows through dimmed, the way the goal ring's lap does.
+///
+/// Butt caps, not round: these bands abut, and a rounded end on each would have
+/// every band bulge over its neighbour and read as a gap that isn't there.
+struct SubjectRing: View {
+    var runs: [SubjectRun]
+    var lineWidth: CGFloat = 6
+
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
+
+    /// One revolution. The same hour the crown scrubs against, so a turn means
+    /// the same thing whichever ring you are looking at.
+    private static let secondsPerTurn: TimeInterval = 3600
+
+    private struct Band: Identifiable {
+        let id: Int
+        let subjectID: UUID?
+        /// Which turn of the ring this piece lies on.
+        let lap: Int
+        let from: Double
+        let to: Double
+    }
+
+    /// The day laid end to end, then cut at every turn of the ring.
+    private var bands: [Band] {
+        var bands: [Band] = []
+        var cursor: Double = 0
+        for run in runs {
+            let end = cursor + run.seconds / Self.secondsPerTurn
+            var start = cursor
+            while start < end {
+                let lap = Int(start.rounded(.down))
+                let stop = min(end, Double(lap + 1))
+                bands.append(
+                    Band(
+                        id: bands.count,
+                        subjectID: run.subjectID,
+                        lap: lap,
+                        from: start - Double(lap),
+                        to: stop - Double(lap)
+                    )
+                )
+                start = stop
+            }
+            cursor = end
+        }
+        return bands
+    }
+
+    var body: some View {
+        let bands = bands
+        let top = bands.last?.lap ?? 0
+        ZStack {
+            Circle()
+                .stroke(Palette.ghostTrack, style: .init(lineWidth: lineWidth, lineCap: .round))
+
+            // Drawn in the order the day happened, so a later turn covers an
+            // earlier one exactly as winding a bar round twice would.
+            ForEach(bands) { band in
+                let color = Palette.subject(band.subjectID)
+                Circle()
+                    .trim(from: band.from, to: band.to)
+                    .stroke(
+                        band.lap == top ? color : Palette.lapped(color),
+                        style: .init(lineWidth: lineWidth, lineCap: .butt)
+                    )
+            }
+        }
+        .rotationEffect(.degrees(-90))
+        .padding(lineWidth / 2 + 1)
         .aspectRatio(1, contentMode: .fit)
     }
 }

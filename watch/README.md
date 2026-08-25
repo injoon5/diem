@@ -78,5 +78,12 @@ path of the numeral roll. A view takes its reading once and passes it down
 schedule is anchored to `@State`, never to `.now`, or every redraw hands it a
 new schedule.
 
+**Three rings, two meanings for a turn.** The Start screen at rest is today
+against the goal — one revolution is the goal met, and past it the ring laps.
+Under the crown, and behind the running clock, one revolution is an hour: the
+duration being scrubbed, and the day so far drawn as a bar of coloured runs bent
+into a circle, going round again over what is already there. Check which you are
+reading before changing either.
+
 **The accent is never on text.** International Orange in Display P3, on the ring
 and the pill fill only. There is deliberately no app-wide tint.

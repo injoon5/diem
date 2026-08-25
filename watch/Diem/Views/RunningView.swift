@@ -129,8 +129,8 @@ struct RunningView: View {
         let remaining: TimeInterval?
         let elapsed: TimeInterval
         let plannedSec: Int?
-        /// Today against the goal, live: what the ring behind the clock draws.
-        let todayTurns: Double
+        /// Today in the order it happened: what the ring behind the clock draws.
+        let runs: [SubjectRun]
 
         var isOvertime: Bool { (remaining ?? 1) < 0 }
         var hasHitZero: Bool { (remaining ?? 1) <= 0 }
@@ -158,7 +158,7 @@ struct RunningView: View {
             remaining: store.remaining(asOf: now),
             elapsed: store.elapsed(asOf: now),
             plannedSec: store.activePlannedSec,
-            todayTurns: store.todayProgress(asOf: now)
+            runs: store.todayRuns(asOf: now)
         )
     }
 
@@ -199,13 +199,13 @@ struct RunningView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
-        // Behind the clock, not around it: the same ring the session was
-        // started inside, going on filling while it runs. It is the reason the
-        // number above is a study total and not a stopwatch. Thinner than the
-        // Start screen's, where it is the subject rather than the ground, and
-        // it doesn't settle — a live count moves every second by a sliver.
+        // Behind the clock, not around it: the day so far, in the colours of
+        // what it was spent on, growing while you sit there. It is the reason
+        // the number above is a study total and not a stopwatch. Thinner than
+        // the Start screen's ring, where the ring is the subject rather than
+        // the ground.
         .background {
-            GoalRing(goalTurns: tick.todayTurns, lineWidth: 6, animatesProgress: false)
+            SubjectRing(runs: tick.runs, lineWidth: 6)
                 .padding(.vertical, -18)
         }
         .overlay(alignment: .top) {

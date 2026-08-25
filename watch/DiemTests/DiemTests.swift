@@ -343,6 +343,41 @@ struct SessionTests {
         #expect([Span]().liveSummary() == nil)
     }
 
+    @Test("Runs keep the order the day happened in")
+    func runsInOrder() {
+        let session = UUID()
+        let (math, physics) = (UUID(), UUID())
+        let log = [
+            span(session: session, subject: math, offset: 0, length: 600),
+            span(session: session, subject: physics, offset: 600, length: 300),
+            span(session: session, subject: math, offset: 900, length: 900),
+        ]
+        let runs = log.subjectRuns()
+        // Three runs, not two totals: going back to a subject is a new stretch.
+        #expect(runs.count == 3)
+        #expect(runs.map(\.subjectID) == [math, physics, math])
+        #expect(runs.map(\.seconds) == [600, 300, 900])
+    }
+
+    @Test("A pause splits an interval but not a run")
+    func runsAcrossPause() {
+        let session = UUID()
+        let math = UUID()
+        let log = [
+            span(session: session, subject: math, offset: 0, length: 600),
+            span(session: session, subject: math, offset: 1200, length: 600),
+        ]
+        #expect(log.subjectRuns() == [SubjectRun(subjectID: math, seconds: 1200)])
+    }
+
+    @Test("A run still running is measured to now")
+    func runsWithOpenInterval() {
+        let session = UUID()
+        let log = [span(session: session, offset: 0, length: nil)]
+        let runs = log.subjectRuns(asOf: start.addingTimeInterval(300))
+        #expect(runs == [SubjectRun(subjectID: nil, seconds: 300)])
+    }
+
     @Test("A pause leaves a real gap and the studied total skips it")
     func pauseGap() {
         let session = UUID()

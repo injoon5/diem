@@ -221,6 +221,39 @@ final class SessionStore {
         goalSeconds > 0 ? todaySeconds(asOf: now) / goalSeconds : 0
     }
 
+    /// Today's study in the order it happened, for the ring that draws it as a
+    /// timeline. Closed runs are held; the one still running is added on top,
+    /// extending the last run when it is on the same subject.
+    @ObservationIgnored private var runsCache: (dayStart: Date, runs: [SubjectRun])?
+
+    func todayRuns(asOf now: Date = .now) -> [SubjectRun] {
+        observe()
+        let dayStart = Day.start(of: now)
+        var runs: [SubjectRun]
+        if let runsCache, runsCache.dayStart == dayStart {
+            runs = runsCache.runs
+        } else {
+            runs = intervals(startingIn: dayStart..<Date.distantFuture)
+                .filter { !$0.isOpen }
+                .subjectRuns()
+            runsCache = (dayStart, runs)
+        }
+        guard let live = live(), let openedAt = live.openedAt, openedAt >= dayStart else {
+            return runs
+        }
+        let seconds = max(0, now.timeIntervalSince(openedAt))
+        guard seconds > 0 else { return runs }
+        if let last = runs.last, last.subjectID == live.subjectID {
+            runs[runs.count - 1] = SubjectRun(
+                subjectID: last.subjectID,
+                seconds: last.seconds + seconds
+            )
+        } else {
+            runs.append(SubjectRun(subjectID: live.subjectID, seconds: seconds))
+        }
+        return runs
+    }
+
     /// Studied seconds per subject today, most-studied first. `nil` is free time.
     func todayBySubject(asOf now: Date = .now) -> [SubjectTotal] {
         observe()
@@ -457,6 +490,7 @@ final class SessionStore {
     private func invalidateCaches() {
         liveCache = nil
         todayCache = nil
+        runsCache = nil
         dailyCache.removeAll(keepingCapacity: true)
         subjectListCache.removeAll(keepingCapacity: true)
         subjectCache.removeAll(keepingCapacity: true)

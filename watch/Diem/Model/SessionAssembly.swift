@@ -32,6 +32,17 @@ struct SubjectTotal: Identifiable, Hashable {
     var id: String { subjectID?.uuidString ?? "free" }
 }
 
+/// One unbroken run of study on a single subject, in the order it happened.
+///
+/// Not a total. Switching subject and switching back is two runs on the same
+/// subject, and a ring that reads as a timeline has to draw them apart — the
+/// totals would put the day in the wrong order and lose the shape of it.
+struct SubjectRun: Equatable {
+    /// `nil` is free time.
+    let subjectID: UUID?
+    let seconds: TimeInterval
+}
+
 /// The live session's timing, without assembling the session around it.
 ///
 /// The running clock reads this once a second and the crown asks far faster
@@ -81,6 +92,31 @@ struct Session: Identifiable, Hashable {
 
     static func == (a: Session, b: Session) -> Bool { a.id == b.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
+}
+
+extension Collection where Element: IntervalRecord {
+    /// Study runs in start order, with consecutive intervals on the same
+    /// subject merged.
+    ///
+    /// A pause splits an interval but not a run: stopping for a minute and
+    /// carrying on with the same book is one stretch of studying it, and
+    /// drawing it as two would put a seam in the ring where nothing happened.
+    func subjectRuns(asOf now: Date = .now) -> [SubjectRun] {
+        var runs: [SubjectRun] = []
+        for record in sorted(by: { $0.startedAt < $1.startedAt }) {
+            let seconds = record.duration(asOf: now)
+            guard seconds > 0 else { continue }
+            if let last = runs.last, last.subjectID == record.subjectID {
+                runs[runs.count - 1] = SubjectRun(
+                    subjectID: last.subjectID,
+                    seconds: last.seconds + seconds
+                )
+            } else {
+                runs.append(SubjectRun(subjectID: record.subjectID, seconds: seconds))
+            }
+        }
+        return runs
+    }
 }
 
 extension Collection where Element == (day: Date, seconds: TimeInterval) {
