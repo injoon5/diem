@@ -274,21 +274,12 @@ final class SessionStore {
         return entries
     }
 
-    /// Consecutive days with any study at all. Breaks only on a zero day; today
-    /// not having started yet doesn't break it.
+    /// Consecutive days with any study at all.
+    ///
+    /// A year and a bit of window: long enough that the number is the real one
+    /// rather than the one the window can see.
     func streak(asOf now: Date = .now) -> Int {
-        let days = dailySeconds(days: 400, asOf: now).reversed()
-        var streak = 0
-        for (index, entry) in days.enumerated() {
-            if entry.seconds > 0 {
-                streak += 1
-            } else if index == 0 {
-                continue  // today is still open
-            } else {
-                break
-            }
-        }
-        return streak
+        dailySeconds(days: 400, asOf: now).studyStreak
     }
 
     /// Share of the last `days` study-days that met the goal.
@@ -471,15 +462,18 @@ final class SessionStore {
         subjectCache.removeAll(keepingCapacity: true)
     }
 
-    /// One place decides whether a deadline tap is pending: a timed session that
-    /// is actually running, and nothing else.
+    /// One place decides whether a tap is pending: a timed session that is
+    /// actually running, and nothing else.
+    ///
+    /// Past the deadline still counts. The session is in overtime, not over,
+    /// and the nudge that asks whether it was forgotten is still ahead of it.
     private func rescheduleAlert() {
-        guard isRunning, let remaining = remaining(), remaining > 0 else {
+        guard isRunning, let remaining = remaining() else {
             SessionAlerts.cancel()
             return
         }
         SessionAlerts.schedule(
-            at: Date.now.addingTimeInterval(remaining),
+            deadline: Date.now.addingTimeInterval(remaining),
             subject: subject(activeSubjectID)?.name
         )
     }

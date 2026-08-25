@@ -52,7 +52,7 @@ See `web/README.md`. `npm run check && npm test && npm run build`.
 The Foundation-only core of the watch app — the day boundary, the number
 formats, the crown stepping curve, session assembly, the live-session summary
 behind the running clock and the goal lap the ring and the complication's bar
-both draw — compiles and its 40 tests pass under Swift 6.3 on Linux
+both draw — compiles and its 44 tests pass under Swift 6.3 on Linux
 (`watch/DiemTests`, run on a Mac through the `Diem` scheme, or standalone
 against `Day`, `Format`, `Scrub`, `SessionAssembly`, `Snapshot` and the
 `ISO8601` helper out of `Sync/DTO`). Every Swift file parses clean under `-swift-version 6`.

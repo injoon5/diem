@@ -136,7 +136,7 @@ struct StartView: View {
 
     private func content(now: Date) -> some View {
         ZStack {
-            StartRing(
+            GoalRing(
                 goalTurns: store.todayProgress(asOf: now),
                 scrubTurns: scrubTurns,
                 isScrubbing: isScrubbing

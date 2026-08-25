@@ -40,16 +40,26 @@ struct RingArc: View {
     }
 }
 
-/// The Start screen ring: today's progress at rest, the duration being scrubbed
-/// while the crown turns.
+/// Today against the goal, as a ring — on the Start screen, and behind the
+/// running clock, so the ring a session starts inside goes on filling while it
+/// runs instead of disappearing for the length of it.
+///
+/// On the Start screen it doubles as the duration being scrubbed while the
+/// crown turns.
 ///
 /// One persistent arc handles both modes. The crown remains direct while
 /// scrubbing; only the transition into and out of that mode is springed.
-struct StartRing: View {
+struct GoalRing: View {
     var goalTurns: Double
-    var scrubTurns: Double
-    var isScrubbing: Bool
+    var scrubTurns: Double = 0
+    var isScrubbing = false
     var lineWidth: CGFloat = 10
+    /// Whether a change in the reading is worth settling into.
+    ///
+    /// A recorded total arrives at once and can spring. A live count moves
+    /// every second by a sliver — springing each of those is a spring
+    /// re-targeting at 1Hz for a change nobody can see.
+    var animatesProgress = true
 
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -82,7 +92,7 @@ struct StartRing: View {
             value: isScrubbing
         )
         .animation(
-            isScrubbing || isLuminanceReduced
+            isScrubbing || isLuminanceReduced || !animatesProgress
                 ? nil
                 : Motion.ringProgress(reduceMotion: reduceMotion),
             value: turns

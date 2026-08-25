@@ -182,6 +182,40 @@ struct ScrubTests {
     }
 }
 
+@Suite("Streaks")
+struct StreakTests {
+    private let start = ISO8601.parse("2026-03-04T04:00:00Z")!
+
+    /// Oldest first, the way the store hands them over.
+    private func days(_ seconds: [TimeInterval]) -> [(day: Date, seconds: TimeInterval)] {
+        seconds.enumerated().map { index, value in
+            (day: start.addingTimeInterval(Double(index) * 86_400), seconds: value)
+        }
+    }
+
+    @Test("Consecutive days count back from the most recent")
+    func consecutive() {
+        #expect(days([0, 0, 60, 60, 60]).studyStreak == 3)
+    }
+
+    @Test("Today not having started yet doesn't break it")
+    func openToday() {
+        #expect(days([60, 60, 0]).studyStreak == 2)
+    }
+
+    @Test("A gap before today does break it")
+    func gap() {
+        #expect(days([60, 60, 0, 60]).studyStreak == 1)
+        #expect(days([60, 60, 0, 60, 0]).studyStreak == 1)
+    }
+
+    @Test("Nothing studied is no streak")
+    func none() {
+        #expect(days([0, 0, 0]).studyStreak == 0)
+        #expect([(day: Date, seconds: TimeInterval)]().studyStreak == 0)
+    }
+}
+
 @Suite("Goal laps")
 struct LapTests {
     @Test("Under the goal, the fraction is the progress")

@@ -83,6 +83,28 @@ struct Session: Identifiable, Hashable {
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
+extension Collection where Element == (day: Date, seconds: TimeInterval) {
+    /// Consecutive study-days with anything in them, counting back from the
+    /// most recent. Oldest first, the way `dailySeconds` hands them over.
+    ///
+    /// Today not having started yet does not break it. A streak you are in the
+    /// middle of is still a streak, and a counter that resets every morning
+    /// until you sit down is a counter nobody would trust.
+    var studyStreak: Int {
+        var streak = 0
+        for (index, entry) in reversed().enumerated() {
+            if entry.seconds > 0 {
+                streak += 1
+            } else if index == 0 {
+                continue
+            } else {
+                break
+            }
+        }
+        return streak
+    }
+}
+
 extension Collection where Element: IntervalRecord {
     /// The timing of one session's intervals, or `nil` if there are none.
     ///

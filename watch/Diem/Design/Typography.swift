@@ -7,11 +7,14 @@ enum Typography {
     /// Tracking is size-specific — one app-wide value is wrong somewhere by
     /// definition.
     enum Size {
-        static let hero: CGFloat = 54
-        /// `1:36:56` is seven advances wide, and at `hero` that overruns the
-        /// smallest watch. One step down is enough — the clock is still the
+        /// The running clock. Set to the width of the ring it now sits inside
+        /// rather than to the width of the screen — a numeral that overhangs
+        /// the arc drawn behind it reads as a mistake, and this is still the
         /// largest thing on the screen by a wide margin.
-        static let heroCompact: CGFloat = 50
+        static let hero: CGFloat = 44
+        /// `1:36:56` is seven advances wide, and at `hero` that overruns the
+        /// ring on the smallest watch. One step down is enough.
+        static let heroCompact: CGFloat = 38
         static let heroTracking: CGFloat = -1.2
 
         /// The total inside the Start ring. Sized to the ring rather than to

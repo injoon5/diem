@@ -16,17 +16,17 @@ struct SubjectPicker: View {
         // the picker arrived unlabelled.
         NavigationStack {
             List {
+                // A footer, not a second section: the hint is a note about
+                // the list, and in a section of its own it drew as a row —
+                // inset, filled, and looking like something to tap.
                 Section {
                     ForEach(subjects) { subject in
                         row(name: subject.name, colorIndex: subject.colorIndex, id: subject.id)
                     }
                     row(name: "Free", colorIndex: nil, id: nil)
-                }
-                if subjects.isEmpty {
-                    Section {
+                } footer: {
+                    if subjects.isEmpty {
                         Text("Add subjects in Settings.")
-                            .font(Typography.text(.footnote))
-                            .foregroundStyle(.secondary)
                     }
                 }
             }

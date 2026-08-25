@@ -41,8 +41,20 @@ struct MetricsView: View {
     // MARK: - Today
 
     private var todaySection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Today").sectionLabelStyle()
+        let streak = store.streak(asOf: now)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("Today").sectionLabelStyle()
+                Spacer(minLength: 4)
+                // The thing a study app has that a timer cannot: not what you
+                // did today, but that you have kept doing it. One day is not a
+                // streak — it is today, which the number below already says.
+                if streak > 1 {
+                    Text("\(streak) day streak")
+                        .sectionLabelStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 HeroNumeral(

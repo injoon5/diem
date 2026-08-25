@@ -126,9 +126,24 @@ struct RunningView: View {
         let remaining: TimeInterval?
         let elapsed: TimeInterval
         let plannedSec: Int?
+        /// Today against the goal, live: what the ring behind the clock draws.
+        let todayTurns: Double
 
         var isOvertime: Bool { (remaining ?? 1) < 0 }
         var hasHitZero: Bool { (remaining ?? 1) <= 0 }
+
+        /// Long enough to be caught by the next glance down, short enough that
+        /// it doesn't become the screen's resting state.
+        static let completeWindow: TimeInterval = 2 * 60
+
+        /// Just finished. Measured off the reading rather than latched when the
+        /// crossing happened, so it survives the app being put away and opened
+        /// again a minute later — and a pause holds it, the way a pause holds
+        /// everything else here.
+        var isJustComplete: Bool {
+            guard let remaining, remaining <= 0 else { return false }
+            return -remaining < Self.completeWindow
+        }
 
         var measure: Format.Measure {
             Format.count(remaining: remaining, elapsed: elapsed, plannedSec: plannedSec)
@@ -139,7 +154,8 @@ struct RunningView: View {
         Tick(
             remaining: store.remaining(asOf: now),
             elapsed: store.elapsed(asOf: now),
-            plannedSec: store.activePlannedSec
+            plannedSec: store.activePlannedSec,
+            todayTurns: store.todayProgress(asOf: now)
         )
     }
 
@@ -177,15 +193,24 @@ struct RunningView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
+        // Behind the clock, not around it: the same ring the session was
+        // started inside, going on filling while it runs. It is the reason the
+        // number above is a study total and not a stopwatch. Thinner than the
+        // Start screen's, where it is the subject rather than the ground, and
+        // it doesn't settle — a live count moves every second by a sliver.
+        .background {
+            GoalRing(goalTurns: tick.todayTurns, lineWidth: 6, animatesProgress: false)
+                .padding(.vertical, -18)
+        }
         .overlay(alignment: .top) {
-            if let status {
+            if let status = status(tick) {
                 Text(status)
                     .sectionLabelStyle()
                     .id(status)
                     .labelSwap(reduceMotion: reduceMotion)
             }
         }
-        .animation(Motion.fill(reduceMotion: reduceMotion), value: status)
+        .animation(Motion.fill(reduceMotion: reduceMotion), value: status(tick))
     }
 
     /// A held clock and a running one are otherwise the same picture — a
@@ -200,7 +225,15 @@ struct RunningView: View {
     /// The top line reports state, and nothing else. The question that used to
     /// outrank it now asks from between the controls that answer it, so a
     /// paused session stays legible while it is being asked.
-    private var status: String? { store.isPaused ? "Paused" : nil }
+    ///
+    /// Reaching the planned time is the point of a timed session and went by
+    /// unmarked but for a tap on the wrist — the clock rolled into overtime and
+    /// nothing on screen said what had just happened. Paused still outranks it:
+    /// a held clock is the more useful thing to be told.
+    private func status(_ tick: Tick) -> String? {
+        if store.isPaused { return "Paused" }
+        return tick.isJustComplete ? "Complete" : nil
+    }
 
     // MARK: - Actions
 
