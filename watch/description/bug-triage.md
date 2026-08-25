@@ -1017,6 +1017,25 @@ Status: **confirmed** — on device and on the simulator.
 
 Two ring findings from the same pass. A hair of arc with a round cap, used to draw the bar's two ends, is its own circle rather than a cap on the path, and read as a bead sitting on the ring; the ends are round-capped *bands* again, which are real arcs. And the caps are stroked flat in their band's colour, not with the turn's gradient — an angular gradient outside its own span wraps to the far end of the stop list, and the cap at the top of the ring is drawn *before* zero, so with the gradient it came out in the colour of whatever was being studied last. Flat matches exactly, because the bar's own two ends are the two the blend is never pulled in from.
 
+## B-41
+
+**Negative tracking cuts the last glyph of every numeral field.**
+
+`NumeralText` sets the clock with `.tracking(-1.2)` at 44pt. Tracking is applied
+*after* the final glyph as well as between glyphs, so `Text` reports a width
+exactly that much short of the ink it draws — and the last glyph is then drawn
+into space the layout does not believe it has. On the running clock that is the
+right arm of a `4` ending flat where it meets the colon.
+
+It is not specific to the `4` or to the clock: every field the app reserves is
+set with negative tracking, so the last glyph of each is a fraction of a point
+into borrowed space, and it shows on the glyphs whose ink reaches furthest right.
+
+Severity: **low**, and visible. Decision: **fix**.
+Status: **confirmed** — on the simulator, at 2× and cropped.
+
+**Resolution.** The tracking is given back as trailing padding — to the hidden field that reserves the width and to the value drawn inside it alike, so the digits do not move and the field does not shift. The subject button under the clock is inset further at the same time: it sits below the ring's widest point, where the chord is shorter still than the clock's.
+
 ## Appendix: what happened to the repro suite
 
 The seven tests that confirmed the entries above were written against the app's

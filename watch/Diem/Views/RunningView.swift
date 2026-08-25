@@ -305,7 +305,7 @@ struct RunningView: View {
                 // inside is a good deal shorter than the one the numeral has —
                 // a long subject name ran out over the arc on both sides and
                 // put the chevron behind it.
-                .padding(.horizontal, 22)
+                .padding(.horizontal, 30)
                 // Held, the whole screen steps back together. The numeral above
                 // faded and this snapped beside it.
                 .opacity(store.isPaused ? 0.5 : 1)

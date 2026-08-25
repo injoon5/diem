@@ -156,7 +156,10 @@ units, size or place between lit and dimmed. Nothing else moves — a roll queue
 against a display that refreshes once a minute lands as stutter on the next wake.
 
 **Typography** — 44pt, or 38pt once the field grows past four digits, chosen by
-the *field* rather than by the value so the clock never resizes mid-session as
+the *field* rather than by the value, and set with negative tracking whose last
+step is given back as trailing padding: tracking applies after the final glyph
+too, so `Text` reports a width shorter than the ink and the last glyph is drawn
+into space the layout does not think it has ([B-41](../bug-triage.md#b-41)) so the clock never resizes mid-session as
 digits roll. Counted in digits rather than characters, so punctuation does not
 decide the face size. Colons are set inside the same text run at tertiary and lifted
 6% of the size, because a colon is centred on the x-height while the digits are

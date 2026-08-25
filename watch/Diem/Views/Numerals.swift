@@ -139,6 +139,14 @@ struct NumeralText: View {
         styled(text)
             .numeralStyle(size: size, tracking: tracking, weight: weight)
             .lineLimit(1)
+            // Tracking is applied after the last glyph as well as between them,
+            // so a negative value shortens the width `Text` reports by exactly
+            // that much — and the last glyph is then drawn into space the
+            // layout does not believe it has. At −1.2 on a 44pt face that is
+            // the right arm of a `4` cut off flat where it meets the colon.
+            // Given back on the trailing edge, to the reserved field and to the
+            // value inside it alike, so nothing moves.
+            .padding(.trailing, max(0, -tracking))
     }
 
     /// Colons are concatenated into the same `Text` rather than laid out beside
