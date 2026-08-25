@@ -308,6 +308,27 @@ struct SessionTests {
         #expect(summary?.isPaused == false)
     }
 
+    @Test("The runs behind the ring add up to the count in front of it")
+    func liveSummaryRuns() {
+        let session = UUID()
+        let (math, physics) = (UUID(), UUID())
+        let now = start.addingTimeInterval(2400)
+        let log = [
+            span(session: session, subject: math, offset: 0, length: 600, planned: 1500),
+            span(session: session, subject: physics, offset: 900, length: 300),
+            span(session: session, subject: physics, offset: 1800, length: nil),
+        ]
+        let summary = log.liveSummary()
+        let runs = summary?.runs(asOf: now) ?? []
+        // Physics either side of a pause is one run, and the one still running
+        // is measured to now.
+        #expect(runs == [
+            SubjectRun(subjectID: math, seconds: 600),
+            SubjectRun(subjectID: physics, seconds: 900),
+        ])
+        #expect(runs.reduce(0) { $0 + $1.seconds } == summary?.studied(asOf: now))
+    }
+
     @Test("A paused summary holds the count where it stopped")
     func liveSummaryPaused() {
         let session = UUID()

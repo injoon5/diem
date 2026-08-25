@@ -58,6 +58,9 @@ struct LiveSummary: Equatable {
     let plannedSec: Int?
     /// Subject of the open interval, or of the last one while paused.
     let subjectID: UUID?
+    /// The session's closed intervals as runs, in order. The one still running
+    /// is added on read, the way its seconds are.
+    let closedRuns: [SubjectRun]
 
     /// A session with no interval running is one that is paused: there is
     /// nothing else for an open interval's absence to mean.
@@ -67,6 +70,24 @@ struct LiveSummary: Equatable {
     func studied(asOf now: Date) -> TimeInterval {
         guard let openedAt else { return bankedSec }
         return bankedSec + max(0, now.timeIntervalSince(openedAt))
+    }
+
+    /// The session so far as runs of study, in order — what the ring behind
+    /// the clock draws. Their total is `studied(asOf:)`.
+    func runs(asOf now: Date) -> [SubjectRun] {
+        guard let openedAt else { return closedRuns }
+        let seconds = max(0, now.timeIntervalSince(openedAt))
+        guard seconds > 0 else { return closedRuns }
+        var runs = closedRuns
+        if let last = runs.last, last.subjectID == subjectID {
+            runs[runs.count - 1] = SubjectRun(
+                subjectID: subjectID,
+                seconds: last.seconds + seconds
+            )
+        } else {
+            runs.append(SubjectRun(subjectID: subjectID, seconds: seconds))
+        }
+        return runs
     }
 }
 
@@ -159,7 +180,8 @@ extension Collection where Element: IntervalRecord {
             openedAt: open?.startedAt,
             // Set on the first interval of a timed session only.
             plannedSec: first.plannedSec,
-            subjectID: (open ?? last).subjectID
+            subjectID: (open ?? last).subjectID,
+            closedRuns: ordered.filter { !$0.isOpen }.subjectRuns()
         )
     }
 

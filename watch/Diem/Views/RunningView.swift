@@ -129,7 +129,8 @@ struct RunningView: View {
         let remaining: TimeInterval?
         let elapsed: TimeInterval
         let plannedSec: Int?
-        /// Today in the order it happened: what the ring behind the clock draws.
+        /// The session so far, in the order it happened: what the ring behind
+        /// the clock draws. Their total is `elapsed`.
         let runs: [SubjectRun]
 
         var isOvertime: Bool { (remaining ?? 1) < 0 }
@@ -158,7 +159,7 @@ struct RunningView: View {
             remaining: store.remaining(asOf: now),
             elapsed: store.elapsed(asOf: now),
             plannedSec: store.activePlannedSec,
-            runs: store.todayRuns(asOf: now)
+            runs: store.activeRuns(asOf: now)
         )
     }
 
@@ -199,11 +200,10 @@ struct RunningView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
-        // Behind the clock, not around it: the day so far, in the colours of
-        // what it was spent on, growing while you sit there. It is the reason
-        // the number above is a study total and not a stopwatch. Thinner than
-        // the Start screen's ring, where the ring is the subject rather than
-        // the ground.
+        // Behind the clock, not around it: this session so far, in the colours
+        // of what it has been spent on, growing while you sit there. The clock
+        // says how long; the ring says what of. Thinner than the Start screen's
+        // ring, where the ring is the subject rather than the ground.
         .background {
             SubjectRing(runs: tick.runs, lineWidth: 6)
                 .padding(.vertical, -18)

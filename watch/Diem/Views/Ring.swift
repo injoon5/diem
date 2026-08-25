@@ -96,12 +96,13 @@ struct GoalRing: View {
     }
 }
 
-/// Today's study wound onto the ring, an hour to the turn.
+/// The session wound onto the ring, an hour to the turn.
 ///
-/// A straight bar of the day — one band per run, in that subject's colour, as
-/// long as the run — bent into a circle. Past an hour it goes round again over
-/// what is already there, so the band on top is always the most recent hour and
-/// the turn beneath shows through dimmed, the way the goal ring's lap does.
+/// A straight bar of the session — one band per run of study, in that subject's
+/// colour, as long as the run — bent into a circle. Past an hour it goes round
+/// again over what is already there, so the band on top is always the most
+/// recent hour and the turn beneath shows through dimmed, the way the goal
+/// ring's lap does.
 ///
 /// Butt caps, not round: these bands abut, and a rounded end on each would have
 /// every band bulge over its neighbour and read as a gap that isn't there.
