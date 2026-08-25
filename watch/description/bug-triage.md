@@ -989,6 +989,53 @@ Status: **confirmed** — on device.
 
 **Resolution.** The bar stays; its contents fade out inside it, and are disabled and hidden from VoiceOver while they are gone. The safe area never changes, so neither does the ring. The container-level dimming animation went with it — there is no longer any geometry for it to carry.
 
+## B-40
+
+**"Paused" is drawn on top of the clock, and the ring behind it does not care that the session is held.**
+
+Two findings in one state.
+
+The state label was an overlay on the whole screen, pushed down from the top of
+the content area by a fixed 22 points. That clears the clock at 44pt with four
+digits. It does not clear it at 38pt with six — which is exactly what a session
+past an hour draws — so a paused session over an hour renders the word straight
+through the numeral.
+
+And the ring stays at full brightness while the numeral drops to 45% and the
+subject to 50%. The ring is most of the screen: held, the screen does not step
+back, it puts a dim number in front of the brightest thing on the watch.
+
+A third thing, found while checking the rest of the labels: a long subject name
+on the Running screen runs out over the arc on both sides and puts its chevron
+behind it. The name is inset by the same amount as the clock, but it sits well
+below the ring's widest point, where the chord is much shorter.
+
+Severity: **medium**. Decision: **fix**.
+Status: **confirmed** — on device and on the simulator.
+
+**Resolution.** The label is a line of the block rather than an overlay on the screen: a hidden word of the same style reserves the line, so the gap is the label's own metrics at any text size, the clock cannot be collided with, and nothing jumps when the word arrives or goes. It is pulled six points under its own line box, because the clock's frame already carries ascender space and a positive gap is added to one that is there. The subject is inset well past the clock. The ring is *not* dimmed with the rest: it was tried, and it is the wrong reading — what the ring draws is the session so far, and holding a session does not make what you have already done less true. The clock steps back because the clock is the thing that has stopped.
+
+Two ring findings from the same pass. A hair of arc with a round cap, used to draw the bar's two ends, is its own circle rather than a cap on the path, and read as a bead sitting on the ring; the ends are round-capped *bands* again, which are real arcs. And the caps are stroked flat in their band's colour, not with the turn's gradient — an angular gradient outside its own span wraps to the far end of the stop list, and the cap at the top of the ring is drawn *before* zero, so with the gradient it came out in the colour of whatever was being studied last. Flat matches exactly, because the bar's own two ends are the two the blend is never pulled in from.
+
+## B-41
+
+**Negative tracking cuts the last glyph of every numeral field.**
+
+`NumeralText` sets the clock with `.tracking(-1.2)` at 44pt. Tracking is applied
+*after* the final glyph as well as between glyphs, so `Text` reports a width
+exactly that much short of the ink it draws — and the last glyph is then drawn
+into space the layout does not believe it has. On the running clock that is the
+right arm of a `4` ending flat where it meets the colon.
+
+It is not specific to the `4` or to the clock: every field the app reserves is
+set with negative tracking, so the last glyph of each is a fraction of a point
+into borrowed space, and it shows on the glyphs whose ink reaches furthest right.
+
+Severity: **low**, and visible. Decision: **fix**.
+Status: **confirmed** — on the simulator, at 2× and cropped.
+
+**Resolution.** The tracking is given back as trailing padding — to the hidden field that reserves the width and to the value drawn inside it alike, so the digits do not move and the field does not shift. The subject button under the clock is inset further at the same time: it sits below the ring's widest point, where the chord is shorter still than the clock's.
+
 ## Appendix: what happened to the repro suite
 
 The seven tests that confirmed the entries above were written against the app's
