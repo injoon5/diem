@@ -18,7 +18,8 @@ not currently build.
 | START-06 | P2 | device | An archived subject is not offered | One subject, used last session, then archived | Open the app | The button reads "Subject" | — |
 | START-07 | P2 | device | Choosing Free is not overwritten | A subject used last session | Open the picker, choose Free, dismiss, reopen the app's Start screen without leaving | The button still reads "Subject" | — |
 | START-08 | P3 | device | The ring does not clip at the bezel | 41mm watch | Open the app | The arc is fully visible at top and bottom | — |
-| START-09 | P3 | device | The 12pt optical lift still reads centred when dimmed | 41mm watch | Lower the wrist | The ring looks centred with the bars gone | — |
+| START-09 | P3 | device | The 12pt optical lift still reads centred when dimmed | 41mm watch | Lower the wrist | The ring looks centred with the controls faded out | — |
+| START-12 | P1 | device | Always-On does not resize the ring ([doc](../app/start-screen.md#cross-cutting)) | Any state | Lower the wrist, raise it again | The four controls fade out and back; the ring is the same diameter, in the same place, throughout | — |
 | START-10 | P2 | device | Three sheets on one view all present ([open question](../app/start-screen.md#open-questions-and-verification)) | Fresh launch | Open Settings, dismiss; Metrics, dismiss; the picker, dismiss | All three present and dismiss | — |
 | START-11 | P2 | device, VoiceOver | The ring's progress is announced ([B-15](../bug-triage.md#b-15)) | 1h of 2h studied | Swipe to the ring | "Today", then "1 hour of 2 hours, 50 percent" | — |
 
@@ -31,7 +32,8 @@ not currently build.
 | RUN-03 | P1 | device | The deadline fires a haptic and shows "Complete" | 1m session | Wait | Success haptic; "Complete" for two minutes; the clock rolls to +0:00 and up | — |
 | RUN-04 | P1 | device | Paused outranks Complete | 1m session | Let it pass zero, then hold | "Paused", not "Complete" | — |
 | RUN-05 | P1 | device | The End question withdraws itself after six seconds | Any session | Tap End once, wait | The controls revert; no session ends | — |
-| RUN-06 | P1 | device | Always-On drops the seconds without moving the rest ([doc](../app/running-screen.md#cross-cutting)) | Any session | Lower the wrist | The last two digits slide out trailing; what is left recentres; nothing else moves | — |
+| RUN-06 | P1 | device | Always-On strikes the seconds out rather than dropping them ([doc](../app/running-screen.md#cross-cutting)) | Any session | Lower the wrist | The last two digits cross over into figure dashes — `24:‒‒`, same field, same colon, a step quieter — and the minutes in front of them do not move | — |
+| RUN-15 | P1 | device | Always-On centres the picture without resizing it ([doc](../app/running-screen.md#cross-cutting)) | Any session | Lower the wrist, raise it again | The controls fade; the ring and the clock inside it slide down together to the middle of the screen and back up, on one short spring. The ring is the same diameter throughout | — |
 | RUN-07 | P1 | device | The app is still frontmost after a wrist drop | Any session | Lower the wrist, wait 10s, raise it | The running screen, not the watch face | — |
 | RUN-08 | P1 | device | Crowning out gives up the hold and does not reclaim it | Any session | Press the crown, wait, raise the wrist | The watch face | — |
 | RUN-09 | P1 | device, largest text size | The bottom bar fits at the largest text size ([B-14](../bug-triage.md#b-14)) | Any session, text size at max | Tap End once | Both 44pt controls stay on screen; "END?" shrinks, and gives up its space entirely before they move | — |

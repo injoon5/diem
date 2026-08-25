@@ -128,14 +128,14 @@ summary.
 | Held | Numeral at 45%, "Paused" above it, Hold becomes Resume. The ring is unchanged — it draws what has already happened. The notification is cancelled. |
 | Overtime | Numeral at 60% with a `+`. The nudge notification is still ahead. |
 | Question armed | Both controls change meaning; "End?" between them. |
-| Dimmed | Both controls fade out, in place: the bar itself stays, so the safe area never changes and the ring does not move. The numeral loses its seconds — they slide out to the trailing edge and what is left recentres — and the tick drops to once a minute. |
+| Dimmed | Both controls fade out, in place: the bar itself stays, so the safe area never changes and the ring keeps its diameter. The ring and everything inside it then slide down together, by half the bar's height plus the six points of optical lift, so the picture sits in the middle of the screen the controls have just left. The seconds become dashes — `24:‒‒`, same field, same colon — and the tick drops to once a minute. |
 | Held *and* overtime | "Paused" wins. A session past its deadline and held is not measuring either. |
 
 ## Interrupts
 
 | Interrupt | Effect |
 | --- | --- |
-| Wrist down | The app keeps the foreground, so the raise comes back here rather than to the watch face. Seconds leave; controls leave; the tick slows to a minute. An armed question will have withdrawn itself. |
+| Wrist down | The app keeps the foreground, so the raise comes back here rather than to the watch face. Seconds become dashes; controls fade; the picture slides down to centre; the tick slows to a minute. An armed question will have withdrawn itself. |
 | Crown press | Leaves the app and gives up the hold. The session keeps running. Returning lands here again. |
 | Session ended elsewhere | Should leave for the summary or the Start screen. May not, per [B-03](../bug-triage.md#b-03) — the screen can be left showing a stopped clock labelled "Paused", and Resume will revive an ended session. |
 | 4am boundary | No effect here. The session counts wholly toward the day it started in. |
@@ -144,16 +144,26 @@ summary.
 
 ## Cross-cutting
 
-**Always-On** — this is the screen Always-On was designed around. Nothing moves
-into it: the bottom bar keeps its space and only its contents fade, because
-removing the bar handed its height to the ring and the crossing became a ring
-growing and sliding down a display that refreshes once a minute
-([B-39](../bug-triage.md#b-39)). It is the same
-clock with its seconds taken off, not a screen of its own: the last two digits
-slide out to the trailing edge, what is left recentres in the space they gave
-up, and they slide back on the wake. One layout means the reading never changes
-units, size or place between lit and dimmed. Nothing else moves — a roll queued
-against a display that refreshes once a minute lands as stutter on the next wake.
+**Always-On** — this is the screen Always-On was designed around. The bottom bar
+keeps its space and only its contents fade, because removing the bar handed its
+height to the ring and the crossing became a ring growing *and* sliding down a
+display that refreshes once a minute ([B-39](../bug-triage.md#b-39)). The ring
+never changes size. What it does do is move: with the controls gone, the bar's
+height is empty screen the picture is not using, so the ring and the clock
+inside it slide down together — half the bar, plus the six points the lit
+layout was lifted by to answer the weight of two filled circles that are no
+longer drawn — and settle in the middle of what is lit. One translation, on the
+same short critically damped spring as the fade, and back up on the wake.
+
+It is the same clock throughout, not a screen of its own. The seconds are not
+taken away, they are struck out: `24:36` becomes `24:‒‒`, in the same field,
+behind the same colon, in figure dashes cut to the width of the digits they
+stand in for. A bare `24` was a number with no field and no unit, easily read
+as minutes already studied; dashes say the seconds are still there and simply
+are not being counted for you at one refresh a minute. They cross over on the
+same spring, a step quieter than the digits in front of them. Nothing else
+moves — a roll queued against a display that refreshes once a minute lands as
+stutter on the next wake.
 
 **Typography** — 44pt, or 38pt once the field grows past four digits, chosen by
 the *field* rather than by the value, and set with negative tracking whose last
