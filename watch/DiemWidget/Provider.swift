@@ -1,3 +1,4 @@
+import AppIntents
 import Foundation
 import WidgetKit
 
@@ -26,40 +27,47 @@ struct SnapshotProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SnapshotEntry>) -> Void) {
-        let entry = SnapshotEntry(date: .now, snapshot: SnapshotStore.read())
+        let now = Date.now
+        let entry = SnapshotEntry(date: now, snapshot: SnapshotStore.read())
         // Live counts are rendered by the system via `Text(timerInterval:)`, so
         // the only reason to come back is a change the app didn't publish.
-        let next = Date.now.addingTimeInterval(entry.snapshot.session == nil ? 30 * 60 : 15 * 60)
-        completion(Timeline(entries: [entry], policy: .after(next)))
+        let cadence = now.addingTimeInterval(entry.snapshot.session == nil ? 30 * 60 : 15 * 60)
+        // …and one change the app cannot publish, because it may be asleep when
+        // it happens: 4am. The day's total resets there, and on the ordinary
+        // cadence a complication could go on drawing yesterday's closed ring
+        // for half an hour into a day that had barely started. The snapshot now
+        // carries the day it was written in, so a stale one reads as zero —
+        // but reading zero still needs a redraw, and this is when to ask for it.
+        let nextDay = Day.nextStart(after: now)
+        completion(Timeline(entries: [entry], policy: .after(min(cadence, nextDay))))
     }
 
-    /// What floats the session card to the top of the Smart Stack — and gets it
-    /// shown at all without being added by hand.
+    /// What gets the session card shown in the Smart Stack at all without
+    /// being added by hand, and floats it to the top once it is.
     ///
-    /// A relevance is a window, so the session has to claim one that outlives
-    /// the reload that published it: a timed session claims through to its
-    /// deadline, and an open-ended one a rolling window longer than the
-    /// refresh cadence above, extended by each reload while it keeps running.
-    /// The app reloads on every state change, so the window opens on the tap
-    /// that starts the session and is gone by the next reload after it ends.
+    /// The window itself is `DiemSnapshot.Live.relevanceWindow` — arithmetic,
+    /// and so kept where it can be tested. What is decided here is how the
+    /// system should read it. `.scheduled` rather than a plain date range:
+    /// the kinds are a hint about what the card *is*, and the documented
+    /// reading of this one is content that matters or wants acting on, which
+    /// the system weights up accordingly. A running session with an End button
+    /// on it is exactly that, and the hint is the difference between a card
+    /// available in the stack and a card already in front of you.
+    ///
+    /// `RelevantContext` comes from RelevanceKit, which App Intents pulls in —
+    /// hence the import above, which is otherwise unused in this file.
     func relevance() async -> WidgetRelevance<Void> {
         guard claimsRelevance, let session = SnapshotStore.read().session else {
             return WidgetRelevance([])
         }
-        let now = Date.now
-        let end = max(session.deadline ?? .distantPast, now.addingTimeInterval(Self.relevanceWindow))
         // Spelled with the configuration rather than the `Void` shorthand: this
         // widget is a `StaticConfiguration`, so there is nothing to configure.
         let attribute = WidgetRelevanceAttribute<Void>(
             configuration: (),
-            context: .date(from: now, to: end)
+            context: .date(range: session.relevanceWindow(), kind: .scheduled)
         )
         return WidgetRelevance([attribute])
     }
-
-    /// Comfortably longer than the running session's refresh interval, so the
-    /// window never lapses in the gap between two reloads.
-    private static let relevanceWindow: TimeInterval = 20 * 60
 }
 
 extension DiemSnapshot {

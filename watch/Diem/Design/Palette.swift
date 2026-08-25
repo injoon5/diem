@@ -51,6 +51,18 @@ enum Palette {
 
     static var subjectCount: Int { subjects.count }
 
+    /// What each swatch is called, so a grid of ten colours is not a row of ten
+    /// unnamed buttons to VoiceOver. In the order `subjects` declares them.
+    private static let subjectNames = [
+        "Lime", "Green", "Emerald", "Teal", "Cyan",
+        "Sky", "Blue", "Indigo", "Violet", "Magenta",
+    ]
+
+    static func subjectName(_ index: Int) -> String {
+        let wrapped = ((index % subjects.count) + subjects.count) % subjects.count
+        return subjectNames[wrapped]
+    }
+
     /// Free time — a session with no subject. Deliberately not a colour out of
     /// the palette above: it is the absence of one, and it has to read that way
     /// sitting beside them. Four spellings of this used to be scattered across

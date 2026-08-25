@@ -105,10 +105,18 @@ struct Session: Identifiable, Hashable {
     let lastSubjectID: UUID?
     let intervalCount: Int
 
-    /// Completion is derived, not flagged.
+    /// Completion is derived, not flagged — from studied time, which is what
+    /// the countdown measured.
+    ///
+    /// This used to compare the wall-clock span, and a hold widens the gap
+    /// between the two by exactly its own length. Six minutes of a planned
+    /// twenty-five, held for half an hour, has a span of thirty-six and was
+    /// reported Complete with the countdown still reading `19:00`. The span
+    /// only ever agrees in one direction: a session that runs to term satisfies
+    /// it, and a session that does not can satisfy it anyway.
     var isComplete: Bool {
-        guard let plannedSec, let endedAt else { return false }
-        return endedAt.timeIntervalSince(startedAt) >= Double(plannedSec)
+        guard let plannedSec, endedAt != nil else { return false }
+        return studiedSec >= Double(plannedSec)
     }
 
     static func == (a: Session, b: Session) -> Bool { a.id == b.id }

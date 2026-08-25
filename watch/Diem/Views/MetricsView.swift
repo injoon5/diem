@@ -5,7 +5,9 @@ import SwiftUI
 struct MetricsView: View {
     @Environment(SessionStore.self) private var store
 
-    private let now = Date.now
+    /// A fixed anchor for the tick, so the schedule doesn't re-phase on every
+    /// redraw. The reading itself comes from the timeline below.
+    @State private var anchor = Date.now
 
     /// Twelve weeks plus the alignment week. Both charts read the same window
     /// so the store aggregates the log once and hands the second one the same
@@ -24,14 +26,21 @@ struct MetricsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    todaySection
-                    weekSection
-                    heatmapSection
+            // Every reading here used to be taken against a stored property set
+            // when the view was built — so "Today" was frozen at the moment
+            // Metrics opened, and *unpredictably* so, because a stored property
+            // is re-initialised whenever the parent rebuilds. A minute is the
+            // resolution every number on this screen is shown at.
+            TimelineView(.periodic(from: anchor, by: 60)) { context in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        todaySection(now: context.date)
+                        weekSection(now: context.date)
+                        heatmapSection(now: context.date)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.bottom, 8)
                 }
-                .padding(.horizontal, 6)
-                .padding(.bottom, 8)
             }
             .containerBackground(.black, for: .navigation)
             .navigationTitle("Metrics")
@@ -40,7 +49,7 @@ struct MetricsView: View {
 
     // MARK: - Today
 
-    private var todaySection: some View {
+    private func todaySection(now: Date) -> some View {
         let streak = store.streak(asOf: now)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -113,8 +122,8 @@ struct MetricsView: View {
 
     // MARK: - This week
 
-    private var weekSection: some View {
-        let days = weekDays()
+    private func weekSection(now: Date) -> some View {
+        let days = weekDays(now: now)
         let peak = max(days.map(\.seconds).max() ?? 0, store.goalSeconds)
         return VStack(alignment: .leading, spacing: 6) {
             Text("This Week").sectionLabelStyle()
@@ -126,9 +135,13 @@ struct MetricsView: View {
                 let barWidth = min(14, max(8, (proxy.size.width - spacing * 6) / 7))
                 HStack(alignment: .bottom, spacing: spacing) {
                     ForEach(days, id: \.day) { entry in
-                        // Formatted once: the same string labels the bar and
-                        // speaks it, and a `DateFormatter` is not free.
+                        // Formatted once: a `DateFormatter` is not free. The
+                        // initial is what the bar *draws*; the full weekday is
+                        // what it says. Speaking the initial meant VoiceOver
+                        // read "M, 1 hour 5 minutes" — a visual abbreviation
+                        // read out as though it were a word.
                         let initial = weekdayInitial(entry.day)
+                        let spoken = weekdayName(entry.day)
                         VStack(spacing: 3) {
                             ZStack(alignment: .bottom) {
                                 Capsule()
@@ -153,8 +166,10 @@ struct MetricsView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(initial)
-                        .accessibilityValue(Format.duration(entry.seconds))
+                        .accessibilityLabel(spoken)
+                        .accessibilityValue(
+                            entry.seconds > 0 ? Format.duration(entry.seconds) : "Nothing"
+                        )
                     }
                 }
             }
@@ -169,8 +184,8 @@ struct MetricsView: View {
 
     // MARK: - Twelve weeks
 
-    private var heatmapSection: some View {
-        let weeks = heatmapWeeks()
+    private func heatmapSection(now: Date) -> some View {
+        let weeks = heatmapWeeks(now: now)
         let peak = weeks.flatMap(\.days).compactMap(\.seconds).max() ?? 1
         let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 12)
         return VStack(alignment: .leading, spacing: 6) {
@@ -186,7 +201,22 @@ struct MetricsView: View {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Last twelve weeks")
+            // A quarter of a year of data with no value at all, before this.
+            // Not readable cell by cell — eighty-four of them would be a
+            // punishment, not access — so it speaks the shape instead.
+            .accessibilityValue(heatmapValue(weeks))
         }
+    }
+
+    /// The twelve weeks in a sentence: how many days had study in them, how
+    /// much in total, and the best of them.
+    private func heatmapValue(_ weeks: [HeatmapWeek]) -> String {
+        let seconds = weeks.flatMap(\.days).compactMap(\.seconds).filter { $0 > 0 }
+        guard !seconds.isEmpty else { return "Nothing studied" }
+        let total = seconds.reduce(0, +)
+        let best = seconds.max() ?? 0
+        return "\(seconds.count) days studied, \(Format.duration(total)) in total, "
+            + "best day \(Format.duration(best))"
     }
 
     private func cellColor(_ seconds: TimeInterval?, peak: TimeInterval) -> Color {
@@ -209,7 +239,7 @@ struct MetricsView: View {
         return calendar.date(byAdding: .day, value: -offset, to: day)
     }
 
-    private func weekDays() -> [(day: Date, seconds: TimeInterval)] {
+    private func weekDays(now: Date) -> [(day: Date, seconds: TimeInterval)] {
         let calendar = Calendar.current
         let today = Day.start(of: now)
         guard let weekStart = weekStart(of: today, in: calendar) else { return [] }
@@ -223,7 +253,7 @@ struct MetricsView: View {
     }
 
     /// 12 columns of 7 days, oldest week first, aligned to the week start.
-    private func heatmapWeeks() -> [HeatmapWeek] {
+    private func heatmapWeeks(now: Date) -> [HeatmapWeek] {
         let calendar = Calendar.current
         let today = Day.start(of: now)
         guard let thisWeekStart = weekStart(of: today, in: calendar),
@@ -260,5 +290,16 @@ struct MetricsView: View {
 
     private func weekdayInitial(_ date: Date) -> String {
         Self.weekdayFormatter.string(from: date)
+    }
+
+    /// One formatter, not one per cell per redraw.
+    private static let weekdayNameFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate("EEEE")
+        return formatter
+    }()
+
+    private func weekdayName(_ date: Date) -> String {
+        Self.weekdayNameFormatter.string(from: date)
     }
 }

@@ -41,7 +41,14 @@ Add an asset catalog with `AppIcon` before archiving; the spec doesn't ship one.
 
 Targets: `Diem` (the app), `DiemWidget` (complications, the Smart Stack card and
 the Action Button Control) and `DiemTests`. Model, design and intents are shared
-with the extension; views are not.
+with the extension; views are not, and neither is `Diem/Runtime` — claiming the
+foreground is something only the app can do.
+
+The app declares the `mindfulness` background mode, which is what lets it claim
+an extended runtime session. Nothing about meditation: it is the one
+extended-runtime type that runs *frontmost* for longer than ten minutes, and
+holding the foreground is the whole use. Only one such mode may be declared, so
+this is the choice.
 
 ## Running the web app
 
@@ -51,15 +58,29 @@ See `web/README.md`. `npm run check && npm test && npm run build`.
 
 The Foundation-only core of the watch app — the day boundary, the number
 formats, the crown stepping curve, session assembly, the live-session summary
-behind the running clock and the goal lap the ring and the complication's bar
-both draw — compiles and its 48 tests pass under Swift 6.3 on Linux
-(`watch/DiemTests`, run on a Mac through the `Diem` scheme, or standalone
-against `Day`, `Format`, `Scrub`, `SessionAssembly`, `Snapshot` and the
-`ISO8601` helper out of `Sync/DTO`). Every Swift file parses clean under `-swift-version 6`.
+behind the running clock, the goal lap the ring and the complication's bar both
+draw, and the window the session card claims in the Smart Stack — compiles and
+its 66 tests pass under Swift 6.3 on Linux. One command, anywhere with a Swift
+toolchain:
+
+```sh
+cd watch && sh Scripts/core-check.sh
+```
+
+Every Swift file also parses clean under `-swift-version 6` — and **parsing is
+not type-checking**, which is worth saying plainly, because that was the only
+check this repo had and `Views/Ring.swift` handed a subject id to a function
+taking a colour index and parsed clean for two releases while the app target
+could not be built at all. `core-check.sh` type-checks what it can reach.
+Everything else needs `xcodegen generate` and a real build before you believe
+it compiles.
 Everything that touches SwiftUI, SwiftData, WatchKit or AppIntents has **not**
 been compiled, because that needs an Apple SDK.
 
-Anything on a redraw path that can be pulled out into that core should be: the
+Anything that decides a number should be pulled into that core, not only what is
+on a redraw path — it is the only code any machine can check. The completion
+rule, the snapshot's day staleness and the relevance window all live there for
+that reason. Anything on a redraw path especially: the
 store's derived reads are held in a cache, and `liveSummary()` is where the
 arithmetic behind them lives precisely so it can be tested here rather than
 taken on faith. It is checked against `sessions()` — the assembly it stands in
@@ -69,11 +90,44 @@ The web side is verified end to end: typecheck, build, unit tests, and a live
 run against a real Postgres covering pairing, idempotent interval push,
 last-write-wins subjects, cursored pull, the 4am bucketing and the 401 paths.
 
-Session relevance is now wired: `SnapshotProvider.relevance()` claims a window
-for as long as a session is running, so the Smart Stack surfaces the card on
-session start instead of waiting to be added by hand. It is written against the
-documented watchOS `WidgetRelevance` API but has not been compiled — that needs
-an Apple SDK, like everything else below.
+**The app holds the foreground while a session runs.** A watchOS app is put away
+the moment the wrist drops, and the raise that follows lands on the watch face;
+the system Timer is the exception everyone has felt, and `Diem/Runtime` asks for
+the same thing the same way — a `mindfulness` extended runtime session, the type
+that runs frontmost. The system's terms are the app's: it can only be claimed
+while the app is active, so a session started from Siri or a widget claims it
+when the app is next opened; an hour is the limit, so an expiry that arrives
+with the session still running claims the next hour; and crowning out ends it,
+which is the user leaving on purpose and not a thing to fight. Stay in the app
+and it holds, leave it deliberately and it lets go — the same bargain the Timer
+makes.
+
+**Session relevance is wired, and now asked for at the moment it changes.**
+`SnapshotProvider.relevance()` claims a window for as long as a session is
+running, so the Smart Stack surfaces the card on session start instead of
+waiting to be added by hand. The window is `.scheduled` rather than a plain date
+range — the documented reading of that kind is content that wants acting on, and
+a running session with an End button on it is exactly that. A timeline reload is
+not a relevance reload, so `commit()` also invalidates the card's relevance, but
+only when the two things it depends on move: whether a session is live, and
+where it ends.
+
+Both are written against the documented watchOS APIs and neither has been
+compiled — that needs an Apple SDK, like everything else below. The relevance
+window itself is the exception, because it was pulled out into the tested core.
+
+**The app has been audited from the outside in, and everything found is fixed.**
+`watch/description/` describes the product feature by feature and collects every
+suspected defect in one place; all 31 entries carry a resolution. Four were
+critical: the session ring could not compile, a held session was reported
+Complete on wall-clock time while the countdown measured studied time, the app
+and the widget extension never learned about each other's writes, and a store
+that failed to open fell back to memory in silence. The rest run from sync gaps
+that lost deletes, through complications showing yesterday's total after 4am, to
+touch targets and text scaling under the floors the app sets itself.
+
+Nothing in that audit has been observed on a device. `watch/description/verification/`
+is the pass that would change that.
 
 Two things from the plan are still not wired, both flagged there as needing
 confirmation against the watchOS 27 SDK first:

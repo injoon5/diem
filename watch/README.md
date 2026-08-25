@@ -15,12 +15,16 @@ xcodegen generate && open Diem.xcodeproj
 | `Diem/Design` | Palette, typography, number formats, motion, haptics |
 | `Diem/Views` | Start, Running, Done, Settings, Metrics, and the shared parts |
 | `Diem/Intents` | Start / Pause / End, behind every other surface |
+| `Diem/Runtime` | The extended runtime session that holds the foreground |
+| `Scripts` | `core-check.sh` — builds and tests the Foundation-only core anywhere |
 | `Diem/Sync` | DTOs and the client. Only completed intervals go over the wire |
 | `DiemWidget` | Four complication families, the Smart Stack card, the Control |
 
 `Model`, `Design` and `Intents` are compiled into the widget extension too; the
 app and the extension share a snapshot file in the `group.app.diem` container
-rather than the database.
+rather than the database. `Runtime` is app-only on purpose — an extension has no
+foreground to claim, and a `WKExtendedRuntimeSession` started from one is a
+session the system refuses.
 
 ## Foundations worth knowing before editing
 
@@ -85,6 +89,38 @@ duration being scrubbed, and the session so far drawn as a bar of coloured runs
 bent into a circle, going round again over what is already there. The Start ring
 is the day; the running ring is this session, which is what the clock in front
 of it is measuring. Check which you are reading before changing either.
+
+**A running session keeps the app.** Not by the app's own choice — a watchOS app
+is put away the moment the wrist drops. `SessionRuntime` claims a `mindfulness`
+extended runtime session for as long as a session is live, which is the public
+way to ask for what the system Timer has: the wrist raise comes back to the
+clock that is counting. It is driven off the scene phase as much as off the
+session, because the system will only hand the foreground over while the app is
+active — so a session started from Siri, the Action Button or the Smart Stack
+card claims it when the app is next opened, and there is no earlier moment it
+could. An hour is the system's limit and a study session can be longer, so an
+expiry that arrives with the session still running claims the next hour.
+Crowning out ends it, and that is left ended: the user leaving is not a thing to
+argue with, and the system would refuse the argument anyway.
+
+**Relevance is a window, and it has to be asked for.** The Smart Stack surfaces
+the session card because `SnapshotProvider.relevance()` claims one — through to
+the deadline for a timed session, a rolling twenty minutes for an open-ended
+one, and the floor applies to overtime too, where the card matters most and the
+deadline is already behind. `.scheduled` is the hint that separates a card the
+stack could show from one it puts in front of you. The window itself lives on
+`DiemSnapshot.Live` rather than in the widget, because it is arithmetic and the
+core is where arithmetic gets tested. And a timeline reload does not re-ask the
+question: `commit()` invalidates the card's relevance itself, when — and only
+when — a session starts, ends, or moves its deadline.
+
+**Parsing is not type-checking.** `swiftc -parse` was the only check this repo
+had, and `Views/Ring.swift` passed it for two releases while handing a subject
+id to a function that takes a colour index — a file that could not compile, in
+the app's headline feature. `Scripts/core-check.sh` builds and tests everything
+that decides a number, on any machine with a Swift toolchain and no Apple SDK.
+It cannot reach the views. Run a real build before believing the app compiles,
+and prefer putting new arithmetic where the script can see it.
 
 **The accent is never on text.** International Orange in Display P3, on the ring
 and the pill fill only. There is deliberately no app-wide tint.

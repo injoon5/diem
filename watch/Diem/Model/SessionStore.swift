@@ -169,7 +169,7 @@ final class SessionStore {
         self.pendingSubjectID = nil
 
         guard let session, session.studiedSec >= 60 else {
-            for interval in intervals { context.delete(interval) }
+            forget(intervals)
             commit()
             return nil
         }
@@ -181,7 +181,7 @@ final class SessionStore {
     /// Throws the live or just-finished session away — the Discard action.
     func discard(sessionID: UUID? = nil, at now: Date = .now) {
         guard let target = sessionID ?? activeSessionID ?? finished?.id else { return }
-        for interval in intervals(inSession: target) { context.delete(interval) }
+        forget(intervals(inSession: target))
         if activeSessionID == target {
             activeSessionID = nil
             pendingSubjectID = nil
@@ -330,15 +330,44 @@ final class SessionStore {
         return found
     }
 
+    /// Whether a name is already taken, ignoring case and surrounding space.
+    ///
+    /// Two subjects called "Maths" are two identical rows in the picker, and
+    /// the only thing telling them apart is a colour — which this app does not
+    /// allow to carry meaning alone, because a complication may be monochrome.
+    /// Cheaper to refuse than to disambiguate.
+    func isNameTaken(_ name: String, excluding id: UUID? = nil) -> Bool {
+        let wanted = name.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !wanted.isEmpty else { return false }
+        return subjects(includeArchived: true).contains {
+            $0.id != id && $0.name.trimmingCharacters(in: .whitespaces).lowercased() == wanted
+        }
+    }
+
     @discardableResult
     func addSubject(name: String, colorIndex: Int? = nil) -> Subject {
-        let used = Set(subjects(includeArchived: true).map(\.colorIndex))
-        let index = colorIndex ?? (0..<Palette.subjectCount).first { !used.contains($0) }
-            ?? (used.count % Palette.subjectCount)
-        let subject = Subject(name: name, colorIndex: index)
+        let subject = Subject(name: name, colorIndex: colorIndex ?? nextColorIndex())
         context.insert(subject)
         commit()
         return subject
+    }
+
+    /// The first unused palette slot, or — once all ten are spoken for — the
+    /// least-used one.
+    ///
+    /// The fallback used to be `used.count % count`, which with ten subjects is
+    /// zero: the eleventh subject was guaranteed to take the first one's colour
+    /// rather than whichever was least crowded.
+    private func nextColorIndex() -> Int {
+        var counts = [Int](repeating: 0, count: Palette.subjectCount)
+        for subject in subjects(includeArchived: true) {
+            let index = ((subject.colorIndex % Palette.subjectCount) + Palette.subjectCount)
+                % Palette.subjectCount
+            counts[index] += 1
+        }
+        // `min(by:)` keeps the earliest index on a tie, so an empty palette
+        // still hands them out in order.
+        return counts.indices.min { counts[$0] < counts[$1] } ?? 0
     }
 
     func update(_ subject: Subject, name: String? = nil, colorIndex: Int? = nil, archived: Bool? = nil) {
@@ -356,6 +385,17 @@ final class SessionStore {
     }
 
     // MARK: - Sync
+
+    /// Every subject the server should know about, tombstones included.
+    ///
+    /// `subjects(includeArchived:)` filters `deletedAt` before it even looks at
+    /// `archived`, which is right for every screen and wrong for the wire: a
+    /// deleted subject was excluded from every push, so it lived on the web
+    /// forever. `deletedAt` is precisely what the wire format carries.
+    func subjectsForSync() -> [Subject] {
+        observe()
+        return (try? context.fetch(FetchDescriptor<Subject>())) ?? []
+    }
 
     /// Completed intervals that the server hasn't accepted yet.
     func unsyncedIntervals(limit: Int = 200) -> [Interval] {
@@ -412,6 +452,16 @@ final class SessionStore {
     }
 
     // MARK: - Plumbing
+
+    /// Deletes intervals, remembering the ids of any the server already holds.
+    ///
+    /// There is no row left to carry a tombstone once it is gone, and the
+    /// interval API has no delete for something it was never told about — so
+    /// only what was actually pushed is recorded, and the next sync un-tells it.
+    private func forget(_ intervals: [Interval]) {
+        settings.recordDeleted(intervalIDs: intervals.filter { $0.syncedAt != nil }.map(\.id))
+        for interval in intervals { context.delete(interval) }
+    }
 
     private func openInterval() -> Interval? {
         guard let activeSessionID else { return nil }
@@ -484,6 +534,42 @@ final class SessionStore {
         )
     }
 
+    /// Re-reads the log after another process may have written to it.
+    ///
+    /// The app and the widget extension each hold one of these, and each drops
+    /// its caches only in its own `commit()`. Nothing arrives from the other
+    /// side, so both had to be told when to stop trusting themselves. Ending a
+    /// session from the Smart Stack card used to leave the app on a stopped
+    /// clock labelled "Paused" — a session with no open interval, as far as the
+    /// screen could tell — and resuming spliced a live interval into a session
+    /// that had already ended.
+    ///
+    /// Called when the app becomes active, and at the top of every intent.
+    /// Cheap when nothing changed: the fetch is indexed, and an unchanged
+    /// snapshot is never written.
+    func refresh() {
+        // Discards the context's registered objects so the next fetch reads the
+        // store rather than answering from memory. There is never anything
+        // unsaved to lose — every write here saves immediately.
+        context.rollback()
+        let recovered = Self.recoverActiveSession(in: context)
+        let changed = recovered != activeSessionID
+        activeSessionID = recovered
+        revision &+= 1
+        invalidateCaches()
+        if changed {
+            pendingSubjectID = nil
+            // A summary queued before the log moved under us is about a session
+            // this store no longer knows the shape of — and if what changed is
+            // that a session *started* elsewhere, showing it would put a summary
+            // in front of a session that is running, which is the one thing
+            // `start()` goes out of its way to prevent.
+            finished = nil
+        }
+        publishSnapshot()
+        rescheduleAlert()
+    }
+
     /// Re-publishes to the widgets after something outside the interval log
     /// changed — the daily goal is the only such input.
     func refreshSnapshot() { publishSnapshot() }
@@ -500,6 +586,10 @@ final class SessionStore {
         let summary = live()
         let banked = todaySeconds(asOf: now) - (summary?.studied(asOf: now) ?? 0)
         var snapshot = DiemSnapshot(todaySec: max(0, banked), goalSec: goalSeconds)
+        // Which day that total belongs to. Without it a complication holding a
+        // snapshot written before 4am has no way to tell that the day has
+        // turned, and draws yesterday's closed ring on a day that just started.
+        snapshot.dayStart = Day.start(of: now)
         if let session = summary {
             let studied = session.studied(asOf: now)
             let subject = subject(activeSubjectID)
@@ -517,6 +607,20 @@ final class SessionStore {
             )
         }
         guard snapshot != publishedSnapshot else { return }
+        // A timeline reload is not a relevance reload: the system re-asks the
+        // provider what it is drawing, not whether the Smart Stack should be
+        // offering it at all. Without this the card is surfaced whenever the
+        // system next gets round to asking, which is no use for something whose
+        // whole claim is that it started just now — and a session that has
+        // ended goes on claiming the stack until the same late answer.
+        //
+        // Only two things move the claim: whether a session is live, and where
+        // it ends. Everything else that rewrites the snapshot — a subject
+        // switch, a minute passing — must not spend the wake.
+        let wasLive = publishedSnapshot?.session != nil
+        let isLive = snapshot.session != nil
+        let relevanceChanged = wasLive != isLive
+            || publishedSnapshot?.session?.deadline != snapshot.session?.deadline
         publishedSnapshot = snapshot
         // Writing the file and waking `chronod` are both blocking calls, and
         // `commit()` runs them on the same tap that started the session. Off
@@ -524,6 +628,9 @@ final class SessionStore {
         Task.detached(priority: .utility) {
             SnapshotStore.write(snapshot)
             WidgetCenter.shared.reloadAllTimelines()
+            if relevanceChanged {
+                WidgetCenter.shared.invalidateRelevance(ofKind: SnapshotStore.sessionWidgetKind)
+            }
         }
     }
 

@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { and, asc, eq, gt } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { interval } from '$lib/server/db/schema';
 import { currentDevice } from '$lib/server/auth';
@@ -30,6 +30,36 @@ export const POST: RequestHandler = async (event) => {
 	// Everything valid is accepted: a duplicate is already stored, which is the
 	// same outcome from the watch's side.
 	return json({ accepted: rows.map((row) => row.id) });
+};
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Un-tells the server about intervals the watch discarded.
+ *
+ * Intervals are immutable once ended, so there is no update path — but a
+ * discarded session has to be able to leave, or throwing one away on the watch
+ * leaves it on the web for good. Scoped to the calling device, so an id is
+ * never enough on its own to delete somebody else's row, and idempotent: an id
+ * that is already gone reports as deleted because that is the outcome asked
+ * for.
+ */
+export const DELETE: RequestHandler = async (event) => {
+	const device = await currentDevice(event);
+	if (!device) error(401, 'Unknown device');
+
+	const body = (await event.request.json().catch(() => null)) as { ids?: unknown[] } | null;
+	const ids = (Array.isArray(body?.ids) ? body.ids.slice(0, 1000) : []).filter(
+		(id): id is string => typeof id === 'string' && UUID.test(id)
+	);
+	if (ids.length === 0) return json({ deleted: 0 });
+
+	const removed = await db
+		.delete(interval)
+		.where(and(eq(interval.deviceId, device.id), inArray(interval.id, ids)))
+		.returning({ id: interval.id });
+
+	return json({ deleted: removed.length });
 };
 
 export const GET: RequestHandler = async (event) => {

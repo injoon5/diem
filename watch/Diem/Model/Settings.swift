@@ -12,13 +12,21 @@ final class Settings {
         static let goalMinutes = "dailyGoalMinutes"
         static let deviceToken = "deviceToken"
         static let lastSubjectID = "lastSubjectID"
-        static let syncCursor = "syncCursor"
+        static let deletedIntervals = "deletedIntervalIDs"
+        static let subjectsPushedAt = "subjectsPushedAt"
     }
 
     init(defaults: UserDefaults = UserDefaults(suiteName: SnapshotStore.appGroup) ?? .standard) {
         self.defaults = defaults
         if defaults.object(forKey: Key.goalMinutes) == nil {
             defaults.set(120, forKey: Key.goalMinutes)
+        }
+        // Minted once, here, rather than on the first read of `deviceToken`.
+        // That read happens in whichever process gets there first, and two
+        // processes racing it used to be able to mint two tokens and split one
+        // watch's history across two devices on the server.
+        if defaults.string(forKey: Key.deviceToken) == nil {
+            defaults.set(UUID().uuidString, forKey: Key.deviceToken)
         }
     }
 
@@ -33,12 +41,9 @@ final class Settings {
 
     var dailyGoalSeconds: TimeInterval { Double(dailyGoalMinutes) * 60 }
 
-    /// Generated once, on first launch, and shown as a pairing code on demand.
+    /// Minted once, in `init`. A pure read, so it is safe from anywhere.
     var deviceToken: String {
-        if let existing = defaults.string(forKey: Key.deviceToken) { return existing }
-        let token = UUID().uuidString
-        defaults.set(token, forKey: Key.deviceToken)
-        return token
+        defaults.string(forKey: Key.deviceToken) ?? ""
     }
 
     /// The subject the next session defaults to.
@@ -54,8 +59,47 @@ final class Settings {
         }
     }
 
-    var syncCursor: String? {
-        get { defaults.string(forKey: Key.syncCursor) }
-        set { defaults.set(newValue, forKey: Key.syncCursor) }
+    /// Intervals deleted locally that the server has already been told about,
+    /// waiting to be un-told.
+    ///
+    /// Discarding a session deletes its rows, so there is nothing left to carry
+    /// a tombstone — the id has to be kept somewhere else or the interval lives
+    /// on the web forever. Only rows that were actually pushed are recorded;
+    /// everything else the server never heard of.
+    var deletedIntervalIDs: [UUID] {
+        get {
+            (defaults.array(forKey: Key.deletedIntervals) as? [String] ?? [])
+                .compactMap(UUID.init(uuidString:))
+        }
+        set {
+            // Bounded: a list that only ever grows because the server cannot be
+            // reached is a defaults key that only ever grows.
+            let capped = newValue.suffix(500).map(\.uuidString)
+            defaults.set(capped, forKey: Key.deletedIntervals)
+        }
+    }
+
+    func recordDeleted(intervalIDs ids: [UUID]) {
+        guard !ids.isEmpty else { return }
+        deletedIntervalIDs = deletedIntervalIDs + ids
+    }
+
+    /// The newest `updatedAt` the server has been sent.
+    ///
+    /// Subjects were pushed in full on every pass — a whole table over a watch
+    /// radio for a list that mostly does not change. Last-write-wins makes the
+    /// full push correct, not necessary.
+    var subjectsPushedAt: Date? {
+        get {
+            let stored = defaults.double(forKey: Key.subjectsPushedAt)
+            return stored > 0 ? Date(timeIntervalSince1970: stored) : nil
+        }
+        set { defaults.set(newValue?.timeIntervalSince1970 ?? 0, forKey: Key.subjectsPushedAt) }
+    }
+
+    func clearDeleted(intervalIDs ids: [UUID]) {
+        guard !ids.isEmpty else { return }
+        let done = Set(ids)
+        deletedIntervalIDs = deletedIntervalIDs.filter { !done.contains($0) }
     }
 }
