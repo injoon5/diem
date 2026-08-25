@@ -40,8 +40,14 @@ targets:
         WKApplication: true
         WKRunsIndependentlyOfCompanionApp: true
         WKSupportsLiveActivityLaunchAttributes: true
-        UIBackgroundModes:
-          - workout-processing
+        # What lets the app claim an extended runtime session, and so hold the
+        # foreground for as long as a session is live. Only one extended-runtime
+        # mode may be declared, and `mindfulness` is the only one that runs
+        # frontmost for longer than ten minutes. `workout-processing` was here
+        # and is gone with it: nothing ever started an `HKWorkoutSession`, and
+        # it is the iOS spelling of the key on a watch-only target besides.
+        WKBackgroundModes:
+          - mindfulness
         NSHealthShareUsageDescription: ""
         DiemAPIBaseURL: https://diem.app
         NSSupportsLiveActivities: true

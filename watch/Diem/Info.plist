@@ -26,12 +26,12 @@
 	<string></string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>workout-processing</string>
-	</array>
 	<key>WKApplication</key>
 	<true/>
+	<key>WKBackgroundModes</key>
+	<array>
+		<string>mindfulness</string>
+	</array>
 	<key>WKSupportsLiveActivityLaunchAttributes</key>
 	<true/>
 	<key>WKWatchOnly</key>

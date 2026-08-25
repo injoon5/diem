@@ -58,6 +58,28 @@ struct DiemSnapshot: Codable, Equatable, Sendable {
         func elapsed(asOf now: Date = .now) -> TimeInterval {
             isPaused ? pausedElapsedSec : max(0, now.timeIntervalSince(countingFrom))
         }
+
+        /// The window the Smart Stack is asked to hold the session card in.
+        ///
+        /// A relevance is a window, not an event, so the session has to claim
+        /// one that outlives the reload that published it: a timed session
+        /// claims through to its deadline, and an open-ended one a rolling
+        /// window longer than the card's refresh cadence, pushed out again by
+        /// every reload while the session keeps running. The app reloads on
+        /// every state change, so the window opens on the tap that starts the
+        /// session and is gone by the first reload after it ends.
+        ///
+        /// A deadline already behind us is no window at all — the session has
+        /// rolled into overtime rather than ended, and it is still the thing
+        /// worth having in front of you — so the floor applies to it too.
+        func relevanceWindow(asOf now: Date = .now) -> ClosedRange<Date> {
+            let floor = now.addingTimeInterval(Self.relevanceFloor)
+            return now...max(deadline ?? floor, floor)
+        }
+
+        /// Comfortably longer than the running card's refresh interval, so the
+        /// window never lapses in the gap between two reloads.
+        static let relevanceFloor: TimeInterval = 20 * 60
     }
 
     /// Everything studied today, including whatever is running right now.

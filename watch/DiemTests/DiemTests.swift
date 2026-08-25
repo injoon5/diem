@@ -262,6 +262,68 @@ struct LapTests {
     }
 }
 
+@Suite("Smart Stack relevance")
+struct RelevanceTests {
+    private let now = ISO8601.parse("2026-03-04T09:00:00Z")!
+
+    private func live(plannedSec: Int?, isPaused: Bool = false) -> DiemSnapshot.Live {
+        DiemSnapshot.Live(
+            startedAt: now,
+            countingFrom: now,
+            plannedSec: plannedSec,
+            isPaused: isPaused,
+            pausedElapsedSec: 0,
+            subjectName: nil,
+            subjectColorIndex: nil
+        )
+    }
+
+    @Test("A timed session claims the stack through to its deadline")
+    func throughDeadline() {
+        let window = live(plannedSec: 90 * 60).relevanceWindow(asOf: now)
+        #expect(window.lowerBound == now)
+        #expect(window.upperBound == now.addingTimeInterval(90 * 60))
+    }
+
+    @Test("An open-ended session claims a rolling window instead")
+    func rolling() {
+        let window = live(plannedSec: nil).relevanceWindow(asOf: now)
+        #expect(window.upperBound == now.addingTimeInterval(DiemSnapshot.Live.relevanceFloor))
+    }
+
+    @Test("The window outlives the reload that published it")
+    func outlivesTheReload() {
+        // A short session would otherwise claim less time than passes between
+        // two refreshes, and lapse out of the stack while still running.
+        let window = live(plannedSec: 60).relevanceWindow(asOf: now)
+        #expect(window.upperBound == now.addingTimeInterval(DiemSnapshot.Live.relevanceFloor))
+    }
+
+    @Test("Overtime is still a claim, not an expired one")
+    func overtime() {
+        // Ten minutes past a 25-minute session: the deadline is behind us, and
+        // the card with the End button on it is the one thing worth surfacing.
+        let late = now.addingTimeInterval(35 * 60)
+        let window = live(plannedSec: 25 * 60).relevanceWindow(asOf: late)
+        #expect(window.lowerBound == late)
+        #expect(window.upperBound == late.addingTimeInterval(DiemSnapshot.Live.relevanceFloor))
+    }
+
+    @Test("A window is never empty or backwards")
+    func neverInverted() {
+        for planned in [nil, 0, 1, 60, 25 * 60, 8 * 3600] as [Int?] {
+            let window = live(plannedSec: planned).relevanceWindow(asOf: now)
+            #expect(window.upperBound > window.lowerBound)
+        }
+    }
+
+    @Test("A paused session still holds the stack")
+    func paused() {
+        let window = live(plannedSec: nil, isPaused: true).relevanceWindow(asOf: now)
+        #expect(window.upperBound == now.addingTimeInterval(DiemSnapshot.Live.relevanceFloor))
+    }
+}
+
 @Suite("Sessions from intervals")
 struct SessionTests {
     /// Session assembly is pure arithmetic over the log, so it can be tested

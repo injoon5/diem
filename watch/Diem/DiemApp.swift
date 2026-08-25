@@ -11,6 +11,9 @@ struct DiemApp: App {
             RootView()
                 .environment(store)
                 .task { await SyncEngine.run(store: store) }
+                // A running session keeps the app: the wrist raise comes back
+                // to the clock that is counting, not to the watch face.
+                .staysFrontmost(whileSessionRuns: store)
         }
         .modelContainer(DiemContainer.shared)
         .onChange(of: scenePhase) { _, phase in

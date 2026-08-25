@@ -517,6 +517,20 @@ final class SessionStore {
             )
         }
         guard snapshot != publishedSnapshot else { return }
+        // A timeline reload is not a relevance reload: the system re-asks the
+        // provider what it is drawing, not whether the Smart Stack should be
+        // offering it at all. Without this the card is surfaced whenever the
+        // system next gets round to asking, which is no use for something whose
+        // whole claim is that it started just now — and a session that has
+        // ended goes on claiming the stack until the same late answer.
+        //
+        // Only two things move the claim: whether a session is live, and where
+        // it ends. Everything else that rewrites the snapshot — a subject
+        // switch, a minute passing — must not spend the wake.
+        let wasLive = publishedSnapshot?.session != nil
+        let isLive = snapshot.session != nil
+        let relevanceChanged = wasLive != isLive
+            || publishedSnapshot?.session?.deadline != snapshot.session?.deadline
         publishedSnapshot = snapshot
         // Writing the file and waking `chronod` are both blocking calls, and
         // `commit()` runs them on the same tap that started the session. Off
@@ -524,6 +538,9 @@ final class SessionStore {
         Task.detached(priority: .utility) {
             SnapshotStore.write(snapshot)
             WidgetCenter.shared.reloadAllTimelines()
+            if relevanceChanged {
+                WidgetCenter.shared.invalidateRelevance(ofKind: SnapshotStore.sessionWidgetKind)
+            }
         }
     }
 
