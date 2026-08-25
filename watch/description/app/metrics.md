@@ -35,9 +35,10 @@ Metrics is the **Account** phase made visible, and nothing else. It is reachable
 only from the Start screen, so it can never be opened during a session — which
 means the charts never have to show a session in progress.
 
-Except that they do, because the day's total includes whatever is running. And
-that reading is taken **once, when the sheet is built, and never again**: there
-is no timeline here, so "Today" is frozen at the moment Metrics opened.
+Except that they do, because the day's total includes whatever is running — so
+the screen reads on a one-minute timeline like the Start screen does. It used to
+take one reading when the sheet was built and never another, which froze "Today"
+at the moment Metrics opened, and *unpredictably* so:
 [B-09](../bug-triage.md#b-09).
 
 ## Variants
@@ -52,7 +53,7 @@ is no timeline here, so "Today" is frozen at the moment Metrics opened.
 | During | What differs |
 | --- | --- |
 | Scrolling | Nothing else changes. |
-| Left open | Nothing updates. |
+| Left open | Every reading advances on the minute. |
 
 ## Interrupts
 
@@ -60,8 +61,8 @@ is no timeline here, so "Today" is frozen at the moment Metrics opened.
 | --- | --- |
 | Wrist down | The sheet stays; nothing was moving anyway. |
 | Crown press | Leaves the app with the sheet up. |
-| Session started or ended elsewhere | The charts do not change. They were computed when the sheet opened. |
-| 4am boundary | The charts do not change until the sheet is closed and reopened. |
+| Session started or ended elsewhere | Picked up on the next minute tick. |
+| 4am boundary | Picked up on the next minute tick. |
 | Network loss | No effect. Everything here is local, deliberately. |
 | Killed and relaunched | The sheet is gone. |
 
@@ -80,11 +81,11 @@ so the column aligns.
 
 **Haptics** — none.
 
-**Accessibility** — the subject rows combine into one element each, which is
-right. The week bars are labelled with a single letter, so VoiceOver reads "M,
-1 hour 5 minutes" rather than "Monday" — [B-15](../bug-triage.md#b-15). The
-heatmap is one element labelled "Last twelve weeks" with no value at all, so a
-quarter of a year of data is entirely unreadable without sight.
+**Accessibility** — the subject rows combine into one element each. The week bars
+are labelled with the weekday rather than its initial, and say "Nothing" for an
+empty day. The heatmap speaks its shape — days studied, total, best day — instead
+of nothing at all; reading eighty-four cells one by one would be a punishment
+rather than access. All of it was missing: [B-15](../bug-triage.md#b-15).
 
 **What the widgets are told** — nothing. Metrics only reads.
 
@@ -99,8 +100,9 @@ stateDiagram-v2
 
 ## Open questions and verification
 
-- Whether "Today" being frozen is noticeable in practice. It cannot be reached during a session from the app, but a session started from the Action Button leaves the Start screen reachable, so it can. [B-09](../bug-triage.md#b-09)
+- Whether a one-minute cadence is the right resolution here. Every number on the screen is shown to the minute, so a faster tick would redraw for nothing. [B-09](../bug-triage.md#b-09)
+- Whether the heatmap's spoken summary is the useful one, or whether a VoiceOver user would rather hear it week by week.
 - Whether the streak's separate 400-day aggregation is worth its cost when both charts share a 91-day one. It is cached, so it is paid once per change rather than once per layout.
 - Whether the week chart should show days in the future at all. It does, as empty bars.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

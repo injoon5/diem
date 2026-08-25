@@ -67,18 +67,19 @@ applied to the closed one, because that record may already be on the server.
 
 **Always-On** — a standard list, dimmed by the system.
 
-**Typography** — body text, one line, truncating. Two subjects with the same
-name are indistinguishable here: nothing disambiguates them and nothing prevents
-them being created. [B-20](../bug-triage.md#b-20).
+**Typography** — body text, one line, truncating. Two subjects can no longer
+share a name, so a row is never ambiguous: the name field refuses one already in
+use. [B-20](../bug-triage.md#b-20).
 
 **Motion** — standard list presentation.
 
 **Haptics** — none. Picking a subject is the one commitment in the app that
 gives no feedback of its own; the only signal is the sheet closing.
 
-**Accessibility** — rows are plain buttons with their text as the label; the
-selected checkmark is decorative and unspoken, so a VoiceOver user cannot tell
-which subject is currently chosen.
+**Accessibility** — each row is one element labelled with the subject's name,
+and the current one carries the selected trait, so VoiceOver announces it the way
+it announces any other selection. The checkmark used to be the only signal, and
+it is decorative. [B-15](../bug-triage.md#b-15)
 
 **What the widgets are told** — a switch mid-session republishes the snapshot,
 so the card's subject name changes. It does not invalidate relevance, which is
@@ -95,9 +96,8 @@ stateDiagram-v2
 
 ## Open questions and verification
 
-- Each row is 40pt tall against a stated 44pt floor: [B-13](../bug-triage.md#b-13).
-- The row dismisses the sheet itself *and* the caller sets its presentation flag to false — the exact double-dismissal the Settings code documents as a bug it already fixed elsewhere. [B-19](../bug-triage.md#b-19).
-- Whether the selected checkmark should be announced. It currently is not.
+- Rows are 44pt, up from 40: [B-13](../bug-triage.md#b-13).
+- The row owns its dismissal; both callers stopped clearing the flag underneath it: [B-19](../bug-triage.md#b-19). Whether that removes the double animation wants a device.
 - Whether a picker with no way to add a subject is the right shape, given the Running screen cannot reach Settings.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

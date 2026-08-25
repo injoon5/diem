@@ -54,14 +54,15 @@ minutes. One click per detent, and none for a step the app made itself.
 
 ### Targets
 
-The stated floor is 44pt. Two places are under it — the subject picker's rows at
-40pt and the colour swatch cells at 34pt. Both are
+The stated floor is 44pt, and everything meets it. Two places used not to — the
+subject picker's rows at 40pt and the colour swatch cells at 34pt:
 [B-13](../bug-triage.md#b-13).
 
 ### Questions
 
-Two things ask before they act: the stop button on the running screen, and
-Discard on the summary. Both work identically.
+Three things ask before they act: the stop button on the running screen, Discard
+on the summary, and Delete in the subject editor — which used to be a single tap
+([B-21](../bug-triage.md#b-21)). All three work identically.
 
 1. First tap **arms** the question and clicks.
 2. The control changes: stop becomes a checkmark, Discard becomes "Discard?".
@@ -115,9 +116,10 @@ while the wrist is down, so nothing is drawn — which also lets the ring take
 back the height the bars were using.
 
 **Typography** — control labels are system-sized; the "End?" question is a
-caption in uppercase with tracking, and is laid out at its intrinsic size with
-no room to shrink. At large watch text sizes that overflows the bar:
-[B-14](../bug-triage.md#b-14).
+caption in uppercase with tracking. It shrinks, and then yields its space
+entirely, rather than pushing the two 44pt controls past the screen edge at large
+watch text sizes — which is what it used to do, being laid out at its intrinsic
+size: [B-14](../bug-triage.md#b-14).
 
 **Motion** — presses use a fast, slightly bouncy spring (0.22s response); state
 changes use a critically damped one (0.35s). Springs rather than easing curves
@@ -138,10 +140,11 @@ Holding and resuming both fire a plain click, so hold and resume are
 indistinguishable by feel — the only difference is the symbol, which is not
 visible while the wrist is down.
 
-**Accessibility** — every control carries a label. Two gaps: an armed question
-changes only its label text, so a VoiceOver user gets "Discard?" with no
-announcement that the state changed; and there is no adjustable action for the
-crown, so the crown is the only way to set a length or a goal.
+**Accessibility** — every control carries a label, and an armed question keeps a
+stable one while carrying its state in a hint ("Double tap to confirm") rather
+than by rewriting the label under the reader: [B-15](../bug-triage.md#b-15). One
+gap remains: there is no adjustable action for the crown, so the crown is the
+only way to set a length or a goal.
 
 ## State diagram
 
@@ -158,8 +161,8 @@ stateDiagram-v2
 
 ## Open questions and verification
 
-- Whether crown focus survives a sheet being opened and dismissed could not be settled from the code. Focus is claimed once, in `onAppear`, and nothing reclaims it. If it does not come back, the duration crown stops working after a visit to the subject picker: [B-12b](../bug-triage.md#b-12).
+- Whether reclaiming crown focus when the last sheet closes restores it. Focus used to be claimed once, in `onAppear`, and never again: [B-12b](../bug-triage.md#b-12).
 - The six-second question window has not been timed on a device.
 - Whether the press spring reads as fast enough at 0.22s wants a device; it is below the threshold where a touch reads as being thought about, but only just.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

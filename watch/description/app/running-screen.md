@@ -29,9 +29,11 @@ there. The bands use butt caps, not round: they abut, and a rounded end on each
 would have every band bulge over its neighbour and read as a gap that is not
 there.
 
-**The session ring does not currently draw the right colours, because the file
-does not compile.** See [B-01](../bug-triage.md#b-01) — this is the one finding
-in this description that stops the app being built at all.
+The colours are resolved by the screen, which has the store, and handed to the
+ring, which does not. The ring used to be given subject *ids* and ask the palette
+for a colour with them — which does not type-check, and could not have worked:
+that was [B-01](../bug-triage.md#b-01), the one finding here that stopped the app
+being built at all.
 
 In the bottom bar, two 44pt circles pushed to opposite edges: **Hold** on the
 left, **End** on the right in the accent. The thumb reaches either without
@@ -122,20 +124,24 @@ up, and they slide back on the wake. One layout means the reading never changes
 units, size or place between lit and dimmed. Nothing else moves — a roll queued
 against a display that refreshes once a minute lands as stutter on the next wake.
 
-**Typography** — 44pt, or 38pt once the field grows past six characters, chosen
-by the *field* rather than by the value so the clock never resizes mid-session
-as digits roll. Colons are set inside the same text run at tertiary and lifted
+**Typography** — 44pt, or 38pt once the field grows past four digits, chosen by
+the *field* rather than by the value so the clock never resizes mid-session as
+digits roll. Counted in digits rather than characters, so punctuation does not
+decide the face size. Colons are set inside the same text run at tertiary and lifted
 6% of the size, because a colon is centred on the x-height while the digits are
 lining figures and would otherwise sit low.
 
-Two seams here are worth checking on a device. Overtime under an hour adds a
-glyph — `25:00` to `+00:07` — without dropping a size step,
-[B-16](../bug-triage.md#b-16). And an open-ended session crossing one hour
+One seam here is worth checking on a device. Overtime under an hour used to add
+a glyph — `25:00` to `+00:07` — while staying at 44pt, because the threshold
+counted characters and a `+` is one ([B-16](../bug-triage.md#b-16)); it now takes
+the same size as the countdown it replaced. An open-ended session crossing one hour
 changes field, face size *and* digit-group count between one second and the
 next; the app handles this as a replace rather than a roll, which is right, but
 it is a large change to make at 44pt.
 
-**Motion** — the numeral rolls with a countdown-aware transition, because a
+**Motion** — the picker owns its own dismissal now, so choosing a subject
+animates once rather than twice ([B-19](../bug-triage.md#b-19)). The numeral rolls
+with a countdown-aware transition, because a
 count's direction is fixed and its magnitude means nothing. Changing quantity —
 `0:00` to `+0:00` — is a blur replace instead, because those are different
 numbers in different fields.
@@ -143,11 +149,11 @@ numbers in different fields.
 **Haptics** — click on hold, resume, arm and withdraw; success at the deadline;
 success or stop when the summary opens; retry if the session was under a minute.
 
-**Accessibility** — the numeral speaks its reading in words. The session ring
-carries nothing at all, so the breakdown it draws is invisible to VoiceOver. The
-"End?" label is laid out at its intrinsic size with no room to shrink, so large
-watch text sizes push the bottom bar past the screen:
-[B-14](../bug-triage.md#b-14).
+**Accessibility** — the numeral speaks its reading in words, and the session ring
+speaks the day as runs in the order they happened ("Maths, 25m, then Physics,
+10m"). The "End?" label shrinks and then yields its space rather than pushing the
+two controls off the screen at large watch text sizes, which is what it used to
+do: [B-14](../bug-triage.md#b-14).
 
 **What the widgets are told** — every hold, resume and subject switch
 republishes the snapshot. Only a start, an end, or a moved deadline invalidates
@@ -174,9 +180,9 @@ stateDiagram-v2
 
 ## Open questions and verification
 
-- Whether "END?" plus two 44pt controls fits the bottom bar at the largest watch text size. Read from the code it does not: [B-14](../bug-triage.md#b-14).
-- Whether the 44pt face plus a `+` sign overruns the ring behind it on a 41mm watch.
-- Whether the deadline notification is presented at all now that the app holds the foreground for the whole session. Nothing sets a notification-centre delegate, so a notification arriving while the app is frontmost is likely suppressed: [B-18](../bug-triage.md#b-18).
+- Whether the shrink-then-yield on "END?" is enough at the largest watch text size, or whether the question needs to leave the bar entirely.
+- Whether the 38pt overtime face sits comfortably inside the ring on a 41mm watch, now that it drops a step where it used not to.
 - Whether the colon's baseline lift changes the line height enough to shift the numeral off the ring's centre.
+- Whether the notification-centre delegate is enough to get the deadline alert through while the app holds the foreground: [B-18](../bug-triage.md#b-18).
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

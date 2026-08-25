@@ -45,15 +45,17 @@ success for a session the app calls Complete, the softer stop haptic for one
 ended early.
 
 That haptic is where the word at the top comes from, and the word is derived
-from the **span**, not from studied time. A session held for long enough will
-say "Complete" and play the success haptic even though the countdown it was
-showing never reached zero. See
+from **studied time** — the same clock the countdown was showing. It used to be
+derived from the wall-clock span, so a session held for long enough said
+"Complete" and played the success haptic even though the countdown never reached
+zero. See
 [`../foundations/session-model.md`](../foundations/session-model.md#two-clocks-and-they-disagree)
 and [B-02](../bug-triage.md#b-02).
 
 **Account.** Leaving by any route drops the summary. The intervals stay in the
-log unless Discard was tapped — and if they were already pushed to the server,
-Discard does not remove them there: [B-06](../bug-triage.md#b-06).
+log unless Discard was tapped; if they had already reached the server their ids
+are kept and the next sync deletes them there too, retrying while offline rather
+than forgetting: [B-06](../bug-triage.md#b-06).
 
 ## Variants
 
@@ -61,7 +63,7 @@ Discard does not remove them there: [B-06](../bug-triage.md#b-06).
 | --- | --- |
 | Timed, ran to term | "Complete", success haptic. |
 | Timed, ended early | "Ended", stop haptic. |
-| Timed, held long enough that the span covers the plan | "Complete" — wrongly. [B-02](../bug-triage.md#b-02) |
+| Timed, held long enough that the span covers the plan | "Ended". The hold is not study, and no longer counts as though it were. [B-02](../bug-triage.md#b-02) |
 | Open-ended | Always "Ended". There was no plan to complete. |
 | One subject, or free | No breakdown. |
 | Several subjects | A breakdown, largest first, with free time as a row of its own in a neutral white rather than a palette colour. |
@@ -98,13 +100,14 @@ quantity on one screen read as two different quantities.
 label in the app. Press states brighten and shrink.
 
 **Haptics** — one on appearance, one on arming Discard, one on discarding.
-Ending from the Smart Stack card with the app on screen fires *two* on
-appearance: [B-11](../bug-triage.md#b-11).
+Ending from the card with the app on screen fires the same one: the intent stays
+quiet when a screen is about to speak, rather than firing success on top of it
+[B-11](../bug-triage.md#b-11).
 
 **Accessibility** — each breakdown row is combined into a single element, so
-VoiceOver reads "Maths, 45 m" rather than three fragments. The Discard button's
-armed state is carried only by its label text, so a VoiceOver user gets
-"Discard?" with no announcement that anything changed. The button is declared
+VoiceOver reads "Maths, 45 m" rather than three fragments. Discard keeps a stable
+label and carries its armed state in a hint — "Double tap to confirm" — rather
+than in the label text, which used to be the only signal. The button is declared
 destructive but styled plain, so the role's usual colour never appears.
 
 **What the widgets are told** — the session ended, so the snapshot loses its
@@ -132,4 +135,4 @@ stateDiagram-v2
 - Whether "Again" should also repeat *free* when the session ended free. It does — `lastSubjectID` is nil — but that is worth confirming reads as intended rather than as a lost subject.
 - Whether the breakdown should appear for a single-subject session that was held, to show the shape of it. Currently it does not, deliberately.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

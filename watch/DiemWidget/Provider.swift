@@ -27,11 +27,19 @@ struct SnapshotProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SnapshotEntry>) -> Void) {
-        let entry = SnapshotEntry(date: .now, snapshot: SnapshotStore.read())
+        let now = Date.now
+        let entry = SnapshotEntry(date: now, snapshot: SnapshotStore.read())
         // Live counts are rendered by the system via `Text(timerInterval:)`, so
         // the only reason to come back is a change the app didn't publish.
-        let next = Date.now.addingTimeInterval(entry.snapshot.session == nil ? 30 * 60 : 15 * 60)
-        completion(Timeline(entries: [entry], policy: .after(next)))
+        let cadence = now.addingTimeInterval(entry.snapshot.session == nil ? 30 * 60 : 15 * 60)
+        // …and one change the app cannot publish, because it may be asleep when
+        // it happens: 4am. The day's total resets there, and on the ordinary
+        // cadence a complication could go on drawing yesterday's closed ring
+        // for half an hour into a day that had barely started. The snapshot now
+        // carries the day it was written in, so a stale one reads as zero —
+        // but reading zero still needs a redraw, and this is when to ask for it.
+        let nextDay = Day.nextStart(after: now)
+        completion(Timeline(entries: [entry], policy: .after(min(cadence, nextDay))))
     }
 
     /// What gets the session card shown in the Smart Stack at all without

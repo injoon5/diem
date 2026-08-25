@@ -67,7 +67,13 @@ enum Format {
             // twice a second.
             value: String(format: "%dh %02dm", hours, minutes),
             unit: nil,
-            widest: "88h 88m",
+            // Two hour digits were reserved for every reading, and a study-day
+            // reaches ten hours about never — so every real total sat centred
+            // in a field a whole digit wider than it needed, which on the Start
+            // screen is a hero numeral smaller than the ring it was sized to.
+            // Ten hours and up takes the wider field, and the change of field
+            // is drawn as a replace like any other.
+            widest: hours >= 10 ? "88h 88m" : "8h 88m",
             spoken: "\(hours) hour\(hours == 1 ? "" : "s") \(minutes) minute\(minutes == 1 ? "" : "s")",
             motion: .value(Double(totalMinutes))
         )

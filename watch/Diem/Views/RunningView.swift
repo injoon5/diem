@@ -69,7 +69,7 @@ struct RunningView: View {
                             }
                         }
 
-                        Spacer(minLength: 8)
+                        Spacer(minLength: 4)
 
                         // Asked between the two answers rather than from the
                         // top of the screen — as far from the controls as the
@@ -84,10 +84,19 @@ struct RunningView: View {
                             Text("End?")
                                 .sectionLabelStyle()
                                 .lineLimit(1)
-                                .fixedSize()
+                                // Allowed to shrink, and to give up its space
+                                // entirely. `fixedSize()` here meant the label
+                                // grew with the watch's text size while the two
+                                // 44pt targets either side of it could not move
+                                // — at the largest sizes that pushed the bar
+                                // off the screen. The controls are the part
+                                // that must survive; the word is the part that
+                                // can bend.
+                                .minimumScaleFactor(0.6)
+                                .layoutPriority(-1)
                                 .labelSwap(reduceMotion: reduceMotion)
 
-                            Spacer(minLength: 8)
+                            Spacer(minLength: 4)
                         }
 
                         CircleControl(
@@ -112,10 +121,12 @@ struct RunningView: View {
         }
         // A confirmation nobody answered is not a decision to hold onto.
         .onDisappear { endConfirm.withdraw() }
+        // The picker dismisses itself; setting the flag here as well dismissed
+        // a sheet that was already going. The same finding `SettingsView`
+        // carries about `NameField`, which was fixed there and not here.
         .sheet(isPresented: $showingSubjects) {
             SubjectPicker(selection: store.activeSubjectID) { subjectID in
                 store.switchSubject(to: subjectID)
-                showingSubjects = false
             }
         }
     }
@@ -152,6 +163,28 @@ struct RunningView: View {
         var measure: Format.Measure {
             Format.count(remaining: remaining, elapsed: elapsed, plannedSec: plannedSec)
         }
+    }
+
+    /// Each run with its subject's palette index, looked up once per redraw.
+    /// The store answers these from a cache, misses included.
+    private func coloredRuns(_ runs: [SubjectRun]) -> [SubjectRing.Run] {
+        runs.map { run in
+            SubjectRing.Run(
+                colorIndex: store.subject(run.subjectID)?.colorIndex,
+                seconds: run.seconds
+            )
+        }
+    }
+
+    /// What the ring behind the clock says out loud. It used to say nothing, so
+    /// the shape of the session was sighted-only.
+    private func runsDescription(_ runs: [SubjectRun]) -> String {
+        guard !runs.isEmpty else { return "Nothing yet" }
+        // Runs, not totals: switching away and back is two stretches, and the
+        // ring draws them apart because that is the shape of the session.
+        return runs
+            .map { "\(store.subject($0.subjectID)?.name ?? "Free"), \(Format.duration($0.seconds))" }
+            .joined(separator: ", then ")
     }
 
     private func reading(at now: Date) -> Tick {
@@ -205,8 +238,13 @@ struct RunningView: View {
         // says how long; the ring says what of. Thinner than the Start screen's
         // ring, where the ring is the subject rather than the ground.
         .background {
-            SubjectRing(runs: tick.runs, lineWidth: 6)
+            // The colours are resolved here, where the store is. The ring has
+            // no way to look a subject up.
+            SubjectRing(runs: coloredRuns(tick.runs), lineWidth: 6)
                 .padding(.vertical, -18)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Session so far")
+                .accessibilityValue(runsDescription(tick.runs))
         }
         .overlay(alignment: .top) {
             if let status = status(tick) {
@@ -269,7 +307,15 @@ struct RunningView: View {
 
     /// The clock is sized by the field it has to fill, not by the value in it,
     /// so it never resizes mid-session as digits roll.
+    ///
+    /// Counted in digits rather than characters. The threshold was six
+    /// characters, which put `+00:00` — six — at the full 44pt while `0:00:00`
+    /// — seven — dropped a step, even though the overtime field carries a sign
+    /// on top of the same four digits and the colon is drawn narrower than a
+    /// digit is. Five digits or more is one step down, whatever punctuation
+    /// happens to be around them.
     private func heroSize(for measure: Format.Measure) -> CGFloat {
-        measure.widest.count > 6 ? Typography.Size.heroCompact : Typography.Size.hero
+        let digits = measure.widest.filter(\.isNumber).count
+        return digits > 4 ? Typography.Size.heroCompact : Typography.Size.hero
     }
 }

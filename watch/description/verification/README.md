@@ -7,11 +7,18 @@ means.
 ## What has and has not been checked
 
 **Checked by running code.** The app's Foundation-only core — the day boundary,
-the number formats, the crown curves, session assembly, the live-session summary
-and the Smart Stack relevance window — compiles as a Swift package under Swift
-6.3 on Linux, and 54 project tests plus a 7-test repro suite pass against it.
-Every triage entry marked **confirmed** rests on that, or on a direct reading of
-two files that disagree.
+the number formats, the crown curves, session assembly, the live-session summary,
+the widget snapshot and its day staleness, and the Smart Stack relevance window —
+compiles as a Swift package and passes 66 tests:
+
+```sh
+cd watch && sh Scripts/core-check.sh
+```
+
+That script is part of the fix for [B-01](../bug-triage.md#b-01). The only check
+this repo had was `swiftc -parse`, and parsing is not type-checking — which is
+how a file that could not compile sat on the default branch through two
+releases.
 
 **Checked by reading only.** Everything touching SwiftUI, SwiftData, WatchKit or
 WidgetKit. That is most of the app, including every screen. These entries are
@@ -23,7 +30,10 @@ animation reads as intentional, whether a colour holds up under a watch face
 tint. A scripted pass cannot see any of it.
 
 No document is marked `verified`, and none should be until a pass is run on
-hardware.
+hardware. Every entry in [`../bug-triage.md`](../bug-triage.md) is fixed, but
+"fixed" and "verified" are different words: most of those fixes were made against
+a reading of the code, and the rows below are what would turn them into
+observations.
 
 ## Bringing the surface up
 
@@ -35,13 +45,14 @@ xcodegen generate && open Diem.xcodeproj
 
 Then the `Diem` scheme, on a watchOS 27 simulator or a paired watch.
 
-**Expect this not to build.** [B-01](../bug-triage.md#b-01) is a type error in
-`Views/Ring.swift`. A pass cannot begin until it is fixed, and the fix will
-change what the session ring draws, so any checklist row touching the session
-ring should be run *after* that fix and noted as such.
+**Build it before anything else.** [B-01](../bug-triage.md#b-01) was a type error
+in `Views/Ring.swift` that no check in this repo could see, so the first thing a
+pass proves is that the app compiles at all. `Scripts/core-check.sh` covers the
+arithmetic and nothing else; only Xcode can tell you about the views.
 
-Note also [B-26](../bug-triage.md#b-26): `xcodegen generate` rewrites the tracked
-`Diem/Info.plist`. Check `git status` before assuming you changed something.
+The generated `Info.plist` files are no longer tracked
+([B-26](../bug-triage.md#b-26)), so `xcodegen generate` produces no spurious
+diff. `project.yml` is the source of truth for them.
 
 ## Confirming the commit
 
@@ -69,6 +80,13 @@ checkout. Do not mix.
 | **P1** | An established fact from `goal.md`, or a row that would confirm a suspected triage entry. Run these first. |
 | **P2** | An ordinary claim about what a screen does. |
 | **P3** | A number, a colour, or a timing. Run when there is time. |
+
+## What a pass is for now
+
+Every triage entry is fixed, so the checklists have changed job. A row that names
+a triage entry is a **regression check**: it describes the behaviour the fix was
+supposed to produce, and failing it means the fix did not land, not that a new
+defect was found. Rows with no entry beside them are ordinary claims, unchanged.
 
 ## Filing what a pass finds
 

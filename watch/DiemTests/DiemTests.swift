@@ -37,6 +37,20 @@ struct DayTests {
         )
     }
 
+    @Test("The next boundary is a calendar day on, not 86,400 seconds")
+    func nextBoundary() {
+        let next = Day.nextStart(after: date("2026-03-04T09:00:00Z"), calendar: calendar)
+        #expect(next == date("2026-03-05T04:00:00Z"))
+    }
+
+    @Test("Just before the boundary, the next one is hours away, not a day")
+    func nextBoundaryLateNight() {
+        // 03:30 belongs to the previous study-day, so the next boundary is the
+        // 4am half an hour ahead — not the one a day later.
+        let next = Day.nextStart(after: date("2026-03-04T03:30:00Z"), calendar: calendar)
+        #expect(next == date("2026-03-04T04:00:00Z"))
+    }
+
     @Test("Recent starts walk back one day at a time")
     func recents() {
         let starts = Day.recentStarts(from: date("2026-03-04T09:00:00Z"), count: 3, calendar: calendar)
@@ -73,7 +87,19 @@ struct FormatTests {
     @Test("A total's minutes hold two digits so the unit labels never shift")
     func totalMinutesPadded() {
         #expect(Format.total(65 * 60).value == "1h 05m")
-        #expect(Format.total(65 * 60).widest == "88h 88m")
+        #expect(Format.total(65 * 60).widest == "8h 88m")
+    }
+
+    @Test("A total reserves the field it can reach, not one wider")
+    func totalReservesItsOwnField() {
+        // One hour digit for every total a study-day can plausibly hold, so the
+        // numeral is not centred in a box a digit too wide for it.
+        #expect(Format.total(90 * 60).widest == "8h 88m")
+        #expect(Format.total(9 * 3600 + 59 * 60).widest == "8h 88m")
+        // Past ten hours the field genuinely is wider, and changing field is
+        // drawn as a replace like any other.
+        #expect(Format.total(10 * 3600).widest == "88h 88m")
+        #expect(Format.total(10 * 3600).value == "10h 00m")
     }
 
     @Test("A measure spells itself the same way in prose as in the numeral")
@@ -259,6 +285,99 @@ struct LapTests {
     @Test("No goal is no reading")
     func noGoal() {
         #expect(DiemSnapshot(todaySec: 3600, goalSec: 0).lap().turns == 0)
+    }
+}
+
+@Suite("The widget snapshot across the day boundary")
+struct SnapshotDayTests {
+    private var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    private func date(_ iso: String) -> Date { ISO8601.parse(iso)! }
+
+    private func live(countingFrom: Date, isPaused: Bool = false, studied: Double = 0) -> DiemSnapshot.Live {
+        DiemSnapshot.Live(
+            startedAt: countingFrom,
+            countingFrom: countingFrom,
+            plannedSec: nil,
+            isPaused: isPaused,
+            pausedElapsedSec: studied,
+            subjectName: nil,
+            subjectColorIndex: nil
+        )
+    }
+
+    @Test("A snapshot with no day recorded is never treated as stale")
+    func unknownDayIsNotStale() {
+        // An older build's snapshot decodes without the field. Reading it as
+        // zero would wipe a total that is probably still correct.
+        let snapshot = DiemSnapshot(todaySec: 2 * 3600, goalSec: 2 * 3600)
+        #expect(snapshot.isStale(asOf: date("2026-03-04T09:00:00Z"), calendar: utc) == false)
+        #expect(snapshot.today(asOf: date("2026-03-04T09:00:00Z"), calendar: utc) == 2 * 3600)
+    }
+
+    @Test("Within its own day, a snapshot reads exactly what it banked")
+    func freshDayReadsBanked() {
+        let now = date("2026-03-04T09:00:00Z")
+        var snapshot = DiemSnapshot(todaySec: 2 * 3600, goalSec: 2 * 3600)
+        snapshot.dayStart = Day.start(of: now, calendar: utc)
+        #expect(snapshot.isStale(asOf: now, calendar: utc) == false)
+        #expect(snapshot.today(asOf: now, calendar: utc) == 2 * 3600)
+    }
+
+    @Test("Past 4am, yesterday's total is not today's")
+    func staleBankedReadsZero() {
+        // Written at 03:50 with two hours banked; read at 04:10, twenty minutes
+        // into a new study-day. The ring was drawing a closed goal on a day
+        // that had barely started.
+        let written = date("2026-03-04T03:50:00Z")
+        let read = date("2026-03-04T04:10:00Z")
+        var snapshot = DiemSnapshot(todaySec: 2 * 3600, goalSec: 2 * 3600)
+        snapshot.dayStart = Day.start(of: written, calendar: utc)
+        #expect(snapshot.isStale(asOf: read, calendar: utc))
+        #expect(snapshot.today(asOf: read, calendar: utc) == 0)
+        #expect(snapshot.lap(asOf: read, calendar: utc).turns == 0)
+    }
+
+    @Test("A session running across the boundary keeps only its new-day seconds")
+    func liveSessionSplitsAtTheBoundary() {
+        let written = date("2026-03-04T03:30:00Z")
+        let read = date("2026-03-04T04:10:00Z")
+        var snapshot = DiemSnapshot(todaySec: 3600, goalSec: 2 * 3600)
+        snapshot.dayStart = Day.start(of: written, calendar: utc)
+        // Counting since 03:30, read at 04:10: forty minutes on the clock, ten
+        // of them on this side of 04:00.
+        snapshot.session = live(countingFrom: date("2026-03-04T03:30:00Z"))
+        let onTheClock = snapshot.session?.elapsed(asOf: read) ?? 0
+        let countedToday = snapshot.today(asOf: read, calendar: utc)
+        #expect(onTheClock == 2400)
+        #expect(countedToday == 600)
+    }
+
+    @Test("A session held before the boundary contributes nothing after it")
+    func heldBeforeTheBoundaryContributesNothing() {
+        let read = date("2026-03-04T04:10:00Z")
+        var snapshot = DiemSnapshot(todaySec: 3600, goalSec: 2 * 3600)
+        snapshot.dayStart = Day.start(of: date("2026-03-04T03:30:00Z"), calendar: utc)
+        // Held at 03:40 with ten minutes on the clock — all of it yesterday's.
+        snapshot.session = live(
+            countingFrom: date("2026-03-04T03:30:00Z"),
+            isPaused: true,
+            studied: 10 * 60
+        )
+        #expect(snapshot.today(asOf: read, calendar: utc) == 0)
+    }
+
+    @Test("A session that started after the boundary is counted in full")
+    func startedAfterTheBoundary() {
+        let read = date("2026-03-04T04:30:00Z")
+        var snapshot = DiemSnapshot(todaySec: 3600, goalSec: 2 * 3600)
+        snapshot.dayStart = Day.start(of: date("2026-03-04T03:30:00Z"), calendar: utc)
+        snapshot.session = live(countingFrom: date("2026-03-04T04:10:00Z"))
+        #expect(snapshot.today(asOf: read, calendar: utc) == 20 * 60)
     }
 }
 
@@ -484,7 +603,7 @@ struct SessionTests {
         #expect(log.sessions().first?.endedAt == nil)
     }
 
-    @Test("Completion is derived from the wall-clock span")
+    @Test("Completion is derived from studied time")
     func completion() {
         let session = UUID()
         let done = [span(session: session, offset: 0, length: 1500, planned: 1500)]
@@ -492,6 +611,41 @@ struct SessionTests {
 
         let short = [span(session: session, offset: 0, length: 900, planned: 1500)]
         #expect(short.sessions().first?.isComplete == false)
+    }
+
+    @Test("A long hold does not make a short session Complete")
+    func holdDoesNotComplete() {
+        // Six minutes of a planned twenty-five, with half an hour held in the
+        // middle. The wall-clock span is thirty-six minutes, so the old rule
+        // called this Complete and played the success haptic while the
+        // countdown the user had been watching still read 19:00.
+        let session = UUID()
+        let log = [
+            span(session: session, offset: 0, length: 300, planned: 1500),
+            span(session: session, offset: 35 * 60, length: 60),
+        ]
+        let assembled = log.sessions(asOf: start.addingTimeInterval(36 * 60)).first
+        #expect(assembled?.studiedSec == 360)
+        #expect(assembled?.isComplete == false)
+    }
+
+    @Test("A session held after running to term is still Complete")
+    func holdAfterTermStaysComplete() {
+        // The other direction: studied time already covers the plan, so holding
+        // afterwards cannot take completion away again.
+        let session = UUID()
+        let log = [
+            span(session: session, offset: 0, length: 1500, planned: 1500),
+            span(session: session, offset: 4000, length: 60),
+        ]
+        #expect(log.sessions(asOf: start.addingTimeInterval(4100)).first?.isComplete == true)
+    }
+
+    @Test("A session still running is never Complete")
+    func runningIsNeverComplete() {
+        let session = UUID()
+        let log = [span(session: session, offset: 0, length: nil, planned: 60)]
+        #expect(log.sessions(asOf: start.addingTimeInterval(3600)).first?.isComplete == false)
     }
 
     @Test("A free session has no plan and no subject, and nothing else marks it")

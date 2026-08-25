@@ -50,6 +50,23 @@ struct RootView: View {
                 .id(screen.id)
                 .transition(.opacity)
             }
+            // Said once, at the top, over whatever is below it. A store that
+            // could not be opened leaves the app running on memory: it comes up
+            // with no subjects and no history, which is indistinguishable from
+            // a fresh install right up until the day's work disappears at quit.
+            // Falling back was the right call; falling back quietly was not.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if DiemContainer.isEphemeral {
+                    Text("Not saving — reopen Diem")
+                        .sectionLabelStyle(Palette.accent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .padding(.horizontal, 6)
+                        .accessibilityLabel(
+                            "Diem could not open its history and is not saving. Reopen the app."
+                        )
+                }
+            }
             .containerBackground(.black, for: .navigation)
             // Scoped to this one value: everything below — the ring tracking
             // the crown above all — has to stay free of an inherited animation.

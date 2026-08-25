@@ -75,7 +75,11 @@ struct SettingsView: View {
             // `NameField` dismisses itself, which clears this binding — setting
             // it here as well dismissed a sheet that was already going.
             .sheet(isPresented: $addingSubject) {
-                NameField(title: "New Subject", text: $newSubjectName) { name in
+                NameField(
+                    title: "New Subject",
+                    text: $newSubjectName,
+                    isTaken: { store.isNameTaken($0) }
+                ) { name in
                     store.addSubject(name: name)
                 }
             }
@@ -169,10 +173,14 @@ private struct SubjectEditor: View {
     let subject: Subject
     @State private var renaming = false
     @State private var draftName = ""
+    /// Delete has been tapped once and is waiting to be confirmed.
+    @State private var deleteConfirm = Confirmation()
 
     /// Sized to the target, not to the swatch: what the eye reads is a 24pt
-    /// circle, what the thumb gets is the whole cell.
-    private let columns = [GridItem(.adaptive(minimum: 34), spacing: 4)]
+    /// circle, what the thumb gets is the whole cell — and the cell is 44,
+    /// which is the floor every other control in the app is built to. It was
+    /// 34, which is ten short across ten targets in a row.
+    private let columns = [GridItem(.adaptive(minimum: 44), spacing: 2)]
 
     var body: some View {
         List {
@@ -214,10 +222,15 @@ private struct SubjectEditor: View {
                                             .padding(-3)
                                     }
                                 }
-                                .frame(width: 34, height: 34)
+                                .frame(width: 44, height: 44)
                                 .contentShape(.circle)
                         }
                         .buttonStyle(.plain)
+                        // Ten unnamed buttons in a row, before this.
+                        .accessibilityLabel(Palette.subjectName(index))
+                        .accessibilityAddTraits(
+                            subject.colorIndex == index ? [.isButton, .isSelected] : .isButton
+                        )
                     }
                 }
                 .padding(.vertical, 4)
@@ -229,17 +242,44 @@ private struct SubjectEditor: View {
                 Button(subject.archived ? "Unarchive" : "Archive") {
                     store.update(subject, archived: !subject.archived)
                 }
-                Button("Delete", role: .destructive) {
-                    store.delete(subject)
-                    dismiss()
+                // Asked twice, like Discard on the summary — and for the same
+                // reason. This was a single tap that popped the screen, while
+                // the far less consequential Discard asked. It withdraws itself
+                // after six seconds rather than sitting there armed.
+                Button(deleteConfirm.isArmed ? "Delete?" : "Delete", role: .destructive) {
+                    if deleteConfirm.isArmed {
+                        deleteConfirm.withdraw()
+                        store.delete(subject)
+                        dismiss()
+                    } else {
+                        deleteConfirm.ask()
+                        Haptics.crownDetent()
+                    }
                 }
+                .accessibilityLabel("Delete")
+                .accessibilityHint(
+                    deleteConfirm.isArmed
+                        ? "Deletes this subject. Double tap to confirm."
+                        : "Double tap, then again to confirm."
+                )
             } footer: {
-                Text("Archiving hides a subject from the picker and keeps its history.")
+                // The footer explained archiving and said nothing about the
+                // button beside it, so the one action people are least sure of
+                // was the one with no explanation.
+                Text(
+                    "Archiving hides a subject from the picker and keeps its history. "
+                        + "Deleting also keeps its history — past sessions still show the name."
+                )
             }
         }
         .navigationTitle(subject.name)
+        .onDisappear { deleteConfirm.withdraw() }
         .sheet(isPresented: $renaming) {
-            NameField(title: "Rename", text: $draftName) { name in
+            NameField(
+                title: "Rename",
+                text: $draftName,
+                isTaken: { store.isNameTaken($0, excluding: subject.id) }
+            ) { name in
                 store.update(subject, name: name)
             }
         }
@@ -251,12 +291,23 @@ private struct NameField: View {
 
     let title: String
     @Binding var text: String
+    /// Whether this name already belongs to another subject.
+    ///
+    /// Two subjects called "Maths" are two identical rows in the picker with
+    /// nothing but a colour between them — and colour is the one thing this app
+    /// never lets carry meaning alone. Refused here, where the name is being
+    /// typed, rather than allowed and then lived with.
+    var isTaken: (String) -> Bool = { _ in false }
     var onCommit: (String) -> Void
 
     /// The sheet exists to be typed into. Without this it opens on an empty
     /// field with Save disabled and nothing focused, so the first tap does
     /// nothing but reach the control the sheet was opened for.
     @FocusState private var typing: Bool
+
+    private var trimmed: String { text.trimmingCharacters(in: .whitespaces) }
+    private var duplicate: Bool { isTaken(trimmed) }
+    private var canSave: Bool { !trimmed.isEmpty && !duplicate }
 
     var body: some View {
         // Presented as a bare sheet, the title had nothing to draw in — so the
@@ -269,8 +320,15 @@ private struct NameField: View {
                     .submitLabel(.done)
                     .focused($typing)
                     .onSubmit(commit)
+                // Said only when it applies, and where the answer is — under
+                // the field, above the button it is disabling.
+                if duplicate {
+                    Text("Already used.")
+                        .font(Typography.text(.caption2))
+                        .foregroundStyle(.secondary)
+                }
                 Button("Save", action: commit)
-                    .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(!canSave)
             }
             .padding(.horizontal, 8)
             .navigationTitle(title)
@@ -279,8 +337,7 @@ private struct NameField: View {
     }
 
     private func commit() {
-        let trimmed = text.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
+        guard canSave else { return }
         onCommit(trimmed)
         dismiss()
     }

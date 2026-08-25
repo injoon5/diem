@@ -90,6 +90,17 @@ struct DoneView: View {
                         .labelSwap(reduceMotion: reduceMotion)
                 }
                 .buttonStyle(.plain)
+                // The armed state was carried by the label text alone, so
+                // VoiceOver read "Discard?" with nothing to say that the button
+                // had changed what it does. The hint is where "tap again"
+                // belongs, and it is spoken after the label rather than
+                // replacing it.
+                .accessibilityLabel("Discard")
+                .accessibilityHint(
+                    discardConfirm.isArmed
+                        ? "Discards this session. Double tap to confirm."
+                        : "Double tap, then again to confirm."
+                )
                 .font(Typography.text(.footnote))
                 // Brighter while it stands: at the same weight as the label it
                 // replaces, arming it would be a question mark nobody saw.

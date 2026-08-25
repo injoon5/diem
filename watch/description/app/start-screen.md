@@ -66,11 +66,11 @@ explicit choice of "Free" is not silently overwritten.
 subject and the length; the start haptic fires; the crown is reset to zero; the
 root crossfades to the Running screen.
 
-The reset is made silently — the app suppresses the click that its own reset
-would otherwise cause. It suppresses exactly one, and if the crown was turned
-less than half a step there is no reset to suppress, so the suppression is left
-armed and swallows the *next* real detent instead. That is
-[B-12](../bug-triage.md#b-12).
+The reset is made silently — the app suppresses the click its own reset would
+otherwise cause, by comparing the crown's value against the one it just set
+rather than by latching a flag. Latching it meant a crown turned less than half a
+step armed a suppression that no reset ever fired, and it swallowed the *next*
+real detent instead: [B-12](../bug-triage.md#b-12).
 
 **Run.** Not this screen. The root switches wholly.
 
@@ -94,7 +94,7 @@ session banked.
 | --- | --- |
 | Crown turning fast | The arc stays welded to the crown; the numeral rolls per minute. Minutes are zero-padded so the `h` and `m` labels do not skate sideways. |
 | Dimmed | Both bars are removed and the ring takes the height back in a single frame, on a short critically damped spring. |
-| A sheet is open | The screen behind is unchanged. Whether the crown still works after the sheet closes is [B-12b](../bug-triage.md#b-12). |
+| A sheet is open | The screen behind is unchanged, and the crown is claimed again when the last sheet closes — it used to be claimed once, on appearance, and never reclaimed: [B-12b](../bug-triage.md#b-12). |
 
 ## Interrupts
 
@@ -119,8 +119,9 @@ risks being caught mid-bounce and held there.
 **Typography** — the total is a hero numeral at 40pt with −1.0 tracking, always
 monospaced digits, the field reserved at its widest value so nothing shifts.
 Over an hour the units are drawn separately at 36% of the numeral so the digits
-lead. The reserved field is one hour-digit wider than any day can produce, so
-every reading under ten hours sits slightly narrower than its box:
+lead. The field reserves one hour digit below ten hours and two above, so a
+reading fills the box it was given — it used to reserve two always, which left
+every real total sitting narrower than its own field:
 [B-17](../bug-triage.md#b-17).
 
 **Motion** — entering and leaving scrub mode is one event, so the ring and the
@@ -130,9 +131,10 @@ close enough to look like a mistake rather than a choice.
 **Haptics** — a click per detent, and the start haptic on commit.
 
 **Accessibility** — the ring and numeral are one element, labelled "Today" or
-"Session length" depending on mode. The *progress* against the goal is not
-spoken: [B-15](../bug-triage.md#b-15). The crown has no adjustable action, so
-setting a length without a crown is not possible.
+"Session length" depending on mode, and it speaks progress against the goal as a
+percentage — "1 hour 5 minutes of 2 hours, 54 percent". That value was missing
+entirely: [B-15](../bug-triage.md#b-15). The crown still has no adjustable
+action, so setting a length without a crown is not possible.
 
 **What the widgets are told** — nothing changes here until a session commits.
 
@@ -155,9 +157,10 @@ stateDiagram-v2
 
 ## Open questions and verification
 
-- Whether crown focus returns after a sheet is dismissed. Nothing in the code reclaims it. [B-12b](../bug-triage.md#b-12).
+- Whether reclaiming crown focus when the last sheet closes actually restores it, or whether the focus has to be dropped and re-taken. [B-12b](../bug-triage.md#b-12).
 - Three sheets are attached to the same view. Modern SwiftUI generally handles this, but stacked `sheet(isPresented:)` modifiers on one view have historically been unreliable; this wants a device before it is called fine.
+- Whether the "Not saving" banner ever appears in practice. It is the visible half of [B-04](../bug-triage.md#b-04) and is reachable only by corrupting the store.
 - Whether the −14pt vertical overrun clips the ring against the bezel on the 41mm watch.
 - Whether the optical 12pt lift still reads as centred once the bars are gone in Always-On, where the thing it was correcting for is no longer on screen.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

@@ -15,6 +15,17 @@ enum Day {
         return midnight.addingTimeInterval(Double(boundaryHour) * 3600)
     }
 
+    /// The instant the next study-day begins.
+    ///
+    /// Added as a calendar day rather than as 86,400 seconds: the boundary is a
+    /// local-time rule, and a day that crosses a daylight-saving change is not
+    /// twenty-four hours long.
+    static func nextStart(after date: Date, calendar: Calendar = .current) -> Date {
+        let start = start(of: date, calendar: calendar)
+        return calendar.date(byAdding: .day, value: 1, to: start)
+            ?? start.addingTimeInterval(24 * 3600)
+    }
+
     static func isSameDay(_ a: Date, _ b: Date, calendar: Calendar = .current) -> Bool {
         start(of: a, calendar: calendar) == start(of: b, calendar: calendar)
     }

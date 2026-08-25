@@ -57,10 +57,11 @@ session with no way to set either. **Commit** and **Close** both work. **Run** i
 what the card mostly shows. **Account** is only the compact total.
 
 The End button is the interesting one. It runs an intent in the widget
-extension's process, and that process holds its own view of the database which
-nothing refreshes. The card's *layout* reads the snapshot and is always fresh;
-the *button* reads the store and may not be. See
-[B-03](../bug-triage.md#b-03).
+extension's process, and that process holds its own view of the database. The
+card's *layout* reads the snapshot and is always fresh; the *button* reads the
+store, which nothing used to refresh — so it could answer "Nothing is running."
+for a session that plainly was. Every intent now re-reads the log before doing
+anything. See [B-03](../bug-triage.md#b-03).
 
 ## Variants
 
@@ -72,7 +73,7 @@ the *button* reads the store and may not be. See
 
 | During | What differs |
 | --- | --- |
-| App on screen behind the card | Ending lands on the summary, and fires the completion haptic twice. [B-11](../bug-triage.md#b-11) |
+| App on screen behind the card | Ending lands on the summary, which fires the one haptic — and the right one. [B-11](../bug-triage.md#b-11) |
 | App not on screen | Ending is silent apart from one haptic; no summary is queued. |
 | Subject switched in the app | The name changes at the next refresh, up to fifteen minutes later. |
 
@@ -82,8 +83,8 @@ the *button* reads the store and may not be. See
 | --- | --- |
 | Wrist down | The system's business. The count is system-rendered and keeps time. |
 | Crown press | N/A — the card is not the app. |
-| Session started or ended elsewhere | The layout follows the snapshot correctly. The buttons may not: [B-03](../bug-triage.md#b-03). |
-| 4am boundary | The "TODAY" total is wrong until the next refresh, up to half an hour: [B-07](../bug-triage.md#b-07). |
+| Session started or ended elsewhere | Both the layout and the buttons follow, now that the intents re-read first: [B-03](../bug-triage.md#b-03). |
+| 4am boundary | The snapshot carries the day it was written in, so "TODAY" reads zero rather than yesterday's total, and the timeline reloads at the boundary: [B-07](../bug-triage.md#b-07). |
 | Network loss | No effect. Everything is local. |
 | App killed and relaunched | No effect on the card; the snapshot is a file. |
 
@@ -122,7 +123,7 @@ stateDiagram-v2
 
 - Whether the card is genuinely surfaced unasked. This is the whole point of the relevance claim and it has never been observed; it needs a device and a Smart Stack that has not already been pinned.
 - Whether `scheduled` outranks the other cards in the stack in practice, or only in the documentation.
-- Whether the stale-store failure in [B-03](../bug-triage.md#b-03) is reachable in practice depends on how long an extension process survives, which could not be settled from the code.
+- [B-03](../bug-triage.md#b-03) is fixed by re-reading rather than by observing, so a change made *while* an intent runs is still not seen. That window is a few milliseconds and there is no second actor to lose a race with.
 - The card does not distinguish a held session from a running one, which is a product call rather than a defect.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

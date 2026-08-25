@@ -48,10 +48,18 @@ struct SyncClient: Sendable {
         ).accepted
     }
 
-    func pullIntervals(since cursor: String?) async throws -> IntervalPage {
-        var path = "/api/intervals"
-        if let cursor { path += "?since=\(cursor.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cursor)" }
-        return try await send(path: path, method: "GET", body: Optional<Never>.none, as: IntervalPage.self)
+    /// Un-tells the server about intervals deleted on the watch.
+    ///
+    /// Intervals are immutable once ended, so there is no update — but discard
+    /// exists, and without this a session thrown away on the watch stayed on
+    /// the web for good.
+    func delete(intervalIDs ids: [UUID]) async throws {
+        _ = try await send(
+            path: "/api/intervals",
+            method: "DELETE",
+            body: IntervalDelete(ids: ids),
+            as: IntervalDeleteResponse.self
+        )
     }
 
     func pullSubjects() async throws -> [SubjectDTO] {
@@ -68,6 +76,13 @@ struct SyncClient: Sendable {
         )
     }
 
+    /// Ten seconds, not the URL session's default minute.
+    ///
+    /// Every call here is allowed to fail quietly, so the only thing a long
+    /// timeout buys is a pairing spinner that sits there for a minute on a
+    /// flaky connection.
+    private static let timeout: TimeInterval = 10
+
     private func send<Body: Encodable, Response: Decodable>(
         path: String,
         method: String,
@@ -76,6 +91,7 @@ struct SyncClient: Sendable {
     ) async throws -> Response {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = method
+        request.timeoutInterval = Self.timeout
         request.setValue(deviceToken, forHTTPHeaderField: "X-Diem-Device")
         request.setValue(timezone, forHTTPHeaderField: "X-Diem-TZ")
         request.setValue(String(goalMinutes), forHTTPHeaderField: "X-Diem-Goal")
@@ -92,10 +108,11 @@ struct SyncClient: Sendable {
     }
 }
 
-/// Push completed intervals, pull subjects. Nothing else crosses the wire.
+/// Push completed intervals, un-push deleted ones, round-trip subjects.
+/// Nothing else crosses the wire.
 @MainActor
 enum SyncEngine {
-    static func run(store: SessionStore, client: SyncClient = .live()) async {
+    static func run(store: SessionStore, client: SyncClient = .live(), settings: Settings = .shared) async {
         let pending = store.unsyncedIntervals()
         if !pending.isEmpty {
             do {
@@ -105,9 +122,32 @@ enum SyncEngine {
                 return  // Offline is the normal case; try again next launch.
             }
         }
+
+        // Discards, as far as the server is concerned. Kept in defaults because
+        // the rows themselves are gone, and cleared only once the server has
+        // agreed — an offline discard is retried on the next pass rather than
+        // forgotten.
+        let deleted = settings.deletedIntervalIDs
+        if !deleted.isEmpty {
+            do {
+                try await client.delete(intervalIDs: deleted)
+                settings.clearDeleted(intervalIDs: deleted)
+            } catch {
+                return
+            }
+        }
+
         do {
-            let local = store.subjects(includeArchived: true).map(\.dto)
-            if !local.isEmpty { try await client.push(subjects: local) }
+            // Tombstones included: a deleted subject is exactly what the wire
+            // format's `deletedAt` is for, and the visible list filters it out.
+            // Only what has actually changed since the server last saw it —
+            // this used to be a full table push on every launch.
+            let local = store.subjectsForSync()
+            let changed = local.filter { $0.updatedAt > (settings.subjectsPushedAt ?? .distantPast) }
+            if !changed.isEmpty {
+                try await client.push(subjects: changed.map(\.dto))
+                settings.subjectsPushedAt = changed.map(\.updatedAt).max()
+            }
             store.merge(subjects: try await client.pullSubjects())
         } catch {
             return

@@ -26,7 +26,8 @@ struct PairResponse: Codable { var code: String; var expiresAt: Date }
 
 struct IntervalPush: Codable { var intervals: [IntervalDTO] }
 struct IntervalPushResponse: Codable { var accepted: [UUID] }
-struct IntervalPage: Codable { var intervals: [IntervalDTO]; var cursor: String? }
+struct IntervalDelete: Codable { var ids: [UUID] }
+struct IntervalDeleteResponse: Codable { var deleted: Int }
 struct SubjectPush: Codable { var subjects: [SubjectDTO] }
 struct SubjectPage: Codable { var subjects: [SubjectDTO] }
 

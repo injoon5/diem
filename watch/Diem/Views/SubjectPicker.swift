@@ -35,7 +35,8 @@ struct SubjectPicker: View {
     }
 
     private func row(name: String, colorIndex: Int?, id: UUID?) -> some View {
-        Button {
+        let isSelected = id == selection
+        return Button {
             onPick(id)
             dismiss()
         } label: {
@@ -45,14 +46,24 @@ struct SubjectPicker: View {
                     .frame(width: 8, height: 8)
                 Text(name).font(Typography.text(.body))
                 Spacer(minLength: 0)
-                if id == selection {
+                if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(minHeight: 40)
+            // 44, not 40. The rest of the app is careful about this — every
+            // circle control is 44 and the subject button pads itself to 44 —
+            // and this list was the one place under it.
+            .frame(minHeight: 44)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        // The checkmark is decorative, so which subject is currently chosen was
+        // sighted-only. Spoken as a trait rather than as more label text, so
+        // VoiceOver announces it the way it announces every other selection.
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(name)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }

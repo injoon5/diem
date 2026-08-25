@@ -28,18 +28,23 @@ only way to know which is to hear the answer.
 **End Studying** closes the session and reports the studied time, or says "Too
 short to keep." for one under a minute.
 
+All three re-read the log before acting. Whichever process is hosting the intent
+may have been holding a view of it from before the last change, and nothing
+arrives from the other side unasked — see
+[`../foundations/surfaces.md`](../foundations/surfaces.md#two-processes-one-database).
+
 None of them opens the app.
 
 ## What Start does to a session already running
 
-It ends it. Silently.
+It ends it, and says so.
 
 Starting while something is running closes and banks the current session first
 — which is right, because the user asked for a *new* session and leaving one
-queued would put a summary in front of a session that is running. But the
-confirmation says only "Studying." There is no mention that a session was ended,
-no summary, and if the one that was ended had been running for hours, the only
-sign is the day's total. [B-10](../bug-triage.md#b-10).
+queued would put a summary in front of a session that is running. The
+confirmation names it: "Ended Maths at 1h 12m. Studying." It used to say only
+"Studying.", so a single press of the Action Button could end two hours of study
+with the day's total as the only sign. [B-10](../bug-triage.md#b-10).
 
 ## The five phases
 
@@ -53,7 +58,7 @@ from here. **Close** works. **Account** is the spoken duration, and nothing else
 | Subject and duration given | "Studying Maths for 25m." |
 | Subject only | "Studying Maths." |
 | Duration only | "Studying for 25m." |
-| Neither | "Studying." — and the same sentence if a session was silently ended to get here. |
+| Neither | "Studying." — preceded by what was ended, if anything was. |
 | From the Control | No dialog at all. A start haptic is the whole confirmation. |
 
 | During | What differs |
@@ -68,7 +73,7 @@ from here. **Close** works. **Account** is the spoken duration, and nothing else
 | --- | --- |
 | Wrist down | Intents run regardless. |
 | Crown press | N/A. |
-| Session started or ended elsewhere | The intent reads whichever store its own process holds, which may be stale: [B-03](../bug-triage.md#b-03). |
+| Session started or ended elsewhere | Every intent re-reads the log before acting, so it no longer answers from a stale view: [B-03](../bug-triage.md#b-03). |
 | 4am boundary | No effect on the intent. |
 | Network loss | No effect. Nothing here touches the network. |
 | App killed and relaunched | No effect; the intents run in whichever process hosts them. |
@@ -84,8 +89,8 @@ spoken drops the padding.
 **Motion** — N/A.
 
 **Haptics** — every intent fires one, which is what makes them audible from
-surfaces with no screen, and what makes them fire twice when a surface *does*
-have a screen behind it: [B-11](../bug-triage.md#b-11).
+surfaces with no screen. End stays quiet when a summary is about to appear and
+fire its own, rather than firing on top of it: [B-11](../bug-triage.md#b-11).
 
 **Accessibility** — the spoken dialogs are the accessibility story here, and
 they are good. The Control's silence is the gap: a press that does nothing
@@ -101,7 +106,7 @@ republished and relevance invalidated on a start or an end.
 stateDiagram-v2
     [*] --> Nothing
     Nothing --> Running: Start
-    Running --> Running: Start again, ending the first silently
+    Running --> Running: Start again, ending and naming the first
     Running --> Held: Pause
     Held --> Running: Pause again
     Running --> Nothing: End
@@ -111,8 +116,8 @@ stateDiagram-v2
 
 ## Open questions and verification
 
-- Whether Siri routes these into the app's process or a separate one decides which store they mutate, and therefore whether [B-03](../bug-triage.md#b-03) applies to voice as well as to the card.
-- Whether `applicationState` still reports active with the wrist down now the app holds the foreground for the whole session. If it does not, ending from the card while the app is technically frontmost skips the summary: [B-10b](../bug-triage.md#b-10).
+- Whether Siri routes these into the app's process or a separate one no longer changes the outcome, since every intent re-reads first: [B-03](../bug-triage.md#b-03).
+- Whether a session ended with the wrist down should land on a summary at all. It does now — the test is `.background`, not `.active`, because the frontmost hold makes `.inactive` the ordinary state during a session: [B-10b](../bug-triage.md#b-10). Whether a summary waiting on the next wrist raise is welcome or startling wants a device.
 - Whether "Pause Studying" toggling rather than pausing is the right shape for a voice command, where the user cannot see the current state before speaking.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

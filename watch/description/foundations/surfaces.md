@@ -23,30 +23,33 @@ container, and both build their own `SessionStore` on first use.
 
 That store is not a thin wrapper. It holds the live session's timing, today's
 banked total, the daily aggregations and the subject list in caches that are
-dropped **only when that same store commits a change**. There is nothing
-listening for a write made by the other process — no remote-change notification,
-no refresh when the app comes back to the foreground, nothing.
+dropped when that store commits a change — and, since
+[B-03](../bug-triage.md#b-03), when it is told to stop trusting itself.
+`refresh()` rolls the context back, re-derives the live session from the log and
+drops everything cached. The app calls it whenever the scene becomes active; every
+intent calls it before doing anything.
 
-So the two processes can hold different beliefs about a database they agree on:
+Without it the two processes held different beliefs about a database they agreed
+on. Both of these used to happen:
 
 > Start a session in the app, then crown out. The extension is asked to render
 > the session card. It reads the *snapshot file*, which is fresh, and draws the
 > running session correctly. You tap **End**. That button runs an intent, and
-> the intent does not read the snapshot — it reads the extension's own
+> the intent does not read the snapshot — it read the extension's own
 > `SessionStore`. If that store was built before your session started, it
-> believes nothing is running, and the button answers "Nothing is running."
-> and does nothing.
+> believed nothing was running, and the button answered "Nothing is running."
+> and did nothing.
 
 And the other way round:
 
 > End the session from the card while the app is still alive in the background.
-> The database is updated. The app's store is not told. Raise your wrist and the
-> app is still on the Running screen, showing a clock that has stopped, labelled
-> "Paused" — because a session with no open interval is, as far as that screen
-> can tell, held. Tap Resume and a new interval is inserted into a session that
-> ended.
+> The database is updated. The app's store was not told. Raise your wrist and
+> the app was still on the Running screen, showing a clock that had stopped,
+> labelled "Paused" — because a session with no open interval is, as far as that
+> screen can tell, held. Tapping Resume inserted a new interval into a session
+> that had ended.
 
-Both are [B-03](../bug-triage.md#b-03).
+Both were [B-03](../bug-triage.md#b-03).
 
 ## The snapshot
 
@@ -62,9 +65,10 @@ The live count is deliberately expressed as an *instant to count from* rather
 than a number of seconds, so the widget can hand it to the system's own timer
 text and tick without spending a refresh.
 
-What the snapshot does **not** carry is which day it belongs to. Nothing on the
-reading side can tell that the 4am boundary has passed since it was written,
-which is [B-07](../bug-triage.md#b-07).
+It also carries the study-day it belongs to. Without that, nothing on the
+reading side could tell that the 4am boundary had passed since it was written —
+[B-07](../bug-triage.md#b-07). A snapshot from the wrong day now reads as zero,
+keeping only whatever part of a live session falls after the boundary.
 
 ## Relevance
 
@@ -121,7 +125,7 @@ whether a summary is shown. **Account** is the app's alone.
 | During | What differs |
 | --- | --- |
 | Ended from the app | Lands on the summary. |
-| Ended from the card with the app on screen behind it | Lands on the summary, and fires the completion haptic twice — [B-11](../bug-triage.md#b-11). |
+| Ended from the card with the app on screen behind it | Lands on the summary, which fires the one haptic. The intent stays quiet when a screen is about to speak — it used to fire success on top, [B-11](../bug-triage.md#b-11). |
 | Ended from Siri or the Control | No summary is queued, deliberately: there is no screen to land on. |
 
 ## Interrupts
@@ -187,4 +191,4 @@ stateDiagram-v2
 - Whether the frontmost hold changes what `applicationState` reports with the wrist down decides whether ending from the card still lands on a summary: see [B-10b](../bug-triage.md#b-10).
 - Nothing here has been observed on a device. The two scenarios above are read from the code and are stated as suspected, not confirmed.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

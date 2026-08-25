@@ -39,22 +39,25 @@ session ten minutes in, go and do something else for half an hour, come back and
 the clock still says `15:00`. That is deliberate and it is right for a study
 timer.
 
-**Completion is derived from the span.** A session is Complete when its span is
-at least its planned length. For a session that was never held the two agree, so
-the rule looks harmless. For a session that was held it is not:
+**Completion is derived from studied time** — the same clock the countdown
+showed. A session is Complete when what it studied reaches what it planned.
+
+It used to be derived from the span, which is the same number only for a session
+that was never held:
 
 > Study 6 minutes of a planned 25, hold for half an hour, end. Studied time is
 > 6 minutes and the countdown still read `19:00`. The span is 36 minutes, so the
-> app calls the session **Complete**, plays the success haptic, and the web
-> counts it toward the goal-hit rate.
+> app called the session **Complete** and played the success haptic.
 
-This is [B-02](../bug-triage.md#b-02) and it has a passing repro. Every document
-that mentions Complete links here.
+That was [B-02](../bug-triage.md#b-02), now fixed. Holding after a session has
+already run to term cannot take completion away again, and a session still
+running is never Complete. Every document that mentions Complete links here.
 
 ## Two thresholds that delete data
 
 **Under a minute is dropped.** Closing a session with less than 60 seconds of
-studied time deletes its intervals and shows no summary. There is no
+studied time deletes its intervals and shows no summary. If any of them had
+already reached the server, their ids are kept so the next sync can un-tell it. There is no
 confirmation, no undo, and — apart from a softer haptic — no acknowledgement
 that anything was there. Starting a session by accident and ending it is a
 non-event by design.
@@ -160,4 +163,4 @@ stateDiagram-v2
 - The 12-hour recovery has never been exercised on a device; it is reachable only by killing the app mid-session and waiting half a day.
 - Whether the 60-second drop should be silent is a product call. It is raised as [B-06 note](../bug-triage.md#b-06) only because the same intervals may already be on the server.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

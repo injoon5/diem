@@ -10,7 +10,7 @@ A list titled **Settings**:
 | Section | Rows |
 | --- | --- |
 | **Goal** | "Daily", with the current goal on the right, pushing to the goal screen |
-| **Subjects** | Every subject, archived ones included, sorted by name; then "Add Subject" |
+| **Subjects** | Every subject, archived ones included, sorted by name; then "Add Subject" — which refuses a name already in use |
 | — | "Pair with Web" |
 
 Subjects are sorted **by name** here, not by recency as they are in the picker.
@@ -55,11 +55,12 @@ of the screen instead. The selected swatch is ringed *outside* its edge rather
 than on its rim, because a 2pt stroke on a 24pt circle eats an eighth of the
 colour it is meant to be marking.
 
-**Delete has no confirmation.** One tap and the screen pops. It is a soft delete
-— history keeps the subject and the web is meant to learn about it — but nothing
-on screen says so, the footer explains only archiving, and the far less
-consequential Discard on the summary asks twice.
-[B-21](../bug-triage.md#b-21).
+**Delete asks twice**, on the same question the summary's Discard uses: one tap
+arms it, a second deletes, and six seconds unanswered takes it back. It used to
+be a single tap that popped the screen, while the far less consequential Discard
+asked ([B-21](../bug-triage.md#b-21)). The footer explains deleting as well as
+archiving now — history is kept either way, which is the thing people are least
+sure of.
 
 ## What you can do
 
@@ -77,7 +78,7 @@ from the Start screen, so it can never be opened while a session is running.
 | At the start | What differs |
 | --- | --- |
 | No subjects | The Subjects section is just "Add Subject". |
-| Ten or more subjects | The eleventh silently reuses the first one's colour. [B-22](../bug-triage.md#b-22) |
+| Ten or more subjects | The eleventh takes the least-used colour. It used to take the first one's, always. [B-22](../bug-triage.md#b-22) |
 | Unpaired | "Pair with Web" fetches a fresh code each time it is opened. |
 
 | During | What differs |
@@ -112,9 +113,9 @@ with a click and the ring moves without animation.
 archiving and deleting a subject are all silent.
 
 **Accessibility** — the archive state is carried by an icon as well as by
-opacity, which is right. The colour swatches carry no labels at all, so the
-colour grid is a row of ten unnamed buttons to VoiceOver. Swatch cells are 34pt
-against a 44pt floor: [B-13](../bug-triage.md#b-13).
+opacity, which is right. Each swatch is named ("Lime", "Teal") and the current
+one carries the selected trait, where the grid used to be ten unnamed buttons.
+Swatch cells are 44pt, up from 34: [B-13](../bug-triage.md#b-13).
 
 **What the widgets are told** — only the goal, and only once the crown settles.
 
@@ -139,9 +140,9 @@ stateDiagram-v2
 
 ## Open questions and verification
 
-- Whether Delete should confirm. Currently it does not, while Discard does. [B-21](../bug-triage.md#b-21)
-- Whether a deleted subject's history is genuinely preserved everywhere it is read back. It is on the watch; it is never removed on the server, which is [B-05](../bug-triage.md#b-05).
-- Whether two subjects can be given the same name. Nothing prevents it. [B-20](../bug-triage.md#b-20)
+- Whether the six-second question is the right length for Delete, where the consequence is smaller than Discard's but the wording is scarier.
+- A deleted subject now reaches the server, because the push includes tombstones: [B-05](../bug-triage.md#b-05).
+- Duplicate names are refused as they are typed, with "Already used." under the field: [B-20](../bug-triage.md#b-20). Whether refusing is better than disambiguating is still a product call.
 - The name field has no length limit, and every screen that shows a name truncates to one line.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

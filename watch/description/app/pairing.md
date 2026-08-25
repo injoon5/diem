@@ -9,7 +9,8 @@ Pushed from Settings, titled **Pair**. Three states:
 | State | What is on screen |
 | --- | --- |
 | Loading | A spinner |
-| Loaded | The code at 32pt with 2pt tracking, uppercased, and "Enter this on diem.app" under it |
+| Loaded | The code at 32pt with 2pt tracking, uppercased, "Enter this on diem.app" under it, and a countdown inside the last five minutes |
+| Expired | "That code has expired." and a New Code button |
 | Failed | "Couldn't reach the server." and a "Try Again" button |
 
 ## What you can do
@@ -33,7 +34,8 @@ in the product is gated on it.
 | During | What differs |
 | --- | --- |
 | The code is claimed on the web | **Nothing.** The screen does not change, and the watch is never told. |
-| The code expires | **Nothing.** The server returns an expiry and the app discards it. |
+| The code approaches its expiry | Inside five minutes, a countdown appears under the code. |
+| The code expires | The code is replaced by "That code has expired." and a button that fetches a new one. [B-24](../bug-triage.md#b-24) |
 
 ## Interrupts
 
@@ -58,9 +60,9 @@ is right for something being transcribed. It is uppercased on screen.
 **Haptics** — none, including on failure.
 
 **Accessibility** — the code is spelled out character by character rather than
-read as a word, which is the right call for a code. It is spelled from the
-*raw* string rather than the uppercased one, so if the server sends lowercase,
-VoiceOver and the screen disagree in case: [B-23](../bug-triage.md#b-23).
+read as a word, which is the right call for a code. It is uppercased once on
+arrival, so the spoken spelling and the drawn one cannot disagree in case —
+they used to: [B-23](../bug-triage.md#b-23).
 
 **What the widgets are told** — nothing.
 
@@ -78,8 +80,9 @@ stateDiagram-v2
 
 ## Open questions and verification
 
-- The screen never confirms success, so the only way to know pairing worked is to look at the web. [B-24](../bug-triage.md#b-24)
-- The expiry the server returns is parsed and thrown away, so a stale code on screen looks exactly like a fresh one. [B-24](../bug-triage.md#b-24)
-- No request timeout is configured, so on a flaky connection the spinner can sit for the URL session's default minute.
+- The screen still never confirms success, so the only way to know pairing worked is to look at the web. Doing better needs the watch to poll or the server to push, and neither is worth it for a one-time setup step — but it remains the weakest moment in the product. [B-24](../bug-triage.md#b-24)
+- The expiry is now shown and acted on, so a lapsed code no longer looks like a fresh one.
+- Requests time out after ten seconds rather than the URL session's default minute, so a flaky connection fails visibly.
+- Whether five minutes is the right point to start warning wants watching someone type a code.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

@@ -16,6 +16,7 @@ xcodegen generate && open Diem.xcodeproj
 | `Diem/Views` | Start, Running, Done, Settings, Metrics, and the shared parts |
 | `Diem/Intents` | Start / Pause / End, behind every other surface |
 | `Diem/Runtime` | The extended runtime session that holds the foreground |
+| `Scripts` | `core-check.sh` — builds and tests the Foundation-only core anywhere |
 | `Diem/Sync` | DTOs and the client. Only completed intervals go over the wire |
 | `DiemWidget` | Four complication families, the Smart Stack card, the Control |
 
@@ -112,6 +113,14 @@ stack could show from one it puts in front of you. The window itself lives on
 core is where arithmetic gets tested. And a timeline reload does not re-ask the
 question: `commit()` invalidates the card's relevance itself, when — and only
 when — a session starts, ends, or moves its deadline.
+
+**Parsing is not type-checking.** `swiftc -parse` was the only check this repo
+had, and `Views/Ring.swift` passed it for two releases while handing a subject
+id to a function that takes a colour index — a file that could not compile, in
+the app's headline feature. `Scripts/core-check.sh` builds and tests everything
+that decides a number, on any machine with a Swift toolchain and no Apple SDK.
+It cannot reach the views. Run a real build before believing the app compiles,
+and prefer putting new arithmetic where the script can see it.
 
 **The accent is never on text.** International Orange in Display P3, on the ring
 and the pill fill only. There is deliberately no app-wide tint.

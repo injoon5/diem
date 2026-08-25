@@ -107,7 +107,26 @@ struct GoalRing: View {
 /// Butt caps, not round: these bands abut, and a rounded end on each would have
 /// every band bulge over its neighbour and read as a gap that isn't there.
 struct SubjectRing: View {
-    var runs: [SubjectRun]
+    /// A run with its colour already looked up.
+    ///
+    /// The ring used to take `SubjectRun` and ask the palette for a colour
+    /// using the run's *subject id* — which is a `UUID`, where the palette
+    /// takes an index. That did not compile, and it could not have: this view
+    /// has no access to the store, so it has no way to turn an id into an index
+    /// at all. Resolving it in the caller, which does, is the shape `Metrics`
+    /// already uses for the same lookup.
+    struct Run: Equatable {
+        /// `nil` is free time — the absence of a subject, not a colour.
+        var colorIndex: Int?
+        var seconds: TimeInterval
+
+        init(colorIndex: Int?, seconds: TimeInterval) {
+            self.colorIndex = colorIndex
+            self.seconds = seconds
+        }
+    }
+
+    var runs: [Run]
     var lineWidth: CGFloat = 6
 
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
@@ -118,7 +137,7 @@ struct SubjectRing: View {
 
     private struct Band: Identifiable {
         let id: Int
-        let subjectID: UUID?
+        let colorIndex: Int?
         /// Which turn of the ring this piece lies on.
         let lap: Int
         let from: Double
@@ -130,6 +149,9 @@ struct SubjectRing: View {
         var bands: [Band] = []
         var cursor: Double = 0
         for run in runs {
+            // A run of no length is not a band, and a negative one would walk
+            // the cursor backwards over the turn already drawn.
+            guard run.seconds > 0 else { continue }
             let end = cursor + run.seconds / Self.secondsPerTurn
             var start = cursor
             while start < end {
@@ -138,7 +160,7 @@ struct SubjectRing: View {
                 bands.append(
                     Band(
                         id: bands.count,
-                        subjectID: run.subjectID,
+                        colorIndex: run.colorIndex,
                         lap: lap,
                         from: start - Double(lap),
                         to: stop - Double(lap)
@@ -161,7 +183,7 @@ struct SubjectRing: View {
             // Drawn in the order the day happened, so a later turn covers an
             // earlier one exactly as winding a bar round twice would.
             ForEach(bands) { band in
-                let color = Palette.subject(band.subjectID)
+                let color = Palette.subject(band.colorIndex)
                 Circle()
                     .trim(from: band.from, to: band.to)
                     .stroke(

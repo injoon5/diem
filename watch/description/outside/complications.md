@@ -71,7 +71,7 @@ session is the one thing worth putting in front of you unasked.
 | Wrist down | System dimming. |
 | Crown press | N/A. |
 | Session started or ended elsewhere | Correct at the next refresh — fifteen minutes with a session, thirty without. |
-| 4am boundary | **Wrong until the next refresh**, which can be half an hour. The snapshot has no day identity, so nothing on this side can detect the rollover. [B-07](../bug-triage.md#b-07) |
+| 4am boundary | The snapshot records the day it was banked in, so one written before the boundary reads as zero rather than as yesterday's total — and the timeline schedules a reload at the boundary itself. [B-07](../bug-triage.md#b-07) |
 | Network loss | No effect. |
 | App killed and relaunched | No effect. |
 
@@ -110,4 +110,4 @@ stateDiagram-v2
 - Whether `accessoryCorner`'s curved gauge label shows the lap at all. It cannot — it is a stock gauge, capped at full.
 - The circular family's accessibility value is the compact string. Whether that is acceptable or should be the spoken duration is a product call.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

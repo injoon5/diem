@@ -77,7 +77,7 @@ where its *session* started.
 | Wrist down | None. |
 | Crown press | None. |
 | Session started or ended elsewhere | The totals are correct in the database; whether the *app* shows them is [B-03](../bug-triage.md#b-03). |
-| 4am boundary | The day's banked total resets to zero. In the app this is picked up on the next read. In the widgets it is not picked up at all until the next refresh, which can be half an hour: [B-07](../bug-triage.md#b-07). |
+| 4am boundary | The day's banked total resets to zero. The app picks it up on the next read; the widgets read a snapshot stamped with the day it was written in, so one written before the boundary reads as zero rather than as yesterday's total, and the timeline reloads at the boundary itself. Was [B-07](../bug-triage.md#b-07). |
 | Network loss | None. Every chart is local. |
 | Killed and relaunched | None. The day is derived from the log. |
 
@@ -97,13 +97,13 @@ animated at all, because direct manipulation must never be.
 **Haptics** — none. Reaching the goal is not marked, which is a deliberate
 quiet: the ring closing is the signal.
 
-**Accessibility** — the ring itself carries no value. The container is labelled
-"Today" and the numeral speaks the total, so the *progress against the goal* —
-the thing the ring exists to show — is never announced: [B-15](../bug-triage.md#b-15).
+**Accessibility** — the ring speaks its progress against the goal as a
+percentage alongside the total, which is the thing it exists to show. It carried
+no value at all until [B-15](../bug-triage.md#b-15).
 
-**What the widgets are told** — the snapshot carries the banked total and the
-goal, but no day identity, which is why the boundary cannot be detected on the
-other side.
+**What the widgets are told** — the snapshot carries the banked total, the goal,
+and the study-day it was banked in, which is what lets the other side notice the
+boundary has passed without being republished.
 
 ## State diagram
 
@@ -126,4 +126,4 @@ stateDiagram-v2
 - The boundary has been tested across a DST change only in the abstract; the calendar arithmetic is exercised by unit tests in UTC, which is where DST does not exist.
 - Whether a session that crosses 4am *should* keep adding to the previous day's total for hours is a product call. It follows from the stated rule, but it means the ring can keep filling after the day it belongs to has ended.
 
-Verified against `watch/` commit `5ac0e35`
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](../bug-triage.md)

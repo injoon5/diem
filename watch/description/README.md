@@ -14,7 +14,7 @@ moves through with a finger, a crown and a wrist.
 | --- | --- |
 | **Product** | `watch/` — the standalone watchOS 27 app, its widget extension, and the App Intents behind both. The web dashboard in `web/` is out of scope. |
 | **Surface** | A single Apple Watch, defaults only: 2h daily goal, no subjects, unpaired, notifications not yet asked for. |
-| **Source of truth** | This repository, `watch/`, at commit `5ac0e35`. |
+| **Source of truth** | This repository, `watch/`. Drafted against `5ac0e35`; every entry in [`bug-triage.md`](bug-triage.md) has since been fixed, and the documents describe the app after those fixes. |
 | **Where to run it** | `cd watch && xcodegen generate && open Diem.xcodeproj`, then the `Diem` scheme on a watchOS 27 simulator or a paired device. |
 | **Out of scope** | The web app and sync server; the pairing flow past the point where the code is shown; watch faces and complication *placement*; anything on iPhone (there is no companion app). |
 | **Where this lives** | `watch/description/`, inside the source repo rather than beside it, because that is where it was asked to go. It is documentation, not a second project: no nested `git init`, and it is committed with the repo. |
@@ -95,17 +95,27 @@ No document is marked `verified`. Nothing here has been observed on a running
 watch — see [`verification/README.md`](verification/README.md) for exactly what
 that means and what was checked instead.
 
+All 31 triage entries are **fixed**. The checklists under `verification/` are
+now regression checks for those fixes as much as they are descriptions of the
+product.
+
 ## Method
 
 Drafted from the source and from `watch/DiemTests`. Where a claim could be
-settled by running code rather than reading it, it was: the repro suite in
-[`bug-triage.md`](bug-triage.md) is real, it compiles against the app's
-Foundation-only core under Swift 6.3, and it passes — which is what makes the
-entries it backs *confirmed* rather than *suspected*.
+settled by running code rather than reading it, it was — and the tests that
+confirmed the defects have become regression tests for the fixes. The suite runs
+anywhere:
+
+```sh
+cd watch && sh Scripts/core-check.sh
+```
 
 The rest was read. Everything that touches SwiftUI, SwiftData, WatchKit or
 WidgetKit cannot be compiled without an Apple SDK, so anything asserted about
-those is a reading of the code, and says so.
+those is a reading of the code, and says so. That gap is exactly how
+[B-01](bug-triage.md#b-01) — a file that could not compile — survived on the
+default branch: `swiftc -parse` was the only check, and parsing is not
+type-checking.
 
 ## Reference
 
@@ -115,7 +125,7 @@ Where the behaviour lives, for whoever reads next:
 | --- | --- |
 | Interaction state | `Diem/Model/SessionStore.swift` — the one live session, and every derived read behind a cache |
 | Pure arithmetic | `Diem/Model/SessionAssembly.swift`, `Day.swift`, `Snapshot.swift`, `Design/Format.swift`, `Views/Scrub.swift` |
-| Behaviour tests | `DiemTests/DiemTests.swift` — 54 tests, all Foundation-only |
+| Behaviour tests | `DiemTests/DiemTests.swift` — 66 tests, all Foundation-only, runnable via `Scripts/core-check.sh` |
 | Screens | `Diem/Views/` |
 | Defaults and thresholds | `Settings.swift` (goal), `Scrub.swift` (crown curves), `SessionStore.swift` (the 60s floor, the 12h recovery limit), `SessionAlerts.swift` (the 30m overtime grace), `Confirmation.swift` (the 6s question window) |
 | Outside the app | `DiemWidget/`, `Diem/Intents/Intents.swift` |

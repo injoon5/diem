@@ -11,8 +11,9 @@ struct StartView: View {
     /// The picker has been opened at least once, so "Free" stays chosen instead
     /// of being overwritten by the last subject on the next appearance.
     @State private var subjectChosen = false
-    /// Set while the crown is reset in code, so the reset doesn't click.
-    @State private var resettingCrown = false
+    /// The value the crown was just reset to in code, so the reset doesn't
+    /// click. Cleared by the first change that is not it.
+    @State private var resetTo: Double?
     @State private var showingSubjects = false
     @State private var showingSettings = false
     @State private var showingMetrics = false
@@ -31,6 +32,7 @@ struct StartView: View {
         DurationScrub.turns(forSeconds: DurationScrub.seconds(forFractionalStep: crownStep))
     }
     private var isScrubbing: Bool { crownDetent > 0 }
+    private var isPresentingSheet: Bool { showingSubjects || showingSettings || showingMetrics }
 
     /// The chosen subject, if it is still one you can choose.
     ///
@@ -64,11 +66,15 @@ struct StartView: View {
             isContinuous: false,
             isHapticFeedbackEnabled: false
         )
-        .onChange(of: crownDetent) { old, new in
-            guard old != new, !resettingCrown else {
-                resettingCrown = false
-                return
-            }
+        .onChange(of: crownDetent) { _, _ in
+            // The reset that follows a commit must not click. It used to arm a
+            // latch that only this handler could clear — and a crown turned
+            // less than half a step never changes the detent, so the reset
+            // fired no change, the latch stayed armed, and it swallowed the
+            // first real click of the *next* session instead. Comparing the
+            // value is the same test without the state.
+            guard crownStep != resetTo else { return }
+            resetTo = nil
             Haptics.crownDetent()
         }
         .toolbar {
@@ -118,11 +124,12 @@ struct StartView: View {
                 }
             }
         }
+        // Each of these dismisses itself. Clearing the flag here as well
+        // dismissed a sheet that was already going.
         .sheet(isPresented: $showingSubjects) {
             SubjectPicker(selection: chosenSubject?.id) { picked in
                 subjectID = picked
                 subjectChosen = true
-                showingSubjects = false
             }
         }
         .sheet(isPresented: $showingSettings) { SettingsView() }
@@ -131,6 +138,14 @@ struct StartView: View {
             crownFocused = true
             guard !subjectChosen else { return }
             subjectID = Settings.shared.lastSubjectID
+        }
+        // A sheet takes the crown and does not give it back, and this screen
+        // gave no sign that it had stopped listening — the ring simply stopped
+        // answering the wrist. Focus is claimed again whenever the last sheet
+        // closes.
+        .onChange(of: isPresentingSheet) { _, presenting in
+            guard !presenting else { return }
+            crownFocused = true
         }
     }
 
@@ -178,15 +193,29 @@ struct StartView: View {
         // height between them, not by the width — takes all of it back at once.
         // That is most of a ring's diameter arriving in a single frame.
         .animation(Motion.dimming(reduceMotion: reduceMotion), value: isLuminanceReduced)
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .combine)
         .accessibilityLabel(isScrubbing ? "Session length" : "Today")
+        // The ring's whole job is progress against the goal, and the container
+        // spoke only the total — so the one thing the ring exists to show was
+        // never announced.
+        .accessibilityValue(ringValue(now: now))
+    }
+
+    /// What the ring reads, in words.
+    private func ringValue(now: Date) -> String {
+        guard !isScrubbing else { return Format.duration(scrubSeconds) }
+        let studied = store.todaySeconds(asOf: now)
+        let goal = store.goalSeconds
+        guard goal > 0 else { return Format.duration(studied) }
+        let percent = Int((studied / goal * 100).rounded())
+        return "\(Format.duration(studied)) of \(Format.duration(goal)), \(percent) percent"
     }
 
     private func start() {
         let planned = isScrubbing ? Int(scrubSeconds) : nil
         store.start(subjectID: chosenSubject?.id, plannedSec: planned)
         Haptics.start()
-        resettingCrown = crownStep != 0
+        resetTo = 0
         crownStep = 0
     }
 }

@@ -37,6 +37,14 @@ struct DiemSnapshot: Codable, Equatable, Sendable {
     var goalSec: Double = 2 * 3600
     /// Set while a session is running or paused.
     var session: Live?
+    /// The study-day `todaySec` was banked in.
+    ///
+    /// Without it a complication holding a snapshot written at 03:50 has no way
+    /// to notice that 04:00 has passed, and goes on drawing yesterday's total —
+    /// and yesterday's closed ring — as today's, for as long as half an hour.
+    /// Optional so a snapshot written by an older build still decodes; `nil`
+    /// means "unknown", which is read as "not stale" rather than as zero.
+    var dayStart: Date?
 
     struct Live: Codable, Equatable, Sendable {
         var startedAt: Date
@@ -57,6 +65,20 @@ struct DiemSnapshot: Codable, Equatable, Sendable {
 
         func elapsed(asOf now: Date = .now) -> TimeInterval {
             isPaused ? pausedElapsedSec : max(0, now.timeIntervalSince(countingFrom))
+        }
+
+        /// The part of this session's count that falls after `floor`.
+        ///
+        /// A session counts toward the day it started in, so when the reader has
+        /// crossed a day boundary the session has not — only the seconds on this
+        /// side of it belong to the new day. A held session stopped counting at
+        /// `countingFrom + pausedElapsedSec`, so its share is whatever of that
+        /// lies past the floor, which for a hold that began before the boundary
+        /// is nothing.
+        func elapsed(asOf now: Date = .now, notBefore floor: Date) -> TimeInterval {
+            let from = max(countingFrom, floor)
+            let to = isPaused ? countingFrom.addingTimeInterval(pausedElapsedSec) : now
+            return max(0, to.timeIntervalSince(from))
         }
 
         /// The window the Smart Stack is asked to hold the session card in.
@@ -82,19 +104,37 @@ struct DiemSnapshot: Codable, Equatable, Sendable {
         static let relevanceFloor: TimeInterval = 20 * 60
     }
 
+    /// Whether the study-day has turned since this snapshot was written.
+    ///
+    /// The calendar is a parameter for the same reason `Day`'s is: the boundary
+    /// is a local-time rule, and a rule about local time cannot be tested in
+    /// whatever zone the machine happens to be in.
+    func isStale(asOf now: Date = .now, calendar: Calendar = .current) -> Bool {
+        guard let dayStart else { return false }
+        return Day.start(of: now, calendar: calendar) != dayStart
+    }
+
     /// Everything studied today, including whatever is running right now.
-    func today(asOf now: Date = .now) -> TimeInterval {
-        todaySec + (session?.elapsed(asOf: now) ?? 0)
+    ///
+    /// Past the day boundary nothing banked belongs to today any more, and only
+    /// the part of a live session on this side of it does. A widget holding a
+    /// stale snapshot therefore reads zero rather than yesterday's total, which
+    /// is the truthful answer until the app is next able to republish.
+    func today(asOf now: Date = .now, calendar: Calendar = .current) -> TimeInterval {
+        guard isStale(asOf: now, calendar: calendar) else {
+            return todaySec + (session?.elapsed(asOf: now) ?? 0)
+        }
+        return session?.elapsed(asOf: now, notBefore: Day.start(of: now, calendar: calendar)) ?? 0
     }
 
     /// The reading a ring or a bar draws, overflow included.
-    func lap(asOf now: Date = .now) -> Lap {
-        Lap(turns: goalSec > 0 ? today(asOf: now) / goalSec : 0)
+    func lap(asOf now: Date = .now, calendar: Calendar = .current) -> Lap {
+        Lap(turns: goalSec > 0 ? today(asOf: now, calendar: calendar) / goalSec : 0)
     }
 
     /// The same reading, capped — what a system `Gauge` takes, which has no
     /// notion of going past full.
-    func progress(asOf now: Date = .now) -> Double {
-        min(lap(asOf: now).turns, 1)
+    func progress(asOf now: Date = .now, calendar: Calendar = .current) -> Double {
+        min(lap(asOf: now, calendar: calendar).turns, 1)
     }
 }

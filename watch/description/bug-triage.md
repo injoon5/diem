@@ -8,9 +8,17 @@ build or loses data; *high* means a person is shown something untrue; *medium*
 is a papercut or a stated guideline broken; *low* is polish, dead code or
 configuration drift.
 
-**Status** is only present where a claim was checked by running something.
-Everything else was read from the source and is marked *suspected* — no part of
-this app has been observed on a device or simulator.
+**Status** records how the claim was established when it was found. It is not
+changed by the fix; a suspected defect that was fixed on the strength of a
+reading is still a reading, and the verification checklists are what turn it
+into an observation.
+
+**Every entry here is fixed.** Each carries a *Resolution* line saying what
+changed. The diagnosis above it describes the code **as it was found**, in the
+present tense it was written in — a triage file is a record of what was wrong,
+and rewriting the diagnoses into the past would lose the only account of why the
+fix looks the way it does. Read the summary table's **State** column for what is
+true now.
 
 ## How the confirmed entries were confirmed
 
@@ -18,7 +26,7 @@ Seven entries carry a **Status: confirmed** line. Those were checked by
 compiling the app's Foundation-only core (`Day`, `Format`, `Scrub`,
 `SessionAssembly`, `Snapshot`, and the `ISO8601` helper) as a Swift package
 under Swift 6.3 on Linux and running a repro suite against it. The suite is
-reproduced in [Appendix: the repro suite](#appendix-the-repro-suite) and all of
+reproduced in [Appendix: what happened to the repro suite](#appendix-what-happened-to-the-repro-suite) and all of
 it passes, alongside the project's own 54 tests.
 
 Nothing that touches SwiftUI, SwiftData, WatchKit or WidgetKit can be compiled
@@ -28,39 +36,39 @@ confirmed, because the type rule it breaks does not need a compiler to settle.
 
 ## Summary
 
-| ID | Severity | What | Decision |
-| --- | --- | --- | --- |
-| [B-01](#b-01) | critical | The session ring passes a subject id where a colour index is expected — the app does not compile | fix |
-| [B-02](#b-02) | critical | A held session is reported "Complete" when it was barely studied | fix |
-| [B-03](#b-03) | critical | The app and the widget extension never learn about each other's writes | fix |
-| [B-04](#b-04) | critical | A store that fails to open silently discards every session, with no signal and no migration plan | fix |
-| [B-05](#b-05) | high | Deleting a subject never reaches the server | fix |
-| [B-06](#b-06) | high | Discarding a session never reaches the server | product call |
-| [B-07](#b-07) | high | Complications show yesterday's total for up to half an hour after 4am | fix |
-| [B-08](#b-08) | high | The deadline alert asks for Time Sensitive without the entitlement to get it | fix |
-| [B-09](#b-09) | high | Metrics freezes "Today" at the moment it opened | fix |
-| [B-10](#b-10) | high | Starting from Siri or the Action Button silently ends a running session | product call |
-| [B-11](#b-11) | medium | Ending from the card with the app on screen fires the completion haptic twice | fix |
-| [B-12](#b-12) | medium | The crown's silent-reset latch can stick and swallow a real detent | fix |
-| [B-13](#b-13) | medium | Two sets of touch targets are under the 44pt floor the app states | fix |
-| [B-14](#b-14) | medium | Nothing scales with the watch's text size, and the running screen's bottom bar overflows | fix |
-| [B-15](#b-15) | medium | The ring, the heatmap and the weekday bars are unreadable or mislabelled to VoiceOver | fix |
-| [B-16](#b-16) | medium | Overtime under an hour gains a glyph without dropping a size step | product call |
-| [B-17](#b-17) | medium | Every total under ten hours is centred in a field a digit too wide | fix |
-| [B-18](#b-18) | medium | The deadline notification is suppressed exactly when the app now holds the foreground | fix |
-| [B-19](#b-19) | medium | The subject picker dismisses itself twice | fix |
-| [B-20](#b-20) | medium | Two subjects can share a name, with nothing to tell them apart | product call |
-| [B-21](#b-21) | medium | Deleting a subject asks nothing; discarding a session asks twice | product call |
-| [B-22](#b-22) | medium | The eleventh subject silently reuses the first one's colour | fix |
-| [B-23](#b-23) | low | The pairing code is spoken in a different case from the one on screen | fix |
-| [B-24](#b-24) | low | Pairing never confirms success and never says the code expires | product call |
-| [B-25](#b-25) | low | Interval pull and its cursor are dead code | product call |
-| [B-26](#b-26) | low | `Info.plist` and `project.yml` disagree, and regenerating rewrites a tracked file | fix |
-| [B-27](#b-27) | low | The app declares an app group nothing uses and the spec does not generate | fix |
-| [B-28](#b-28) | low | Every sync pushes the entire subject list | fix |
-| [B-29](#b-29) | low | The device token's getter writes, untracked, from two processes | fix |
-| [B-30](#b-30) | low | A force-try on the fallback container | fix |
-| [B-31](#b-31) | low | The deadline notification's title and body say the same thing twice | fix |
+| ID | Severity | What | Decision | State |
+| --- | --- | --- | --- | --- |
+| [B-01](#b-01) | critical | The session ring passes a subject id where a colour index is expected — the app does not compile | fix | fixed |
+| [B-02](#b-02) | critical | A held session is reported "Complete" when it was barely studied | fix | fixed |
+| [B-03](#b-03) | critical | The app and the widget extension never learn about each other's writes | fix | fixed |
+| [B-04](#b-04) | critical | A store that fails to open silently discards every session, with no signal and no migration plan | fix | fixed |
+| [B-05](#b-05) | high | Deleting a subject never reaches the server | fix | fixed |
+| [B-06](#b-06) | high | Discarding a session never reaches the server | product call | fixed |
+| [B-07](#b-07) | high | Complications show yesterday's total for up to half an hour after 4am | fix | fixed |
+| [B-08](#b-08) | high | The deadline alert asks for Time Sensitive without the entitlement to get it | fix | fixed |
+| [B-09](#b-09) | high | Metrics freezes "Today" at the moment it opened | fix | fixed |
+| [B-10](#b-10) | high | Starting from Siri or the Action Button silently ends a running session | product call | fixed |
+| [B-11](#b-11) | medium | Ending from the card with the app on screen fires the completion haptic twice | fix | fixed |
+| [B-12](#b-12) | medium | The crown's silent-reset latch can stick and swallow a real detent | fix | fixed |
+| [B-13](#b-13) | medium | Two sets of touch targets are under the 44pt floor the app states | fix | fixed |
+| [B-14](#b-14) | medium | Nothing scales with the watch's text size, and the running screen's bottom bar overflows | fix | fixed |
+| [B-15](#b-15) | medium | The ring, the heatmap and the weekday bars are unreadable or mislabelled to VoiceOver | fix | fixed |
+| [B-16](#b-16) | medium | Overtime under an hour gains a glyph without dropping a size step | product call | fixed |
+| [B-17](#b-17) | medium | Every total under ten hours is centred in a field a digit too wide | fix | fixed |
+| [B-18](#b-18) | medium | The deadline notification is suppressed exactly when the app now holds the foreground | fix | fixed |
+| [B-19](#b-19) | medium | The subject picker dismisses itself twice | fix | fixed |
+| [B-20](#b-20) | medium | Two subjects can share a name, with nothing to tell them apart | product call | fixed |
+| [B-21](#b-21) | medium | Deleting a subject asks nothing; discarding a session asks twice | product call | fixed |
+| [B-22](#b-22) | medium | The eleventh subject silently reuses the first one's colour | fix | fixed |
+| [B-23](#b-23) | low | The pairing code is spoken in a different case from the one on screen | fix | fixed |
+| [B-24](#b-24) | low | Pairing never confirms success and never says the code expires | product call | fixed |
+| [B-25](#b-25) | low | Interval pull and its cursor are dead code | product call | fixed |
+| [B-26](#b-26) | low | `Info.plist` and `project.yml` disagree, and regenerating rewrites a tracked file | fix | fixed |
+| [B-27](#b-27) | low | The app declares an app group nothing uses and the spec does not generate | fix | fixed |
+| [B-28](#b-28) | low | Every sync pushes the entire subject list | fix | fixed |
+| [B-29](#b-29) | low | The device token's getter writes, untracked, from two processes | fix | fixed |
+| [B-30](#b-30) | low | A force-try on the fallback container | fix | fixed |
+| [B-31](#b-31) | low | The deadline notification's title and body say the same thing twice | fix | fixed |
 
 ---
 
@@ -95,6 +103,8 @@ Status: **confirmed** — by the type rule, not by a build. See the note at the
 top; the repo has no environment that can compile a watchOS target.
 Raised by: [running-screen](app/running-screen.md), [session-model](foundations/session-model.md).
 
+**Resolution.** `SubjectRing` now takes runs with the colour already looked up (`SubjectRing.Run`), and `RunningView` resolves each one through the store — the shape `MetricsView` already used. The band walk also skips a run of no length, which could otherwise move the cursor without drawing anything. `Scripts/core-check.sh` was added so the Foundation-only core is *type-checked* rather than only parsed; it cannot cover the views, and the script says so.
+
 ## B-02
 
 **A held session is reported "Complete" when it was barely studied.**
@@ -109,8 +119,15 @@ the two diverge by exactly the length of every hold.
 
 Reproduce: start a 25-minute session. Study 5 minutes. Hold for 30 minutes.
 Resume, study 1 more minute, end. The countdown reads `19:00` throughout the
-hold; the summary says **Complete**, plays the success haptic, and the web
-counts the session toward the goal-hit rate.
+hold; the summary says **Complete** and plays the success haptic.
+
+> **Correction.** This entry originally added "and the web counts the session
+> toward the goal-hit rate." That was wrong, and checking it while fixing is
+> what caught it: the web never derives session completion at all. `hitRate`
+> compares a *day's* studied seconds to the goal, and a day's seconds are summed
+> from intervals — which is the right number, and always was. `planned_sec` is
+> stored on the server and read by nothing. The defect is the watch's summary
+> and its haptic, and it stops there.
 
 Cause: `watch/Diem/Model/SessionAssembly.swift:111` —
 `endedAt.timeIntervalSince(startedAt) >= Double(plannedSec)`. The existing test
@@ -122,17 +139,16 @@ the wall-clock span, so a session that runs to term satisfies it either way."
 That is true in one direction only. It shows there are no false *negatives*; it
 says nothing about false positives, which is the direction that bites.
 
-The fix that keeps the server agreeing with the watch is to compare studied time
-to the plan on both sides. The fix that keeps the schema is to store studied
-seconds on the session. Either is a change to the sync contract, so this is not
-a one-line correction.
+Because nothing else reads the flag, the fix is exactly one comparison.
 
-Severity: **critical** — it makes the app's central claim about a session untrue,
-and the error propagates to the web's headline statistic.
+Severity: **critical** — it makes the app's central claim about a session
+untrue. Not the web's, per the correction above.
 Decision: **fix**.
 Status: **confirmed** — `pauseInflatesCompletion` and `countdownDisagrees` in the
-[repro suite](#appendix-the-repro-suite) both pass.
+[repro suite](#appendix-what-happened-to-the-repro-suite) both pass.
 Raised by: [session-model](foundations/session-model.md), [done-screen](app/done-screen.md).
+
+**Resolution.** `Session.isComplete` compares studied time to the plan. The web never derived completion at all — its goal-hit rate is per-day studied seconds, which was always right — so nothing on the wire had to change. The original claim in this entry that the web counted these sessions was **wrong**, and is corrected above. Three tests cover it: a held short session is not Complete, a session held *after* running to term still is, and a session still running never is.
 
 ## B-03
 
@@ -177,6 +193,8 @@ app becomes active.
 Status: suspected.
 Raised by: [surfaces](foundations/surfaces.md), [smart-stack](outside/smart-stack.md), [intents](outside/intents.md), [running-screen](app/running-screen.md).
 
+**Resolution.** `SessionStore.refresh()` rolls the context back, re-derives the live session from the log, drops every cache and republishes. The app calls it when the scene becomes active; every intent calls it before doing anything. Ending from the card can no longer answer "Nothing is running." for a session that is, and the app can no longer come back to a stopped clock that Resume would splice back into.
+
 ## B-04
 
 **A store that fails to open silently discards every session.**
@@ -204,6 +222,8 @@ Severity: **critical**. Decision: **fix** — a migration plan, and a visible
 Status: suspected.
 Raised by: [session-model](foundations/session-model.md).
 
+**Resolution.** The schema is versioned (`DiemSchemaV1`) behind a `SchemaMigrationPlan` with an empty stage list for the next version to go in. The in-memory fallback sets `DiemContainer.isEphemeral`, and `RootView` puts "Not saving — reopen Diem" across the top of every screen while it holds. The `try!` is gone; an in-memory container that cannot be built is a `fatalError` with the underlying error, because at that point SwiftData itself is unusable.
+
 ## B-05
 
 **Deleting a subject never reaches the server.**
@@ -228,6 +248,8 @@ includes tombstones, since `deletedAt` is precisely what the wire format carries
 Status: suspected.
 Raised by: [settings](app/settings.md).
 
+**Resolution.** `SessionStore.subjectsForSync()` fetches every subject, tombstones included, and the sync pass uses it. `subjects(includeArchived:)` still filters them, which is right for every screen.
+
 ## B-06
 
 **Discarding a session never reaches the server.**
@@ -245,6 +267,8 @@ Decision: **product call** — this needs a delete endpoint, which is a change t
 a contract outside this repository's watch half.
 Status: suspected.
 Raised by: [done-screen](app/done-screen.md), [session-model](foundations/session-model.md).
+
+**Resolution.** Deleting an interval that the server already holds records its id in `Settings.deletedIntervalIDs`; the sync pass sends them to a new `DELETE /api/intervals`, scoped to the calling device and idempotent, and clears them only once the server agrees. An offline discard is retried on the next pass rather than forgotten. The list is capped at 500 so an unreachable server cannot grow a defaults key without bound.
 
 ## B-07
 
@@ -270,10 +294,12 @@ started is the exact opposite of what the product is for.
 Decision: **fix** — put the study-day start in the snapshot and zero the banked
 total when it no longer matches, and schedule a reload at the next boundary.
 Status: **confirmed** — `snapshotSurvivesTheDayBoundary` in the
-[repro suite](#appendix-the-repro-suite) passes: a snapshot with two hours banked
+[repro suite](#appendix-what-happened-to-the-repro-suite) passes: a snapshot with two hours banked
 still reports two hours and a full lap when read twenty minutes after the
 boundary.
 Raised by: [day-model](foundations/day-model.md), [complications](outside/complications.md), [smart-stack](outside/smart-stack.md).
+
+**Resolution.** `DiemSnapshot.dayStart` records the study-day the total was banked in, and `today(asOf:)` reads a stale snapshot as zero — keeping only the part of a live session on this side of the boundary, which for a session held before it is nothing. `Day.nextStart(after:)` was added (a calendar day on, not 86,400 seconds, so it survives a daylight-saving change) and the widget's timeline now reloads at the boundary as well as on its ordinary cadence. The field is optional so an older build's snapshot still decodes, and unknown reads as "not stale" rather than as zero. Six tests.
 
 ## B-08
 
@@ -296,6 +322,8 @@ Status: suspected — the entitlement's absence is confirmed by reading the file
 what the system does with the unentitled level is documented behaviour, not
 observed.
 Raised by: [running-screen](app/running-screen.md).
+
+**Resolution.** `com.apple.developer.usernotifications.time-sensitive` is in the app's entitlements and in `project.yml`, so it survives a regenerate.
 
 ## B-09
 
@@ -321,6 +349,8 @@ Decision: **fix** — a `TimelineView` on a one-minute cadence, the way the Star
 screen already does it.
 Status: suspected.
 Raised by: [metrics](app/metrics.md).
+
+**Resolution.** Metrics is wrapped in a `TimelineView` on a one-minute cadence anchored to `@State`, and every section takes `now` as a parameter instead of reading a stored property fixed at init.
 
 ## B-10
 
@@ -348,6 +378,8 @@ the whole of a session, it can be the frontmost app with the wrist down — wher
 that state is very likely `.inactive`. If so, ending from the card in that
 moment skips the summary the user would otherwise land on. Needs a device.
 
+**Resolution.** `StartSessionIntent` names the session it ended before the one it started: "Ended Maths at 1h 12m. Studying." Only for a session worth keeping — under a minute there was nothing to report.
+
 ## B-11
 
 **Ending from the card with the app on screen fires the completion haptic twice.**
@@ -366,6 +398,8 @@ Severity: **medium**. Decision: **fix** — the intent should not fire a haptic 
 the path where a screen is about to.
 Status: suspected.
 Raised by: [done-screen](app/done-screen.md), [smart-stack](outside/smart-stack.md), [intents](outside/intents.md).
+
+**Resolution.** `EndSessionIntent` fires a haptic only when nothing else is about to. When it does fire one it fires the *right* one — success for a session that ran to term, the softer stop for one ended early — instead of success unconditionally.
 
 ## B-12
 
@@ -397,6 +431,8 @@ that it has stopped listening. Needs a device.
 
 Raised by: [start-screen](app/start-screen.md), [input-model](foundations/input-model.md).
 
+**Resolution.** The suppression compares the crown's value against the one it was just reset to, instead of latching a flag that only a detent change could clear. A crown turned less than half a step no longer arms something that never fires.
+
 ## B-13
 
 **Two sets of touch targets are under the 44pt floor the app states.**
@@ -418,6 +454,8 @@ row, each under size, each committing an irreversible-looking change.
 Decision: **fix**.
 Status: suspected.
 Raised by: [subject-picker](app/subject-picker.md), [settings](app/settings.md), [input-model](foundations/input-model.md).
+
+**Resolution.** Subject picker rows are 44pt with an explicit hit shape; colour swatch cells are 44pt on a 2pt grid. Both were under the floor the rest of the app is built to.
 
 ## B-14
 
@@ -445,6 +483,8 @@ it is the primary control surface breaking.
 Decision: **fix** — the question should shrink, wrap or move.
 Status: suspected.
 Raised by: [running-screen](app/running-screen.md), [input-model](foundations/input-model.md).
+
+**Resolution.** The "End?" label takes `minimumScaleFactor(0.6)` and a negative layout priority, so it shrinks and then yields rather than pushing two 44pt controls off the screen. The spacers either side came down from 8pt to 4pt to give it more room before it has to.
 
 ## B-15
 
@@ -475,6 +515,8 @@ Severity: **medium**. Decision: **fix**.
 Status: suspected.
 Raised by: [metrics](app/metrics.md), [day-model](foundations/day-model.md), [running-screen](app/running-screen.md), [subject-picker](app/subject-picker.md).
 
+**Resolution.** The Start ring speaks its progress against the goal as a percentage; the session ring speaks the day as runs, in order; weekday bars are labelled with the weekday rather than its initial, and say "Nothing" for an empty day; the heatmap speaks its shape — days studied, total, best day — rather than nothing at all; the subject picker marks the current selection with the selected trait; and both armed questions carry a hint saying a second tap confirms. Ten colour swatches went from unnamed buttons to named ones.
+
 ## B-16
 
 **Overtime under an hour gains a glyph without dropping a size step.**
@@ -495,9 +537,11 @@ device.
 Decision: **product call** — either drop overtime to the compact size, or
 confirm six characters fit and leave the threshold alone.
 Status: **confirmed** as a description of what the code does —
-`overtimeKeepsTheLargestFace` in the [repro suite](#appendix-the-repro-suite)
+`overtimeKeepsTheLargestFace` in the [repro suite](#appendix-what-happened-to-the-repro-suite)
 passes. Whether it actually overruns is unverified.
 Raised by: [running-screen](app/running-screen.md).
+
+**Resolution.** `heroSize` counts digits rather than characters, with the step down at five digits. Punctuation no longer decides the face size, so overtime under an hour keeps the same size as the countdown it replaced instead of gaining a glyph at 44pt.
 
 ## B-17
 
@@ -519,8 +563,10 @@ Severity: **medium** as typography, low as behaviour.
 Decision: **fix** — reserve `8h 88m`, and let the ten-hour case take the wider
 field if it ever arrives.
 Status: **confirmed** — `totalsOverReserve` in the
-[repro suite](#appendix-the-repro-suite) passes.
+[repro suite](#appendix-what-happened-to-the-repro-suite) passes.
 Raised by: [start-screen](app/start-screen.md).
+
+**Resolution.** `Format.total` reserves `8h 88m` below ten hours and `88h 88m` above, so a real reading is centred in a field it can actually fill. Tested at both sides of the step.
 
 ## B-18
 
@@ -546,6 +592,8 @@ what that API is for.
 Status: suspected — needs a device.
 Raised by: [running-screen](app/running-screen.md).
 
+**Resolution.** `SessionAlerts.Presenter` is installed as the notification-centre delegate at launch and returns `[.banner, .sound, .list]`, so the deadline alert is presented even while the app holds the foreground.
+
 ## B-19
 
 **The subject picker dismisses itself twice.**
@@ -564,6 +612,8 @@ Settings already did.
 Status: suspected.
 Raised by: [subject-picker](app/subject-picker.md).
 
+**Resolution.** The picker owns its dismissal; both callers stopped clearing the flag underneath it. The same fix Settings had already made for `NameField`.
+
 ## B-20
 
 **Two subjects can share a name, with nothing to tell them apart.**
@@ -577,6 +627,8 @@ Severity: **medium**. Decision: **product call** — reject duplicates, or accep
 them and disambiguate.
 Status: suspected.
 Raised by: [subject-picker](app/subject-picker.md), [settings](app/settings.md).
+
+**Resolution.** `SessionStore.isNameTaken(_:excluding:)` compares case- and space-insensitively, and `NameField` disables Save with "Already used." under the field. Rename is checked too, excluding the subject being renamed.
 
 ## B-21
 
@@ -597,6 +649,8 @@ footer that history is kept.
 Status: suspected.
 Raised by: [settings](app/settings.md).
 
+**Resolution.** Delete is a two-tap question on the same `Confirmation` the summary's Discard uses, withdrawing itself after six seconds and on leaving the screen. The section footer now explains deleting as well as archiving — that history is kept either way.
+
 ## B-22
 
 **The eleventh subject silently reuses the first one's colour.**
@@ -614,6 +668,8 @@ rather than one that is guaranteed to collide with the first.
 Status: suspected.
 Raised by: [settings](app/settings.md).
 
+**Resolution.** The palette hands out the least-used index once all ten are taken, instead of `used.count % 10`, which with ten subjects was always zero and so always collided with the first.
+
 ## B-23
 
 **The pairing code is spoken in a different case from the one on screen.**
@@ -627,6 +683,8 @@ Severity: **low**, unless codes are case-sensitive, in which case it is high.
 Decision: **fix** — uppercase once, and derive both from that.
 Status: suspected.
 Raised by: [pairing](app/pairing.md).
+
+**Resolution.** The code is uppercased once, on arrival, and both the screen and the spoken label read that. They cannot disagree about a value being copied by hand.
 
 ## B-24
 
@@ -644,6 +702,8 @@ feature that requires the network.
 Decision: **product call**.
 Status: suspected.
 Raised by: [pairing](app/pairing.md).
+
+**Resolution.** `expiresAt` is kept. Inside the last five minutes the screen counts down; past it, the code is replaced with "That code has expired." and a New Code button. A ten-second request timeout replaced the URL session's default minute, so a flaky connection fails visibly instead of spinning.
 
 ## B-25
 
@@ -663,6 +723,8 @@ would break the query.
 
 Severity: **low**. Decision: **product call** — wire it or delete it.
 Status: suspected.
+
+**Resolution.** Deleted. `pullIntervals`, `IntervalPage` and `Settings.syncCursor` are gone. Intervals only ever originate on the watch, and a puller nobody called was an invitation to assume otherwise. The server's `GET /api/intervals` stays — it is a legitimate surface, just not one this client uses.
 
 ## B-26
 
@@ -689,6 +751,8 @@ Decision: **fix** — put both keys in the spec and stop tracking the generated
 plist, or stop generating it.
 Status: **confirmed** — the two key lists were diffed directly.
 
+**Resolution.** `WKWatchOnly` and `WKRunsIndependentlyOfCompanionApp` are both in `project.yml`, and the generated `Info.plist` files are no longer tracked — they are in `.gitignore`, because the spec is the source of truth and `xcodegen generate` writes them. The empty `NSHealthShareUsageDescription` went with them: it was left over from the `workout-processing` mode removed in the previous change, and nothing in the app touches HealthKit.
+
 ## B-27
 
 **The app declares an app group nothing uses and the spec does not generate.**
@@ -703,6 +767,8 @@ Severity: **low**. Decision: **fix** — remove it, or add it to the spec and to
 the widget if it is wanted.
 Status: **confirmed** — by reading the three files.
 
+**Resolution.** `group.com.injoon5.diem` is gone. One app group, in the app, the widget and the spec.
+
 ## B-28
 
 **Every sync pushes the entire subject list.**
@@ -716,6 +782,8 @@ full table push on every launch and every backgrounding, on a watch radio.
 
 Severity: **low**. Decision: **fix**.
 Status: suspected.
+
+**Resolution.** The sync pass sends only subjects whose `updatedAt` is newer than `Settings.subjectsPushedAt`, and advances that watermark on success.
 
 ## B-29
 
@@ -735,6 +803,8 @@ reason to read it.
 Decision: **fix** — generate it once at store construction, or guard it.
 Status: suspected.
 
+**Resolution.** The token is minted once in `Settings.init`, so the getter is a pure read and two processes cannot race it into two tokens.
+
 ## B-30
 
 **A force-try on the fallback container.**
@@ -748,6 +818,8 @@ excusable.
 Severity: **low**. Decision: **fix** — see [B-04](#b-04), which replaces this
 path anyway.
 Status: suspected.
+
+**Resolution.** Gone with [B-04](#b-04).
 
 ## B-31
 
@@ -773,106 +845,39 @@ notification can carry the older deadline.
 
 ---
 
-## Appendix: the repro suite
+**Resolution.** The title is the subject and the body says "Time's up." once. And scheduling is serialised: each call awaits the one before it, so hold-then-resume can no longer leave the request carrying the older deadline as the survivor.
 
-Seven tests, run against the app's Foundation-only core compiled as a Swift
-package under Swift 6.3 on Linux. All pass, alongside the project's own 54.
-Reproduced here in full so the confirmed entries can be checked without taking
-this document's word for it.
+## Appendix: what happened to the repro suite
 
-To run it: build a package from `Diem/Model/Day.swift`,
-`Diem/Model/Snapshot.swift`, `Diem/Model/SessionAssembly.swift`,
-`Diem/Design/Format.swift`, `Diem/Views/Scrub.swift` and the `ISO8601` helper
-out of `Diem/Sync/DTO.swift`, then drop this in as a test target.
+The seven tests that confirmed the entries above were written against the app's
+Foundation-only core compiled as a Swift package. They are not reproduced here
+any more, because they have become part of the project's own suite and now
+assert the opposite — the fixed behaviour rather than the broken kind:
 
-```swift
-private struct Rec: IntervalRecord {
-    var sessionID: UUID
-    var subjectID: UUID?
-    var startedAt: Date
-    var endedAt: Date?
-    var plannedSec: Int?
-}
+| Was | Is now, in `DiemTests/DiemTests.swift` |
+| --- | --- |
+| A held short session reports Complete | `A long hold does not make a short session Complete`, plus `A session held after running to term is still Complete` and `A session still running is never Complete` |
+| A snapshot survives the day boundary | A seven-test suite, `The widget snapshot across the day boundary` |
+| Overtime keeps the largest face | Replaced by counting digits; `heroSize` is view code and is not unit-tested |
+| Totals over-reserve their field | `A total reserves the field it can reach, not one wider` |
+| An open-ended session changes field at the hour | Unchanged behaviour, and correct — no test was needed |
+| A streak is capped by its window | A stated limit, not a defect — no test added |
 
-@Suite("AUDIT repros")
-struct AuditRepros {
-    private let t0 = Date(timeIntervalSince1970: 1_772_000_000)
-    private let sid = UUID()
+Two more were added for `Day.nextStart(after:)`, which the widget's
+boundary reload depends on.
 
-    /// B-02: a long hold inflates the wall-clock span, so a session the user
-    /// barely studied is reported Complete.
-    @Test("A 25m session with 6m studied and a 30m hold reports Complete")
-    func pauseInflatesCompletion() {
-        let records = [
-            Rec(sessionID: sid, subjectID: nil, startedAt: t0,
-                endedAt: t0.addingTimeInterval(5 * 60), plannedSec: 25 * 60),
-            Rec(sessionID: sid, subjectID: nil, startedAt: t0.addingTimeInterval(35 * 60),
-                endedAt: t0.addingTimeInterval(36 * 60), plannedSec: nil),
-        ]
-        let session = records.sessions(asOf: t0.addingTimeInterval(36 * 60)).first!
-        #expect(session.studiedSec == 6 * 60)   // six minutes actually studied
-        #expect(session.isComplete)             // …and the app says Complete
-    }
+The suite went from 54 tests to 66, and it can now be run on any machine with a
+Swift toolchain:
 
-    /// B-02: the countdown the user watched never reached zero.
-    @Test("The clock still had 19 minutes left when the session was called Complete")
-    func countdownDisagrees() {
-        let remaining = Double(25 * 60) - 6 * 60
-        #expect(remaining == 19 * 60)
-        #expect(Format.count(remaining: remaining, elapsed: 6 * 60, plannedSec: 25 * 60).value == "19:00")
-    }
-
-    /// B-07: the snapshot carries no day identity.
-    @Test("A snapshot published at 3:50am still reads as today's total at 4:10am")
-    func snapshotSurvivesTheDayBoundary() {
-        var utc = Calendar(identifier: .gregorian)
-        utc.timeZone = TimeZone(identifier: "UTC")!
-        let lateNight = ISO8601.parse("2026-03-04T03:50:00Z")!
-        let afterFour = ISO8601.parse("2026-03-04T04:10:00Z")!
-        #expect(Day.start(of: lateNight, calendar: utc) != Day.start(of: afterFour, calendar: utc))
-
-        let snapshot = DiemSnapshot(todaySec: 2 * 3600, goalSec: 2 * 3600)
-        #expect(snapshot.today(asOf: afterFour) == 2 * 3600)
-        #expect(snapshot.lap(asOf: afterFour).turns == 1)
-    }
-
-    /// B-16: overtime under an hour keeps the 44pt face while carrying one more
-    /// glyph than the countdown it replaced.
-    @Test("Crossing into overtime adds a glyph without dropping a size step")
-    func overtimeKeepsTheLargestFace() {
-        let before = Format.count(remaining: 1, elapsed: 1499, plannedSec: 1500)
-        let after = Format.count(remaining: -1, elapsed: 1501, plannedSec: 1500)
-        #expect(before.widest == "00:00")
-        #expect(after.widest == "+00:00")
-        #expect(before.widest.count <= 6 && after.widest.count <= 6)  // both take Size.hero
-    }
-
-    /// An open-ended session's field identity changes on the stroke of the hour.
-    @Test("An open-ended session changes field identity at exactly one hour")
-    func openEndedFieldFlipsAtTheHour() {
-        let justUnder = Format.count(remaining: nil, elapsed: 3599, plannedSec: nil)
-        let justOver = Format.count(remaining: nil, elapsed: 3600, plannedSec: nil)
-        #expect(justUnder.widest == "00:00" && justUnder.value == "59:59")
-        #expect(justOver.widest == "0:00:00" && justOver.value == "1:00:00")
-    }
-
-    /// B-17: totals reserve a field one digit wider than any day can produce.
-    @Test("Totals reserve a field one digit wider than any day can produce")
-    func totalsOverReserve() {
-        #expect(Format.total(90 * 60).widest == "88h 88m")
-        #expect(Format.total(90 * 60).value == "1h 30m")
-        #expect(Format.total(90 * 60).value.count == 6)
-        #expect(Format.total(90 * 60).widest.count == 7)
-    }
-
-    /// The streak is capped by the window it is measured in — a stated limit.
-    @Test("A streak is capped by the window it is measured in")
-    func streakCapped() {
-        let day = 86_400.0
-        let entries = (0..<400).map { (day: Date(timeIntervalSince1970: Double($0) * day), seconds: 3600.0) }
-        #expect(entries.studyStreak == 400)
-    }
-}
+```sh
+cd watch && sh Scripts/core-check.sh
 ```
 
-Verified against `watch/` commit `5ac0e35`
+That script is itself part of the fix for [B-01](#b-01). The only check this
+repo had was `swiftc -parse`, and parsing is not type-checking — which is how a
+file that could not compile at all sat on the default branch through two
+releases. The script assembles the Foundation-only files into a package and
+builds and tests them for real. It cannot cover the views; nothing without an
+Apple SDK can, and it says so at the top.
+
+Drafted against `watch/` commit `5ac0e35`, and revised after the fixes in [`bug-triage.md`](bug-triage.md)
