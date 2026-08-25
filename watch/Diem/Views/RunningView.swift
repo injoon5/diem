@@ -262,6 +262,28 @@ struct RunningView: View {
                 .opacity(store.isPaused ? 0.5 : 1)
                 .animation(Motion.fill(reduceMotion: reduceMotion), value: store.isPaused)
             }
+            // The state label rides on the clock, not on the screen.
+            //
+            // It was an overlay on the container, pushed down from the top of
+            // the content area by a fixed 22 points — a number that clears the
+            // numeral at 44pt with four digits and lands on top of it at 38pt
+            // with six, which is what a paused timed session over an hour
+            // draws. Anchored to the block, the gap is the same whatever face
+            // the clock is set at, and an overlay takes no part in layout so
+            // the clock does not move when the word arrives.
+            .overlay(alignment: .top) {
+                if let status = status(tick) {
+                    Text(status)
+                        .sectionLabelStyle()
+                        .id(status)
+                        .labelSwap(reduceMotion: reduceMotion)
+                        .lineLimit(1)
+                        // Placed by its own bottom edge, six points clear of the
+                        // top of the clock's frame — which is itself a little
+                        // above the digits, the ascender space being part of it.
+                        .alignmentGuide(.top) { $0[.bottom] + 6 }
+                }
+            }
             // Centred on the clock's weight rather than on the block's box.
             //
             // Padding the top of the pair by `p` leaves the clock
@@ -286,18 +308,6 @@ struct RunningView: View {
         // than the width beside them. Letting it reach a little past them — the
         // way an Activity ring does — buys back the diameter.
         .padding(.vertical, -14)
-        .overlay(alignment: .top) {
-            if let status = status(tick) {
-                Text(status)
-                    .sectionLabelStyle()
-                    .id(status)
-                    .labelSwap(reduceMotion: reduceMotion)
-                    // Inside the arc rather than on it: the ring now reaches
-                    // past the top of the content area, and the word sat on the
-                    // stroke.
-                    .padding(.top, 22)
-            }
-        }
         .animation(Motion.fill(reduceMotion: reduceMotion), value: status(tick))
     }
 
