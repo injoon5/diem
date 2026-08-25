@@ -100,6 +100,9 @@ struct RunningView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .animation(Motion.fill(reduceMotion: reduceMotion), value: endConfirm.isArmed)
+                    // Pause becoming play is a symbol replace, and a symbol
+                    // replace needs an animation in the transaction to run in.
+                    .animation(Motion.fill(reduceMotion: reduceMotion), value: store.isPaused)
                 }
             }
         }
@@ -189,7 +192,10 @@ struct RunningView: View {
             ) {
                 showingSubjects = true
             }
+            // Held, the whole screen steps back together. The numeral above
+            // faded and this snapped beside it.
             .opacity(store.isPaused ? 0.5 : 1)
+            .animation(Motion.fill(reduceMotion: reduceMotion), value: store.isPaused)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)

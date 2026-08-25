@@ -170,7 +170,10 @@ struct StartView: View {
         // less than the width it has available. Letting it reach a little past
         // them — the way an Activity ring does — buys back the diameter.
         .padding(.vertical, -14)
-        .animation(Motion.fill(reduceMotion: reduceMotion), value: isScrubbing)
+        // The ring's own timing, not a second one. Entering the scrub is a
+        // single event and the ring and the numeral were leaving on different
+        // curves — close enough to look like a mistake rather than a choice.
+        .animation(Motion.ringMode(reduceMotion: reduceMotion), value: isScrubbing)
         // Both bars leave when the wrist drops, and the ring — bounded by the
         // height between them, not by the width — takes all of it back at once.
         // That is most of a ring's diameter arriving in a single frame.

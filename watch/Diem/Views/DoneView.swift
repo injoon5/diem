@@ -79,8 +79,15 @@ struct DoneView: View {
                 // bargain the stop button makes: it withdraws itself rather
                 // than sitting there, since a stale question on a wrist is an
                 // accident waiting for the next tap.
-                Button(discardConfirm.isArmed ? "Discard?" : "Discard", role: .destructive) {
+                Button(role: .destructive) {
                     if discardConfirm.isArmed { discard() } else { askToDiscard() }
+                } label: {
+                    // Swapped through the same blur every other changing label
+                    // here uses. As a plain string it snapped, under an
+                    // animation modifier that had nothing to drive.
+                    Text(discardConfirm.isArmed ? "Discard?" : "Discard")
+                        .id(discardConfirm.isArmed)
+                        .labelSwap(reduceMotion: reduceMotion)
                 }
                 .buttonStyle(.plain)
                 .font(Typography.text(.footnote))
@@ -154,11 +161,13 @@ private struct EndActionButton: View {
 private struct EndActionButtonStyle: ButtonStyle {
     let tint: Color
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .glassEffect(.regular.tint(tint).interactive(), in: .capsule)
             .brightness(configuration.isPressed ? 0.08 : 0)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(Motion.standard, value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
+            .animation(Motion.press(reduceMotion: reduceMotion), value: configuration.isPressed)
     }
 }

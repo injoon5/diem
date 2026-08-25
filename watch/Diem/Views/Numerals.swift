@@ -200,7 +200,15 @@ struct HeroNumeral: View {
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     /// What this numeral *is*, held steady while its value changes.
-    private var fieldID: String { "\(measure.unit ?? "")-\(measure.motion.kind)" }
+    ///
+    /// The reserved width is part of that. An open-ended session reaching an
+    /// hour goes from `59:59` to `1:00:00` — a wider field, a smaller face and
+    /// a digit group that wasn't there before, all of which used to arrive
+    /// between one second and the next with the numeral treating it as the
+    /// same field simply rolling.
+    private var fieldID: String {
+        "\(measure.unit ?? "")-\(measure.motion.kind)-\(measure.widest)"
+    }
     /// Always-On is already dim. Stepping back from there costs legibility
     /// that the state doesn't need to buy twice.
     private var shownOpacity: Double {
@@ -269,9 +277,15 @@ struct HeroNumeral: View {
         }
         // Not while dimmed: the display refreshes about once a minute there,
         // and a blur-replace queued against it lands as stutter on the wake.
-        .animation(isLuminanceReduced ? nil : Motion.standard, value: fieldID)
+        .animation(isLuminanceReduced ? nil : Motion.fill(reduceMotion: reduceMotion), value: fieldID)
         .opacity(shownOpacity)
-        .animation(Motion.standard, value: shownOpacity)
+        // Suppressed while dimmed like everything else on this screen: the
+        // display refreshes about once a minute there, and a fade queued
+        // against it lands as stutter on the wake.
+        .animation(
+            isLuminanceReduced ? nil : Motion.fill(reduceMotion: reduceMotion),
+            value: shownOpacity
+        )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(measure.spoken)
     }
@@ -293,6 +307,7 @@ private struct HoursMinutesNumeral: View {
     let motion: NumeralMotion
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     /// `1h 30m` split back into its two numbers. Parsing the formatted string
     /// keeps `Format` the single place that decides how a total reads.
@@ -317,7 +332,13 @@ private struct HoursMinutesNumeral: View {
             digits(parts.minutes)
             unit("m")
         }
-        .animation(Motion.numeric(reduceMotion: reduceMotion), value: value)
+        // The sibling above suppresses its roll while dimmed; this one did not,
+        // and it is the numeral the Start screen shows in Always-On once the
+        // day is past an hour.
+        .animation(
+            isLuminanceReduced ? nil : Motion.numeric(reduceMotion: reduceMotion),
+            value: value
+        )
     }
 
     private func digits(_ value: String) -> some View {

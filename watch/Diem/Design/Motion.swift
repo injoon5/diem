@@ -6,6 +6,21 @@ enum Motion {
     /// and leave a visible seam.
     static let standard = Animation.spring(response: 0.35, dampingFraction: 1.0)
 
+    /// Under the finger. Everything else here answers a state change; this
+    /// answers a touch, and a touch that takes a third of a second to be
+    /// acknowledged reads as the watch thinking about it. Half the response of
+    /// `standard`, and a little bounce left in so the release has some life.
+    static func press(reduceMotion: Bool) -> Animation {
+        reduceMotion
+            ? .linear(duration: 0.1)
+            : .spring(response: 0.22, dampingFraction: 0.86)
+    }
+
+    /// One root screen replacing another.
+    static func screen(reduceMotion: Bool) -> Animation {
+        reduceMotion ? .linear(duration: 0.16) : standard
+    }
+
     /// Digit rolls. Reduce Motion swaps the roll for a plain fade.
     static func numeric(reduceMotion: Bool) -> Animation {
         reduceMotion ? .linear(duration: 0.12) : standard
