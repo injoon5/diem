@@ -50,23 +50,40 @@ See `web/README.md`. `npm run check && npm test && npm run build`.
 ## What's verified, and what isn't
 
 The Foundation-only core of the watch app — the day boundary, the number
-formats, the crown stepping curve and session assembly — compiles and its 23
-tests pass under Swift 6.3 on Linux (`watch/DiemTests`, run on a Mac through the
-`Diem` scheme, or standalone against those four files). Every Swift file parses
-clean. Everything that touches SwiftUI, SwiftData, WatchKit or AppIntents has
-**not** been compiled, because that needs an Apple SDK.
+formats, the crown stepping curve, session assembly, the live-session summary
+behind the running clock and the goal lap the ring and the complication's bar
+both draw — compiles and its 48 tests pass under Swift 6.3 on Linux
+(`watch/DiemTests`, run on a Mac through the `Diem` scheme, or standalone
+against `Day`, `Format`, `Scrub`, `SessionAssembly`, `Snapshot` and the
+`ISO8601` helper out of `Sync/DTO`). Every Swift file parses clean under `-swift-version 6`.
+Everything that touches SwiftUI, SwiftData, WatchKit or AppIntents has **not**
+been compiled, because that needs an Apple SDK.
+
+Anything on a redraw path that can be pulled out into that core should be: the
+store's derived reads are held in a cache, and `liveSummary()` is where the
+arithmetic behind them lives precisely so it can be tested here rather than
+taken on faith. It is checked against `sessions()` — the assembly it stands in
+for — so the fast path can't drift from the slow one unnoticed.
 
 The web side is verified end to end: typecheck, build, unit tests, and a live
 run against a real Postgres covering pairing, idempotent interval push,
 last-write-wins subjects, cursored pull, the 4am bucketing and the 401 paths.
 
-Two things from the plan are deliberately not wired yet, both flagged there as
-needing confirmation against the watchOS 27 SDK first:
+Session relevance is now wired: `SnapshotProvider.relevance()` claims a window
+for as long as a session is running, so the Smart Stack surfaces the card on
+session start instead of waiting to be added by hand. It is written against the
+documented watchOS `WidgetRelevance` API but has not been compiled — that needs
+an Apple SDK, like everything else below.
 
-- The Smart Stack `RelevanceConfiguration` — the relevance signal on session
-  start, and points-of-interest relevance for the start card.
-- `AccessoryWidgetGroup` for the rectangular complication, which is laid out by
-  hand instead.
+Two things from the plan are still not wired, both flagged there as needing
+confirmation against the watchOS 27 SDK first:
+
+- Points-of-interest relevance, for surfacing the start card at known study
+  locations.
+- `AccessoryWidgetGroup` for the rectangular complication. It stays laid out by
+  hand, and the goal bar with it: a stock `accessoryLinearCapacity` gauge draws
+  the same thing at 100% and at 200%, where the ring laps. Worth revisiting only
+  if the group buys back something the hand layout can't do.
 
 And two to check on hardware, as the plan says: the overflow ring's drop shadow
 depends on real OLED contrast, and the crown detent haptics want prototyping

@@ -53,10 +53,7 @@ struct RootView: View {
             .containerBackground(.black, for: .navigation)
             // Scoped to this one value: everything below — the ring tracking
             // the crown above all — has to stay free of an inherited animation.
-            .animation(
-                reduceMotion ? .linear(duration: 0.16) : Motion.standard,
-                value: screen.id
-            )
+            .animation(Motion.screen(reduceMotion: reduceMotion), value: screen.id)
         }
         // No app-wide tint: the accent belongs to the ring and the pill fill,
         // never to text. Everything else is primary or secondary on black, so

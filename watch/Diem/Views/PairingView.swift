@@ -12,6 +12,9 @@ struct PairingView: View {
                 Text(code)
                     .numeralStyle(size: 32, tracking: 2, weight: .medium)
                     .textCase(.uppercase)
+                    // Spelled out, character by character. A four-character
+                    // code read as a word is a code you have to ask for twice.
+                    .accessibilityLabel(code.map(String.init).joined(separator: " "))
                 Text("Enter this on diem.app")
                     .font(Typography.text(.footnote))
                     .foregroundStyle(.secondary)

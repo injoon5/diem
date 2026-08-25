@@ -20,8 +20,10 @@ enum Palette {
     /// second data value rather than an empty track.
     static let ghostTrack = Color.white.opacity(0.10)
 
-    /// The lap past 100%.
-    static let overflow = accent.opacity(0.55)
+    /// The pass already completed, left showing beneath the overflow drawn over
+    /// the top of it. The ring and the complication's bar dim it by the same
+    /// amount, or they are not the same reading in two shapes.
+    static func lapped(_ color: Color) -> Color { color.opacity(0.42) }
 
     static func accent(luminanceReduced: Bool) -> Color {
         luminanceReduced ? accentDimmed : accent
@@ -49,8 +51,14 @@ enum Palette {
 
     static var subjectCount: Int { subjects.count }
 
+    /// Free time — a session with no subject. Deliberately not a colour out of
+    /// the palette above: it is the absence of one, and it has to read that way
+    /// sitting beside them. Four spellings of this used to be scattered across
+    /// the views, no two alike.
+    static let free = Color.white.opacity(0.35)
+
     static func subject(_ index: Int?) -> Color {
-        guard let index else { return .secondary }
+        guard let index else { return free }
         return subjects[((index % subjects.count) + subjects.count) % subjects.count]
     }
 }

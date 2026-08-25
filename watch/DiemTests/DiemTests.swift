@@ -65,9 +65,22 @@ struct FormatTests {
 
     @Test("An hour and over reads as hours and minutes")
     func hours() {
-        #expect(Format.total(60 * 60).value == "1h 0m")
+        #expect(Format.total(60 * 60).value == "1h 00m")
         #expect(Format.total(72 * 60).value == "1h 12m")
         #expect(Format.total(72 * 60).unit == nil)
+    }
+
+    @Test("A total's minutes hold two digits so the unit labels never shift")
+    func totalMinutesPadded() {
+        #expect(Format.total(65 * 60).value == "1h 05m")
+        #expect(Format.total(65 * 60).widest == "88h 88m")
+    }
+
+    @Test("A measure spells itself the same way in prose as in the numeral")
+    func measureText() {
+        #expect(Format.total(2 * 3600).text == "2h 00m")
+        #expect(Format.total(15 * 60).text == "15m")
+        #expect(Format.clock(25 * 60, span: 25 * 60).text == "25:00")
     }
 
     @Test("Countdowns reserve the width they can grow into")
@@ -81,6 +94,22 @@ struct FormatTests {
     @Test("Minutes hold two digits so the clock never shifts")
     func clockMinutesPadded() {
         #expect(Format.clock(5 * 60, span: 25 * 60).value == "05:00")
+    }
+
+    @Test("The count says the same thing running or held")
+    func count() {
+        // A timed session reads what is left, whether it is running or paused.
+        let timed = Format.count(remaining: 900, elapsed: 600, plannedSec: 1500)
+        #expect(timed.value == "15:00")
+        #expect(timed.motion == .countdown)
+
+        // An open-ended one reads what it has done.
+        let free = Format.count(remaining: nil, elapsed: 600, plannedSec: nil)
+        #expect(free.value == "10:00")
+        #expect(free.motion == .countUp)
+
+        // Past the deadline it rolls into overtime rather than freezing at zero.
+        #expect(Format.count(remaining: -200, elapsed: 1700, plannedSec: 1500).value == "+03:20")
     }
 
     @Test("Overtime carries its sign")
@@ -153,6 +182,86 @@ struct ScrubTests {
     }
 }
 
+@Suite("Streaks")
+struct StreakTests {
+    private let start = ISO8601.parse("2026-03-04T04:00:00Z")!
+
+    /// Oldest first, the way the store hands them over.
+    private func days(_ seconds: [TimeInterval]) -> [(day: Date, seconds: TimeInterval)] {
+        seconds.enumerated().map { index, value in
+            (day: start.addingTimeInterval(Double(index) * 86_400), seconds: value)
+        }
+    }
+
+    @Test("Consecutive days count back from the most recent")
+    func consecutive() {
+        #expect(days([0, 0, 60, 60, 60]).studyStreak == 3)
+    }
+
+    @Test("Today not having started yet doesn't break it")
+    func openToday() {
+        #expect(days([60, 60, 0]).studyStreak == 2)
+    }
+
+    @Test("A gap before today does break it")
+    func gap() {
+        #expect(days([60, 60, 0, 60]).studyStreak == 1)
+        #expect(days([60, 60, 0, 60, 0]).studyStreak == 1)
+    }
+
+    @Test("Nothing studied is no streak")
+    func none() {
+        #expect(days([0, 0, 0]).studyStreak == 0)
+        #expect([(day: Date, seconds: TimeInterval)]().studyStreak == 0)
+    }
+}
+
+@Suite("Goal laps")
+struct LapTests {
+    @Test("Under the goal, the fraction is the progress")
+    func partial() {
+        #expect(Lap(turns: 0.5).fraction == 0.5)
+        #expect(Lap(turns: 0.5).isLapped == false)
+    }
+
+    @Test("Exactly the goal is a full track, not a lap")
+    func exact() {
+        #expect(Lap(turns: 1).fraction == 1)
+        #expect(Lap(turns: 1).isLapped == false)
+    }
+
+    @Test("Past the goal, what's drawn is the overflow over the completed pass")
+    func lapped() {
+        #expect(Lap(turns: 1.25).isLapped == true)
+        #expect(Lap(turns: 1.25).fraction == 0.25)
+    }
+
+    @Test("A whole number of laps reads full, never empty")
+    func wholeLaps() {
+        #expect(Lap(turns: 2).isLapped == true)
+        #expect(Lap(turns: 2).fraction == 1)
+    }
+
+    @Test("Nothing studied leaves the track empty")
+    func empty() {
+        #expect(Lap(turns: 0).fraction == 0)
+        #expect(Lap(turns: -1).fraction == 0)
+        #expect(Lap(turns: -1).isLapped == false)
+    }
+
+    @Test("A snapshot laps against its own goal")
+    func fromSnapshot() {
+        let lap = DiemSnapshot(todaySec: 3 * 3600, goalSec: 2 * 3600).lap()
+        #expect(lap.isLapped)
+        #expect(lap.fraction == 0.5)
+    }
+
+    @Test("No goal is no reading")
+    func noGoal() {
+        #expect(DiemSnapshot(todaySec: 3600, goalSec: 0).lap().turns == 0)
+    }
+}
+
 @Suite("Sessions from intervals")
 struct SessionTests {
     /// Session assembly is pure arithmetic over the log, so it can be tested
@@ -181,6 +290,113 @@ struct SessionTests {
             endedAt: length.map { start.addingTimeInterval(offset + $0) },
             plannedSec: planned
         )
+    }
+
+    @Test("The live summary reads the same total as the session it stands in for")
+    func liveSummaryAgrees() {
+        let session = UUID()
+        let now = start.addingTimeInterval(2400)
+        let log = [
+            span(session: session, offset: 0, length: 600, planned: 1500),
+            span(session: session, offset: 900, length: nil),
+        ]
+        let summary = log.liveSummary()
+        #expect(summary?.studied(asOf: now) == log.sessions(asOf: now).first?.studiedSec)
+        #expect(summary?.studied(asOf: now) == 2100)
+        #expect(summary?.startedAt == start)
+        #expect(summary?.plannedSec == 1500)
+        #expect(summary?.isPaused == false)
+    }
+
+    @Test("The runs behind the ring add up to the count in front of it")
+    func liveSummaryRuns() {
+        let session = UUID()
+        let (math, physics) = (UUID(), UUID())
+        let now = start.addingTimeInterval(2400)
+        let log = [
+            span(session: session, subject: math, offset: 0, length: 600, planned: 1500),
+            span(session: session, subject: physics, offset: 900, length: 300),
+            span(session: session, subject: physics, offset: 1800, length: nil),
+        ]
+        let summary = log.liveSummary()
+        let runs = summary?.runs(asOf: now) ?? []
+        // Physics either side of a pause is one run, and the one still running
+        // is measured to now.
+        #expect(runs == [
+            SubjectRun(subjectID: math, seconds: 600),
+            SubjectRun(subjectID: physics, seconds: 900),
+        ])
+        #expect(runs.reduce(0) { $0 + $1.seconds } == summary?.studied(asOf: now))
+    }
+
+    @Test("A paused summary holds the count where it stopped")
+    func liveSummaryPaused() {
+        let session = UUID()
+        let log = [
+            span(session: session, offset: 0, length: 600),
+            span(session: session, offset: 900, length: 300),
+        ]
+        let summary = log.liveSummary()
+        #expect(summary?.isPaused == true)
+        // Long past the last interval, and the count hasn't moved.
+        #expect(summary?.studied(asOf: start.addingTimeInterval(9000)) == 900)
+    }
+
+    @Test("The live subject is whatever is open, or the last one while paused")
+    func liveSummarySubject() {
+        let session = UUID()
+        let (math, physics) = (UUID(), UUID())
+        let running = [
+            span(session: session, subject: math, offset: 0, length: 600),
+            span(session: session, subject: physics, offset: 600, length: nil),
+        ]
+        #expect(running.liveSummary()?.subjectID == physics)
+
+        let paused = [
+            span(session: session, subject: physics, offset: 0, length: 600),
+            span(session: session, subject: math, offset: 600, length: 300),
+        ]
+        #expect(paused.liveSummary()?.subjectID == math)
+    }
+
+    @Test("Nothing to summarise is nil, not zero")
+    func liveSummaryEmpty() {
+        #expect([Span]().liveSummary() == nil)
+    }
+
+    @Test("Runs keep the order the day happened in")
+    func runsInOrder() {
+        let session = UUID()
+        let (math, physics) = (UUID(), UUID())
+        let log = [
+            span(session: session, subject: math, offset: 0, length: 600),
+            span(session: session, subject: physics, offset: 600, length: 300),
+            span(session: session, subject: math, offset: 900, length: 900),
+        ]
+        let runs = log.subjectRuns()
+        // Three runs, not two totals: going back to a subject is a new stretch.
+        #expect(runs.count == 3)
+        #expect(runs.map(\.subjectID) == [math, physics, math])
+        #expect(runs.map(\.seconds) == [600, 300, 900])
+    }
+
+    @Test("A pause splits an interval but not a run")
+    func runsAcrossPause() {
+        let session = UUID()
+        let math = UUID()
+        let log = [
+            span(session: session, subject: math, offset: 0, length: 600),
+            span(session: session, subject: math, offset: 1200, length: 600),
+        ]
+        #expect(log.subjectRuns() == [SubjectRun(subjectID: math, seconds: 1200)])
+    }
+
+    @Test("A run still running is measured to now")
+    func runsWithOpenInterval() {
+        let session = UUID()
+        let log = [span(session: session, offset: 0, length: nil)]
+        let runs = log.subjectRuns(asOf: start.addingTimeInterval(300))
+        #expect(runs == [SubjectRun(subjectID: nil, seconds: 300)])
     }
 
     @Test("A pause leaves a real gap and the studied total skips it")

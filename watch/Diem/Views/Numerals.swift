@@ -1,5 +1,22 @@
 import SwiftUI
 
+extension NumeralMotion {
+    /// How a change in this field is drawn. Reduce Motion swaps the roll for a
+    /// plain fade. Lives here rather than in `Format`, which stays free of
+    /// SwiftUI so the number rules can be compiled and tested anywhere.
+    func contentTransition(reduceMotion: Bool) -> ContentTransition {
+        guard !reduceMotion else { return .opacity }
+        switch self {
+        // A total can jump by any amount, so the system gets the number itself
+        // and works out the direction and distance of the roll.
+        case .value(let number): return .numericText(value: number)
+        // A count only ever goes one way, and its magnitude means nothing.
+        case .countdown: return .numericText(countsDown: true)
+        case .countUp: return .numericText(countsDown: false)
+        }
+    }
+}
+
 /// A numeral that never moves.
 ///
 /// `.monospacedDigit()` fixes per-digit width but not total string width, so the
@@ -20,20 +37,17 @@ struct NumeralText: View {
     /// share — which is what left it sitting visibly off-centre. A clock is one
     /// field: same face, same baseline, colon included.
     var drawsAsOneField = false
+    /// Drop the seconds off the end of the reading.
+    ///
+    /// Always-On is the same clock with its last two digits taken away, not a
+    /// screen of its own, so they leave on a slide and come back the same way.
+    var secondsHidden = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
-    /// Reduce Motion swaps the roll for a plain fade.
     private var transition: ContentTransition {
-        guard !reduceMotion else { return .opacity }
-        switch motion {
-        // A total can jump by any amount, so the system gets the number itself
-        // and works out the direction and distance of the roll.
-        case .value(let number): return .numericText(value: number)
-        // A count only ever goes one way, and its magnitude means nothing.
-        case .countdown: return .numericText(countsDown: true)
-        case .countUp: return .numericText(countsDown: false)
-        }
+        motion.contentTransition(reduceMotion: reduceMotion)
     }
 
     private struct DigitGroup: Identifiable {
@@ -57,18 +71,56 @@ struct NumeralText: View {
         }
     }
 
+    /// The reading either side of its last colon: what stays when the seconds
+    /// are dropped, and the seconds themselves. Each half reserves its own
+    /// width, so dropping one cannot shift the other.
+    private var halves: (head: DigitGroup, seconds: DigitGroup?) {
+        let whole = DigitGroup(id: 0, value: value, widest: widest)
+        guard value.filter({ $0 == ":" }).count == widest.filter({ $0 == ":" }).count,
+              let valueCut = value.lastIndex(of: ":"),
+              let widestCut = widest.lastIndex(of: ":")
+        else { return (whole, nil) }
+        return (
+            DigitGroup(id: 0, value: String(value[..<valueCut]), widest: String(widest[..<widestCut])),
+            DigitGroup(id: 1, value: String(value[valueCut...]), widest: String(widest[widestCut...]))
+        )
+    }
+
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(groups) { group in
-                if group.id > 0 {
-                    Text(":")
-                        .numeralStyle(size: size, tracking: 0, weight: weight)
-                        .opacity(0.5)
+            if drawsAsOneField {
+                let halves = halves
+                digits(halves.head.value, reserving: halves.head.widest)
+                if let seconds = halves.seconds, !secondsHidden {
+                    digits(seconds.value, reserving: seconds.widest)
+                        // Out to the trailing edge, fading as it goes, while
+                        // what's left recentres in the space it gave up.
+                        .transition(
+                            reduceMotion
+                                ? AnyTransition.opacity
+                                : AnyTransition.move(edge: .trailing).combined(with: .opacity)
+                        )
                 }
-                digits(group.value, reserving: group.widest)
+            } else {
+                ForEach(groups) { group in
+                    if group.id > 0 {
+                        Text(":")
+                            .numeralStyle(size: size, tracking: 0, weight: weight)
+                            .opacity(0.5)
+                    }
+                    digits(group.value, reserving: group.widest)
+                }
             }
         }
-        .animation(Motion.numeric(reduceMotion: reduceMotion), value: value)
+        // Nothing rolls while dimmed — the display refreshes about once a
+        // minute, and a queued roll lands as stutter on the next wake. Named
+        // here rather than blanketed over the view, so the seconds leaving can
+        // still be seen.
+        .animation(
+            isLuminanceReduced ? nil : Motion.numeric(reduceMotion: reduceMotion),
+            value: value
+        )
+        .animation(Motion.dimming(reduceMotion: reduceMotion), value: secondsHidden)
     }
 
     /// The field is reserved at its widest value and the current one is drawn
@@ -112,19 +164,60 @@ struct NumeralText: View {
 ///
 /// The unit is its own `Text` at ~40% of the numeral, `.regular`, `.secondary`,
 /// baseline-aligned — and width-reserved, so the numeral group stays centred
-/// rather than sliding as `m` becomes `h`.
+/// rather than sliding as `m` becomes `h`. It sits inside the field that gets
+/// replaced, so it leaves with the digits it belongs to instead of blinking
+/// out from under them.
 struct HeroNumeral: View {
+    /// How present the numeral is.
+    ///
+    /// A clock that is counting has the screen. Past its deadline it steps
+    /// back — the session has already done what was asked of it — and held it
+    /// steps back further, because it is no longer measuring anything and
+    /// should stop insisting that it is.
+    enum Prominence {
+        case counting
+        case overtime
+        case held
+
+        var opacity: Double {
+            switch self {
+            case .counting: 1
+            case .overtime: 0.6
+            case .held: 0.45
+            }
+        }
+    }
+
     let measure: Format.Measure
     var size: CGFloat = Typography.Size.hero
     var tracking: CGFloat = Typography.Size.heroTracking
     var weight: Font.Weight = .medium
-    var dimmed = false
+    var prominence: Prominence = .counting
     var drawsAsOneField = false
+    var secondsHidden = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     /// What this numeral *is*, held steady while its value changes.
-    private var fieldID: String { "\(measure.unit ?? "")-\(measure.motion.kind)" }
+    ///
+    /// The reserved width is part of that. An open-ended session reaching an
+    /// hour goes from `59:59` to `1:00:00` — a wider field, a smaller face and
+    /// a digit group that wasn't there before, all of which used to arrive
+    /// between one second and the next with the numeral treating it as the
+    /// same field simply rolling.
+    private var fieldID: String {
+        "\(measure.unit ?? "")-\(measure.motion.kind)-\(measure.widest)"
+    }
+    /// Always-On is already dim. Stepping back from there costs legibility
+    /// that the state doesn't need to buy twice.
+    private var shownOpacity: Double {
+        isLuminanceReduced ? max(0.6, prominence.opacity) : prominence.opacity
+    }
+
+    private var unitFont: Font {
+        Typography.unit(size * Typography.Size.unitRatio, behind: weight)
+    }
     /// Totals over an hour keep their semantic `1h 30m` value, but the units
     /// are drawn separately so they remain subordinate to the digits.
     private var isHoursMinutes: Bool {
@@ -132,7 +225,10 @@ struct HeroNumeral: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 2) {
+        // One child, and it stays one child: the animation has to hang off a
+        // view that outlives the `.id` below, or the transition it is meant to
+        // drive is destroyed along with the numeral it was driving.
+        HStack(spacing: 0) {
             Group {
                 if isHoursMinutes {
                     HoursMinutesNumeral(
@@ -143,15 +239,33 @@ struct HeroNumeral: View {
                         motion: measure.motion
                     )
                 } else {
-                    NumeralText(
-                        value: measure.value,
-                        widest: measure.widest,
-                        size: size,
-                        tracking: tracking,
-                        weight: weight,
-                        motion: measure.motion,
-                        drawsAsOneField: drawsAsOneField
-                    )
+                    // The unit travels with the digits. Left outside this
+                    // group it wasn't part of the swap, so crossing the hour
+                    // blurred `59` into `1h 00m` while the `m` beside it
+                    // simply stopped existing.
+                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        NumeralText(
+                            value: measure.value,
+                            widest: measure.widest,
+                            size: size,
+                            tracking: tracking,
+                            weight: weight,
+                            motion: measure.motion,
+                            drawsAsOneField: drawsAsOneField,
+                            secondsHidden: secondsHidden
+                        )
+                        if let unit = measure.unit {
+                            Text("m")
+                                .font(unitFont)
+                                .hidden()
+                                .overlay {
+                                    Text(unit)
+                                        .font(unitFont)
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize()
+                                }
+                        }
+                    }
                 }
                 // `59 m` becoming `1h 30m`, or `0:00` becoming `+0:00`, is not a
                 // digit rolling over — it is a different quantity in a different
@@ -160,20 +274,18 @@ struct HeroNumeral: View {
             }
             .id(fieldID)
             .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
-            if let unit = measure.unit {
-                Text("m")
-                    .font(Typography.unit(size * 0.4))
-                    .hidden()
-                    .overlay {
-                        Text(unit)
-                            .font(Typography.unit(size * 0.4))
-                            .foregroundStyle(.secondary)
-                            .fixedSize()
-                    }
-            }
         }
-        .animation(Motion.standard, value: fieldID)
-        .foregroundStyle(dimmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+        // Not while dimmed: the display refreshes about once a minute there,
+        // and a blur-replace queued against it lands as stutter on the wake.
+        .animation(isLuminanceReduced ? nil : Motion.fill(reduceMotion: reduceMotion), value: fieldID)
+        .opacity(shownOpacity)
+        // Suppressed while dimmed like everything else on this screen: the
+        // display refreshes about once a minute there, and a fade queued
+        // against it lands as stutter on the wake.
+        .animation(
+            isLuminanceReduced ? nil : Motion.fill(reduceMotion: reduceMotion),
+            value: shownOpacity
+        )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(measure.spoken)
     }
@@ -181,7 +293,12 @@ struct HeroNumeral: View {
 
 /// `1h 30m`, with the digits carrying the visual weight and the unit symbols
 /// acting as quiet labels. Minutes are always present — a total that drops to
-/// `1h` on the hour reads as a rounded estimate rather than a measurement.
+/// `1h` on the hour reads as a rounded estimate rather than a measurement — and
+/// always two digits, because these units sit *inside* the numeral rather than
+/// after it. A minute group that sizes to its own value pushes the `m` along
+/// with it and re-centres the whole reading, which under a fast crown is the
+/// labels skating about twice a second. `Format.total` pads them for that
+/// reason; the group is a fixed width from `1h 00m` to `9h 59m`.
 private struct HoursMinutesNumeral: View {
     let value: String
     let size: CGFloat
@@ -190,6 +307,7 @@ private struct HoursMinutesNumeral: View {
     let motion: NumeralMotion
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     /// `1h 30m` split back into its two numbers. Parsing the formatted string
     /// keeps `Format` the single place that decides how a total reads.
@@ -201,12 +319,7 @@ private struct HoursMinutesNumeral: View {
     }
 
     private var digitTransition: ContentTransition {
-        guard !reduceMotion else { return .opacity }
-        switch motion {
-        case .value(let number): return .numericText(value: number)
-        case .countdown: return .numericText(countsDown: true)
-        case .countUp: return .numericText(countsDown: false)
-        }
+        motion.contentTransition(reduceMotion: reduceMotion)
     }
 
     var body: some View {
@@ -219,7 +332,13 @@ private struct HoursMinutesNumeral: View {
             digits(parts.minutes)
             unit("m")
         }
-        .animation(Motion.numeric(reduceMotion: reduceMotion), value: value)
+        // The sibling above suppresses its roll while dimmed; this one did not,
+        // and it is the numeral the Start screen shows in Always-On once the
+        // day is past an hour.
+        .animation(
+            isLuminanceReduced ? nil : Motion.numeric(reduceMotion: reduceMotion),
+            value: value
+        )
     }
 
     private func digits(_ value: String) -> some View {
@@ -232,7 +351,7 @@ private struct HoursMinutesNumeral: View {
 
     private func unit(_ value: String) -> some View {
         Text(value)
-            .font(Typography.unit(size * 0.36))
+            .font(Typography.unit(size * Typography.Size.inlineUnitRatio, behind: weight))
             .foregroundStyle(.secondary)
             .fixedSize()
     }

@@ -5,13 +5,16 @@ import WidgetKit
 /// The Smart Stack card. Nothing here depends on the app being foregrounded —
 /// crown out and this holds the session.
 ///
-/// Not wired yet: the `RelevanceConfiguration` that floats this to the top of
-/// the stack on session start, and points-of-interest relevance for surfacing
-/// the start card at known study locations. Both want confirming against the
-/// watchOS 27 SDK before being written in.
+/// The provider claims relevance while a session is running, which is what
+/// surfaces this in the stack on its own rather than only after being added by
+/// hand. Points-of-interest relevance for the start card — the one at known
+/// study locations — is still not wired.
 struct SessionWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: SnapshotStore.sessionWidgetKind, provider: SnapshotProvider()) { entry in
+        StaticConfiguration(
+            kind: SnapshotStore.sessionWidgetKind,
+            provider: SnapshotProvider(claimsRelevance: true)
+        ) { entry in
             SessionWidgetView(snapshot: entry.snapshot, now: entry.date)
                 .containerBackground(.clear, for: .widget)
         }
@@ -39,9 +42,13 @@ struct SessionWidgetView: View {
                         .widgetAccentable()
                 }
                 Spacer(minLength: 0)
-                // The same App Intent the app runs.
+                // The same App Intent the app runs. Sized as a target rather
+                // than as a glyph: at its own size the icon is a few points
+                // across on a card that also opens the app when missed.
                 Button(intent: EndSessionIntent()) {
                     Image(systemName: "stop.fill")
+                        .frame(width: 30, height: 30)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("End session")
@@ -58,6 +65,8 @@ struct SessionWidgetView: View {
                 Spacer(minLength: 0)
                 Button(intent: StartSessionIntent()) {
                     Image(systemName: "play.fill")
+                        .frame(width: 30, height: 30)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Start studying")
@@ -69,7 +78,18 @@ struct SessionWidgetView: View {
     @ViewBuilder
     private func count(for session: DiemSnapshot.Live) -> some View {
         if session.isPaused {
-            Text(Format.duration(session.pausedElapsedSec))
+            // Held where it stopped, in the shape it stopped in. This branch
+            // used to show studied time while the branch above it showed time
+            // remaining, so pausing a 25-minute session ten minutes in swapped
+            // `15:00` for `10m` — a different number measuring a different
+            // thing, in the same place on the same card.
+            Text(
+                Format.count(
+                    remaining: session.plannedSec.map { Double($0) - session.pausedElapsedSec },
+                    elapsed: session.pausedElapsedSec,
+                    plannedSec: session.plannedSec
+                ).value
+            )
         } else if let deadline = session.deadline, deadline > now {
             Text(timerInterval: session.countingFrom...deadline, countsDown: true)
         } else if let deadline = session.deadline {

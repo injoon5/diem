@@ -15,11 +15,6 @@ enum Day {
         return midnight.addingTimeInterval(Double(boundaryHour) * 3600)
     }
 
-    /// The calendar date a study-day is filed under — the date of its 04:00 start.
-    static func key(for date: Date, calendar: Calendar = .current) -> DateComponents {
-        calendar.dateComponents([.year, .month, .day], from: start(of: date, calendar: calendar))
-    }
-
     static func isSameDay(_ a: Date, _ b: Date, calendar: Calendar = .current) -> Bool {
         start(of: a, calendar: calendar) == start(of: b, calendar: calendar)
     }

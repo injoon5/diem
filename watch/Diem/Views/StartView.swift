@@ -16,6 +16,10 @@ struct StartView: View {
     @State private var showingSubjects = false
     @State private var showingSettings = false
     @State private var showingMetrics = false
+    /// A fixed anchor, so the minute tick doesn't re-phase on every redraw —
+    /// and the crown, which redraws this view far faster than once a minute,
+    /// doesn't hand the timeline a new schedule on every event.
+    @State private var anchor = Date.now
 
     /// The whole step the crown has settled nearest — what the numeral reads
     /// and what a tap on Start commits.
@@ -28,8 +32,18 @@ struct StartView: View {
     }
     private var isScrubbing: Bool { crownDetent > 0 }
 
+    /// The chosen subject, if it is still one you can choose.
+    ///
+    /// `subject(_:)` answers for history too, so it returns a subject that has
+    /// been archived or deleted — right on the Done screen, wrong here, where
+    /// the Start screen went on offering a subject that Settings had just got
+    /// rid of, and would have started a session under it.
+    private var chosenSubject: Subject? {
+        store.subject(subjectID).flatMap { $0.isVisible ? $0 : nil }
+    }
+
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 60)) { context in
+        TimelineView(.periodic(from: anchor, by: 60)) { context in
             content(now: context.date)
         }
         .containerBackground(.black, for: .navigation)
@@ -58,28 +72,35 @@ struct StartView: View {
             Haptics.crownDetent()
         }
         .toolbar {
-            // Keep the two utility actions in the top corners.
-            ToolbarItem(placement: .topBarLeading) {
-                Button { showingSettings = true } label: {
-                    Image(systemName: "gearshape")
-                }
-                .accessibilityLabel("Settings")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { showingMetrics = true } label: {
-                    Image(systemName: "chart.bar")
-                }
-                .accessibilityLabel("Metrics")
-            }
+            // Nothing on screen is tappable while the wrist is down, so nothing
+            // is drawn: the bottom bar already went, and the top two were left
+            // lit on their own — which also pulled the ring off centre, since
+            // only one of the two bars was giving its space back.
             if !isLuminanceReduced {
+                // Keep the two utility actions in the top corners.
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showingSettings = true } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingMetrics = true } label: {
+                        Image(systemName: "chart.bar")
+                    }
+                    .accessibilityLabel("Metrics")
+                }
                 // The subject picker is a bottom-leading control, while the
                 // start action stays pinned to the bottom edge instead of
                 // drifting with the ring's flexible space.
                 ToolbarItem(placement: .bottomBar) {
+                    // Looked up once. The crown redraws this bar on every
+                    // event, and the name and the colour are one subject.
+                    let subject = chosenSubject
                     HStack(spacing: 6) {
                         SubjectButton(
-                            name: store.subject(subjectID)?.name,
-                            colorIndex: store.subject(subjectID)?.colorIndex
+                            name: subject?.name,
+                            colorIndex: subject?.colorIndex
                         ) {
                             showingSubjects = true
                         }
@@ -98,7 +119,7 @@ struct StartView: View {
             }
         }
         .sheet(isPresented: $showingSubjects) {
-            SubjectPicker(selection: subjectID) { picked in
+            SubjectPicker(selection: chosenSubject?.id) { picked in
                 subjectID = picked
                 subjectChosen = true
                 showingSubjects = false
@@ -115,7 +136,7 @@ struct StartView: View {
 
     private func content(now: Date) -> some View {
         ZStack {
-            StartRing(
+            GoalRing(
                 goalTurns: store.todayProgress(asOf: now),
                 scrubTurns: scrubTurns,
                 isScrubbing: isScrubbing
@@ -134,6 +155,10 @@ struct StartView: View {
             // beat as the ring's change of mode.
             .id(isScrubbing)
             .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
+            // The numeral holds still while dimmed. The ring around it doesn't
+            // have to, and this used to be applied to the whole screen — which
+            // swallowed the one movement worth seeing.
+            .stillWhenDimmed(isLuminanceReduced)
         }
         // Geometric centring puts the ring too low: the bottom bar carries a
         // filled accent circle and the top bar two small outlined glyphs, so
@@ -145,15 +170,21 @@ struct StartView: View {
         // less than the width it has available. Letting it reach a little past
         // them — the way an Activity ring does — buys back the diameter.
         .padding(.vertical, -14)
-        .animation(Motion.fill(reduceMotion: reduceMotion), value: isScrubbing)
+        // The ring's own timing, not a second one. Entering the scrub is a
+        // single event and the ring and the numeral were leaving on different
+        // curves — close enough to look like a mistake rather than a choice.
+        .animation(Motion.ringMode(reduceMotion: reduceMotion), value: isScrubbing)
+        // Both bars leave when the wrist drops, and the ring — bounded by the
+        // height between them, not by the width — takes all of it back at once.
+        // That is most of a ring's diameter arriving in a single frame.
+        .animation(Motion.dimming(reduceMotion: reduceMotion), value: isLuminanceReduced)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isScrubbing ? "Session length" : "Today")
-        .stillWhenDimmed(isLuminanceReduced)
     }
 
     private func start() {
         let planned = isScrubbing ? Int(scrubSeconds) : nil
-        store.start(subjectID: subjectID, plannedSec: planned)
+        store.start(subjectID: chosenSubject?.id, plannedSec: planned)
         Haptics.start()
         resettingCrown = crownStep != 0
         crownStep = 0

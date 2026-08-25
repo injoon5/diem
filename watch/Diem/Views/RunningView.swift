@@ -10,23 +10,30 @@ struct RunningView: View {
     @State private var showingSubjects = false
     @State private var announcedZero = false
     /// The stop button has been tapped once and is waiting to be confirmed.
-    @State private var confirmingEnd = false
-    /// Withdraws the confirmation if it is left standing.
-    @State private var confirmTimeout: Task<Void, Never>?
+    @State private var endConfirm = Confirmation()
     /// A fixed anchor, so the tick doesn't re-phase on every redraw.
     @State private var anchor = Date.now
 
+    /// Dimmed, the display refreshes about once a minute, so a per-second
+    /// schedule there only burns budget. Paused, the numeral is frozen — the
+    /// same waste with the screen lit.
+    private var cadence: TimeInterval {
+        isLuminanceReduced || store.isPaused ? 60 : 1
+    }
+
     var body: some View {
-        // Dimmed, the display refreshes about once a minute — asking for a
-        // per-second schedule there only burns budget.
-        TimelineView(.periodic(from: anchor, by: isLuminanceReduced ? 60 : 1)) { context in
+        TimelineView(.periodic(from: anchor, by: cadence)) { context in
+            // One reading per redraw, taken here and passed down. Everything
+            // below used to ask the store for it again — the measure alone was
+            // built twice, once to size the numeral and once to fill it.
+            let tick = reading(at: context.date)
             // The watch dimming swaps one layout for the other, which would
             // reseed an `onChange` attached to the layout itself and lose the
             // crossing. The container it hangs off has to outlive that swap.
             ZStack {
-                layout(now: context.date)
+                layout(tick)
             }
-            .onChange(of: hasHitZero(now: context.date)) { _, hitZero in
+            .onChange(of: tick.hasHitZero) { _, hitZero in
                 guard hitZero, !announcedZero else { return }
                 announcedZero = true
                 Haptics.sessionComplete()
@@ -43,18 +50,19 @@ struct RunningView: View {
                 // Confirming happens in the same two positions rather than in a
                 // dialog — the left control becomes the way out and the right
                 // one becomes the commitment, so nothing on screen moves and
-                // the thumb is already where it needs to be.
+                // the thumb is already where it needs to be. The question goes
+                // in the gap between them, which is empty until it is asked.
                 ToolbarItem(placement: .bottomBar) {
                     HStack(spacing: 0) {
                         CircleControl(
-                            systemImage: confirmingEnd
+                            systemImage: endConfirm.isArmed
                                 ? "xmark"
                                 : (store.isPaused ? "play.fill" : "pause.fill"),
-                            label: confirmingEnd
+                            label: endConfirm.isArmed
                                 ? "Keep going"
                                 : (store.isPaused ? "Resume" : "Pause")
                         ) {
-                            if confirmingEnd {
+                            if endConfirm.isArmed {
                                 withdrawConfirmation()
                             } else {
                                 togglePause()
@@ -63,25 +71,47 @@ struct RunningView: View {
 
                         Spacer(minLength: 8)
 
+                        // Asked between the two answers rather than from the
+                        // top of the screen — as far from the controls as the
+                        // display allows, and a glance away from the thumb
+                        // about to commit. Short because the gap between two
+                        // 44pt targets is barely 56pt on the smallest watch;
+                        // flanked by an ✕ and a ✓ there is nothing else it
+                        // could be asking. Untinted, like every other label
+                        // here: the accent belongs to the control that commits,
+                        // never to the words next to it.
+                        if endConfirm.isArmed {
+                            Text("End?")
+                                .sectionLabelStyle()
+                                .lineLimit(1)
+                                .fixedSize()
+                                .labelSwap(reduceMotion: reduceMotion)
+
+                            Spacer(minLength: 8)
+                        }
+
                         CircleControl(
-                            systemImage: confirmingEnd ? "checkmark" : "stop.fill",
-                            label: confirmingEnd ? "End session" : "End session\u{2026}",
+                            systemImage: endConfirm.isArmed ? "checkmark" : "stop.fill",
+                            label: endConfirm.isArmed ? "End session" : "End session\u{2026}",
                             tint: Palette.accent
                         ) {
-                            if confirmingEnd { endSession() } else { askToEnd() }
+                            if endConfirm.isArmed { endSession() } else { askToEnd() }
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .animation(Motion.fill(reduceMotion: reduceMotion), value: confirmingEnd)
+                    .animation(Motion.fill(reduceMotion: reduceMotion), value: endConfirm.isArmed)
+                    // Pause becoming play is a symbol replace, and a symbol
+                    // replace needs an animation in the transaction to run in.
+                    .animation(Motion.fill(reduceMotion: reduceMotion), value: store.isPaused)
                 }
             }
         }
         .onChange(of: store.activeSessionID) { _, _ in
             announcedZero = false
-            confirmingEnd = false
+            endConfirm.withdraw()
         }
         // A confirmation nobody answered is not a decision to hold onto.
-        .onDisappear { confirmTimeout?.cancel() }
+        .onDisappear { endConfirm.withdraw() }
         .sheet(isPresented: $showingSubjects) {
             SubjectPicker(selection: store.activeSubjectID) { subjectID in
                 store.switchSubject(to: subjectID)
@@ -90,26 +120,67 @@ struct RunningView: View {
         }
     }
 
-    // MARK: - Layouts
+    // MARK: - The clock
 
-    @ViewBuilder
-    private func layout(now: Date) -> some View {
-        if isLuminanceReduced {
-            alwaysOn(now: now)
-        } else {
-            active(now: now)
+    /// One reading of the live session, taken once per redraw so nothing below
+    /// has to go back to the store for it.
+    private struct Tick {
+        /// Seconds left on a timed session — `nil` when it is open-ended.
+        let remaining: TimeInterval?
+        let elapsed: TimeInterval
+        let plannedSec: Int?
+        /// The session so far, in the order it happened: what the ring behind
+        /// the clock draws. Their total is `elapsed`.
+        let runs: [SubjectRun]
+
+        var isOvertime: Bool { (remaining ?? 1) < 0 }
+        var hasHitZero: Bool { (remaining ?? 1) <= 0 }
+
+        /// Long enough to be caught by the next glance down, short enough that
+        /// it doesn't become the screen's resting state.
+        static let completeWindow: TimeInterval = 2 * 60
+
+        /// Just finished. Measured off the reading rather than latched when the
+        /// crossing happened, so it survives the app being put away and opened
+        /// again a minute later — and a pause holds it, the way a pause holds
+        /// everything else here.
+        var isJustComplete: Bool {
+            guard let remaining, remaining <= 0 else { return false }
+            return -remaining < Self.completeWindow
+        }
+
+        var measure: Format.Measure {
+            Format.count(remaining: remaining, elapsed: elapsed, plannedSec: plannedSec)
         }
     }
 
-    private func active(now: Date) -> some View {
+    private func reading(at now: Date) -> Tick {
+        Tick(
+            remaining: store.remaining(asOf: now),
+            elapsed: store.elapsed(asOf: now),
+            plannedSec: store.activePlannedSec,
+            runs: store.activeRuns(asOf: now)
+        )
+    }
+
+    // MARK: - Layout
+
+    /// One layout, lit or dimmed. Always-On is this clock with its seconds
+    /// taken off — the reading a wrist glance can use, in the same place, at
+    /// the same size — rather than a screen of its own that swaps in whole.
+    private func layout(_ tick: Tick) -> some View {
         let subject = store.subject(store.activeSubjectID)
+        let measure = tick.measure
         return VStack(spacing: 2) {
             Spacer(minLength: 0)
             HeroNumeral(
-                measure: measure(now: now),
-                size: heroSize(for: measure(now: now)),
-                dimmed: isOvertime(now: now),
-                drawsAsOneField: true
+                measure: measure,
+                // Sized by the field it can grow into, seconds included, so
+                // dropping them doesn't resize what's left.
+                size: heroSize(for: measure),
+                prominence: prominence(tick),
+                drawsAsOneField: true,
+                secondsHidden: isLuminanceReduced
             )
             .padding(.horizontal, 6)
             SubjectButton(
@@ -122,26 +193,52 @@ struct RunningView: View {
             ) {
                 showingSubjects = true
             }
+            // Held, the whole screen steps back together. The numeral above
+            // faded and this snapped beside it.
             .opacity(store.isPaused ? 0.5 : 1)
+            .animation(Motion.fill(reduceMotion: reduceMotion), value: store.isPaused)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
+        // Behind the clock, not around it: this session so far, in the colours
+        // of what it has been spent on, growing while you sit there. The clock
+        // says how long; the ring says what of. Thinner than the Start screen's
+        // ring, where the ring is the subject rather than the ground.
+        .background {
+            SubjectRing(runs: tick.runs, lineWidth: 6)
+                .padding(.vertical, -18)
+        }
         .overlay(alignment: .top) {
-            if let status {
+            if let status = status(tick) {
                 Text(status)
                     .sectionLabelStyle()
-                    .foregroundStyle(confirmingEnd ? AnyShapeStyle(Palette.accent) : AnyShapeStyle(.secondary))
                     .id(status)
                     .labelSwap(reduceMotion: reduceMotion)
             }
         }
-        .animation(Motion.fill(reduceMotion: reduceMotion), value: status)
+        .animation(Motion.fill(reduceMotion: reduceMotion), value: status(tick))
     }
 
-    /// One line, one state: the question outranks the pause it interrupts.
-    private var status: String? {
-        if confirmingEnd { return "End session?" }
-        return store.isPaused ? "Paused" : nil
+    /// A held clock and a running one are otherwise the same picture — a
+    /// frozen count reads as a count — so the number itself steps back rather
+    /// than leaving one small word to carry the state. Held outranks overtime:
+    /// a session past its deadline and paused is not measuring either.
+    private func prominence(_ tick: Tick) -> HeroNumeral.Prominence {
+        if store.isPaused { return .held }
+        return tick.isOvertime ? .overtime : .counting
+    }
+
+    /// The top line reports state, and nothing else. The question that used to
+    /// outrank it now asks from between the controls that answer it, so a
+    /// paused session stays legible while it is being asked.
+    ///
+    /// Reaching the planned time is the point of a timed session and went by
+    /// unmarked but for a tap on the wrist — the clock rolled into overtime and
+    /// nothing on screen said what had just happened. Paused still outranks it:
+    /// a held clock is the more useful thing to be told.
+    private func status(_ tick: Tick) -> String? {
+        if store.isPaused { return "Paused" }
+        return tick.isJustComplete ? "Complete" : nil
     }
 
     // MARK: - Actions
@@ -151,53 +248,21 @@ struct RunningView: View {
         Haptics.crownDetent()
     }
 
-    /// Arms the confirmation. It withdraws itself rather than sitting there:
-    /// a stale question on a wrist is an accident waiting for the next tap.
     private func askToEnd() {
-        confirmingEnd = true
+        endConfirm.ask()
         Haptics.crownDetent()
-        confirmTimeout?.cancel()
-        confirmTimeout = Task {
-            try? await Task.sleep(for: .seconds(6))
-            guard !Task.isCancelled else { return }
-            confirmingEnd = false
-        }
     }
 
     private func withdrawConfirmation() {
-        confirmTimeout?.cancel()
-        confirmingEnd = false
+        endConfirm.withdraw()
         Haptics.crownDetent()
     }
 
     private func endSession() {
-        confirmTimeout?.cancel()
-        confirmingEnd = false
+        endConfirm.withdraw()
         // Under a minute there is no summary to show, so this is the only
         // acknowledgement the session gets.
         if store.end() == nil { Haptics.sessionAbandoned() }
-    }
-
-    /// A second layout, not a dimmed copy: minutes only, one weight lighter
-    /// (dimming optically thickens strokes), tracking loosened, no controls.
-    private func alwaysOn(now: Date) -> some View {
-        VStack(spacing: 2) {
-            HeroNumeral(
-                measure: alwaysOnMeasure(now: now),
-                tracking: Typography.Size.heroTracking + 0.6,
-                weight: .regular,
-                drawsAsOneField: true
-            )
-            .padding(.horizontal, 6)
-            if let name = store.subject(store.activeSubjectID)?.name {
-                Text(name)
-                    .font(Typography.text(.footnote))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .stillWhenDimmed(true)
     }
 
     // MARK: - Derived
@@ -206,42 +271,5 @@ struct RunningView: View {
     /// so it never resizes mid-session as digits roll.
     private func heroSize(for measure: Format.Measure) -> CGFloat {
         measure.widest.count > 6 ? Typography.Size.heroCompact : Typography.Size.hero
-    }
-
-    private func displaySeconds(now: Date) -> TimeInterval {
-        if let remaining = store.remaining(asOf: now) { return remaining }
-        return store.elapsed(asOf: now)
-    }
-
-    /// Minutes only, but still unambiguous: `+3 m` dimmed is three minutes over,
-    /// not three minutes left.
-    private func alwaysOnMeasure(now: Date) -> Format.Measure {
-        var measure = Format.minutesOnly(abs(displaySeconds(now: now)))
-        guard isOvertime(now: now) else { return measure }
-        measure.value = "+" + measure.value
-        measure.widest = "+" + measure.widest
-        measure.spoken += " over"
-        return measure
-    }
-
-    private func isOvertime(now: Date) -> Bool {
-        (store.remaining(asOf: now) ?? 1) < 0
-    }
-
-    private func hasHitZero(now: Date) -> Bool {
-        guard let remaining = store.remaining(asOf: now) else { return false }
-        return remaining <= 0
-    }
-
-    private func measure(now: Date) -> Format.Measure {
-        let span = store.activeSession?.plannedSec.map(Double.init)
-        guard let remaining = store.remaining(asOf: now) else {
-            let elapsed = store.elapsed(asOf: now)
-            return Format.clock(elapsed, span: elapsed, countsDown: false)
-        }
-        if remaining < 0 {
-            return Format.overtime(-remaining, span: -remaining)
-        }
-        return Format.clock(remaining, span: span)
     }
 }

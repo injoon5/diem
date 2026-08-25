@@ -7,6 +7,11 @@ struct MetricsView: View {
 
     private let now = Date.now
 
+    /// Twelve weeks plus the alignment week. Both charts read the same window
+    /// so the store aggregates the log once and hands the second one the same
+    /// answer, instead of walking a quarter of a year twice per layout.
+    private static let window = 7 * 12 + 7
+
     private struct HeatmapCell: Identifiable {
         let id: Date
         let seconds: TimeInterval?
@@ -36,8 +41,20 @@ struct MetricsView: View {
     // MARK: - Today
 
     private var todaySection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Today").sectionLabelStyle()
+        let streak = store.streak(asOf: now)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("Today").sectionLabelStyle()
+                Spacer(minLength: 4)
+                // The thing a study app has that a timer cannot: not what you
+                // did today, but that you have kept doing it. One day is not a
+                // streak — it is today, which the number below already says.
+                if streak > 1 {
+                    Text("\(streak) day streak")
+                        .sectionLabelStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 HeroNumeral(
@@ -46,8 +63,10 @@ struct MetricsView: View {
                     tracking: Typography.Size.titleTracking
                 )
                 // Wide enough to stay a separate phrase: at a tighter gap the
-                // unit and the goal ran together into `m of 2h 0m`.
-                Text("of \(Format.duration(store.goalSeconds))")
+                // unit and the goal ran together into `m of 2h 0m`. Same
+                // spelling as the numeral it sits against, too — `duration`
+                // drops the padding and put `1h 05m of 2h 0m` on one line.
+                Text("of \(Format.total(store.goalSeconds).text)")
                     .font(Typography.text(.caption2))
                     .foregroundStyle(.tertiary)
             }
@@ -70,14 +89,14 @@ struct MetricsView: View {
 
     private func subjectRow(_ entry: SubjectTotal, peak: TimeInterval) -> some View {
         let subject = store.subject(entry.subjectID)
-        let color = subject.map { Palette.subject($0.colorIndex) } ?? Color.white.opacity(0.35)
+        let color = Palette.subject(subject?.colorIndex)
         return VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Text(subject?.name ?? "Free")
                     .font(Typography.text(.footnote))
                     .lineLimit(1)
                 Spacer(minLength: 4)
-                Text(Format.duration(entry.seconds))
+                Text(Format.total(entry.seconds).text)
                     .font(Typography.text(.caption2))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -107,6 +126,9 @@ struct MetricsView: View {
                 let barWidth = min(14, max(8, (proxy.size.width - spacing * 6) / 7))
                 HStack(alignment: .bottom, spacing: spacing) {
                     ForEach(days, id: \.day) { entry in
+                        // Formatted once: the same string labels the bar and
+                        // speaks it, and a `DateFormatter` is not free.
+                        let initial = weekdayInitial(entry.day)
                         VStack(spacing: 3) {
                             ZStack(alignment: .bottom) {
                                 Capsule()
@@ -125,13 +147,13 @@ struct MetricsView: View {
                                 Capsule()
                                     .stroke(.white.opacity(0.04), lineWidth: 1)
                             }
-                            Text(weekdayInitial(entry.day))
+                            Text(initial)
                                 .font(.system(size: 9))
                                 .foregroundStyle(.tertiary)
                         }
                         .frame(maxWidth: .infinity)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(weekdayInitial(entry.day))
+                        .accessibilityLabel(initial)
                         .accessibilityValue(Format.duration(entry.seconds))
                     }
                 }
@@ -170,19 +192,29 @@ struct MetricsView: View {
     private func cellColor(_ seconds: TimeInterval?, peak: TimeInterval) -> Color {
         guard let seconds, seconds > 0 else { return Palette.ghostTrack }
         let share = peak > 0 ? min(seconds / peak, 1) : 0
-        return Palette.accent.opacity(0.25 + 0.75 * share)
+        // The ring's copper, not the Action Button orange. Both charts on this
+        // screen measure the same thing, and they were measuring it in two
+        // different oranges — with the heatmap using the one the palette
+        // reserves for actions.
+        return Palette.ring.opacity(0.25 + 0.75 * share)
     }
 
     // MARK: - Buckets
 
+    /// The start of the week containing a study-day, honouring wherever the
+    /// locale puts its first weekday.
+    private func weekStart(of day: Date, in calendar: Calendar) -> Date? {
+        let weekday = calendar.component(.weekday, from: day)
+        let offset = (weekday - calendar.firstWeekday + 7) % 7
+        return calendar.date(byAdding: .day, value: -offset, to: day)
+    }
+
     private func weekDays() -> [(day: Date, seconds: TimeInterval)] {
         let calendar = Calendar.current
         let today = Day.start(of: now)
-        let weekday = calendar.component(.weekday, from: today)
-        let offset = (weekday - calendar.firstWeekday + 7) % 7
-        guard let weekStart = calendar.date(byAdding: .day, value: -offset, to: today) else { return [] }
+        guard let weekStart = weekStart(of: today, in: calendar) else { return [] }
         let totals = Dictionary(
-            uniqueKeysWithValues: store.dailySeconds(days: 14, asOf: now).map { ($0.day, $0.seconds) }
+            uniqueKeysWithValues: store.dailySeconds(days: Self.window, asOf: now).map { ($0.day, $0.seconds) }
         )
         return (0..<7).compactMap { index in
             guard let day = calendar.date(byAdding: .day, value: index, to: weekStart) else { return nil }
@@ -194,14 +226,12 @@ struct MetricsView: View {
     private func heatmapWeeks() -> [HeatmapWeek] {
         let calendar = Calendar.current
         let today = Day.start(of: now)
-        let weekday = calendar.component(.weekday, from: today)
-        let offset = (weekday - calendar.firstWeekday + 7) % 7
-        guard let thisWeekStart = calendar.date(byAdding: .day, value: -offset, to: today),
+        guard let thisWeekStart = weekStart(of: today, in: calendar),
               let firstWeekStart = calendar.date(byAdding: .day, value: -7 * 11, to: thisWeekStart)
         else { return [] }
 
         let totals = Dictionary(
-            uniqueKeysWithValues: store.dailySeconds(days: 7 * 12 + 7, asOf: now).map { ($0.day, $0.seconds) }
+            uniqueKeysWithValues: store.dailySeconds(days: Self.window, asOf: now).map { ($0.day, $0.seconds) }
         )
         return (0..<12).compactMap { week in
             guard let weekDate = calendar.date(byAdding: .day, value: week * 7, to: firstWeekStart) else {
@@ -213,6 +243,10 @@ struct MetricsView: View {
                 }
                 return HeatmapCell(id: date, seconds: date <= today ? (totals[date] ?? 0) : nil)
             }
+            // The grid indexes every week by weekday, so a short one would be
+            // a crash rather than a gap. Calendar arithmetic doesn't fail in
+            // practice; a chart is not the place to find out it can.
+            guard days.count == 7 else { return nil }
             return HeatmapWeek(id: weekDate, days: days)
         }
     }

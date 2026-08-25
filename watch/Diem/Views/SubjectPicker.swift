@@ -10,22 +10,28 @@ struct SubjectPicker: View {
     var onPick: (UUID?) -> Void
 
     var body: some View {
-        List {
-            Section {
-                ForEach(store.subjects()) { subject in
-                    row(name: subject.name, colorIndex: subject.colorIndex, id: subject.id)
-                }
-                row(name: "Free", colorIndex: nil, id: nil)
-            }
-            if store.subjects().isEmpty {
+        let subjects = store.subjects()
+        // Its own stack, the way `SettingsView` and `MetricsView` carry theirs.
+        // Presented as a bare sheet the title below has nothing to draw in, so
+        // the picker arrived unlabelled.
+        NavigationStack {
+            List {
+                // A footer, not a second section: the hint is a note about
+                // the list, and in a section of its own it drew as a row —
+                // inset, filled, and looking like something to tap.
                 Section {
-                    Text("Add subjects in Settings.")
-                        .font(Typography.text(.footnote))
-                        .foregroundStyle(.secondary)
+                    ForEach(subjects) { subject in
+                        row(name: subject.name, colorIndex: subject.colorIndex, id: subject.id)
+                    }
+                    row(name: "Free", colorIndex: nil, id: nil)
+                } footer: {
+                    if subjects.isEmpty {
+                        Text("Add subjects in Settings.")
+                    }
                 }
             }
+            .navigationTitle("Subject")
         }
-        .navigationTitle("Subject")
     }
 
     private func row(name: String, colorIndex: Int?, id: UUID?) -> some View {
@@ -35,7 +41,7 @@ struct SubjectPicker: View {
         } label: {
             HStack(spacing: 8) {
                 Circle()
-                    .fill(colorIndex == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Palette.subject(colorIndex)))
+                    .fill(Palette.subject(colorIndex))
                     .frame(width: 8, height: 8)
                 Text(name).font(Typography.text(.body))
                 Spacer(minLength: 0)
