@@ -77,7 +77,7 @@ struct MetricsView: View {
 
     private func subjectRow(_ entry: SubjectTotal, peak: TimeInterval) -> some View {
         let subject = store.subject(entry.subjectID)
-        let color = subject.map { Palette.subject($0.colorIndex) } ?? Color.white.opacity(0.35)
+        let color = Palette.subject(subject?.colorIndex)
         return VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Text(subject?.name ?? "Free")
@@ -189,12 +189,18 @@ struct MetricsView: View {
 
     // MARK: - Buckets
 
+    /// The start of the week containing a study-day, honouring wherever the
+    /// locale puts its first weekday.
+    private func weekStart(of day: Date, in calendar: Calendar) -> Date? {
+        let weekday = calendar.component(.weekday, from: day)
+        let offset = (weekday - calendar.firstWeekday + 7) % 7
+        return calendar.date(byAdding: .day, value: -offset, to: day)
+    }
+
     private func weekDays() -> [(day: Date, seconds: TimeInterval)] {
         let calendar = Calendar.current
         let today = Day.start(of: now)
-        let weekday = calendar.component(.weekday, from: today)
-        let offset = (weekday - calendar.firstWeekday + 7) % 7
-        guard let weekStart = calendar.date(byAdding: .day, value: -offset, to: today) else { return [] }
+        guard let weekStart = weekStart(of: today, in: calendar) else { return [] }
         let totals = Dictionary(
             uniqueKeysWithValues: store.dailySeconds(days: Self.window, asOf: now).map { ($0.day, $0.seconds) }
         )
@@ -208,9 +214,7 @@ struct MetricsView: View {
     private func heatmapWeeks() -> [HeatmapWeek] {
         let calendar = Calendar.current
         let today = Day.start(of: now)
-        let weekday = calendar.component(.weekday, from: today)
-        let offset = (weekday - calendar.firstWeekday + 7) % 7
-        guard let thisWeekStart = calendar.date(byAdding: .day, value: -offset, to: today),
+        guard let thisWeekStart = weekStart(of: today, in: calendar),
               let firstWeekStart = calendar.date(byAdding: .day, value: -7 * 11, to: thisWeekStart)
         else { return [] }
 

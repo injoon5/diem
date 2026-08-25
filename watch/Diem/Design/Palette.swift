@@ -51,8 +51,14 @@ enum Palette {
 
     static var subjectCount: Int { subjects.count }
 
+    /// Free time — a session with no subject. Deliberately not a colour out of
+    /// the palette above: it is the absence of one, and it has to read that way
+    /// sitting beside them. Four spellings of this used to be scattered across
+    /// the views, no two alike.
+    static let free = Color.white.opacity(0.35)
+
     static func subject(_ index: Int?) -> Color {
-        guard let index else { return .secondary }
+        guard let index else { return free }
         return subjects[((index % subjects.count) + subjects.count) % subjects.count]
     }
 }

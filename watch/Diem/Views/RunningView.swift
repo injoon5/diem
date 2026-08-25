@@ -10,9 +10,7 @@ struct RunningView: View {
     @State private var showingSubjects = false
     @State private var announcedZero = false
     /// The stop button has been tapped once and is waiting to be confirmed.
-    @State private var confirmingEnd = false
-    /// Withdraws the confirmation if it is left standing.
-    @State private var confirmTimeout: Task<Void, Never>?
+    @State private var endConfirm = Confirmation()
     /// A fixed anchor, so the tick doesn't re-phase on every redraw.
     @State private var anchor = Date.now
 
@@ -57,14 +55,14 @@ struct RunningView: View {
                 ToolbarItem(placement: .bottomBar) {
                     HStack(spacing: 0) {
                         CircleControl(
-                            systemImage: confirmingEnd
+                            systemImage: endConfirm.isArmed
                                 ? "xmark"
                                 : (store.isPaused ? "play.fill" : "pause.fill"),
-                            label: confirmingEnd
+                            label: endConfirm.isArmed
                                 ? "Keep going"
                                 : (store.isPaused ? "Resume" : "Pause")
                         ) {
-                            if confirmingEnd {
+                            if endConfirm.isArmed {
                                 withdrawConfirmation()
                             } else {
                                 togglePause()
@@ -82,7 +80,7 @@ struct RunningView: View {
                         // could be asking. Untinted, like every other label
                         // here: the accent belongs to the control that commits,
                         // never to the words next to it.
-                        if confirmingEnd {
+                        if endConfirm.isArmed {
                             Text("End?")
                                 .sectionLabelStyle()
                                 .lineLimit(1)
@@ -93,24 +91,24 @@ struct RunningView: View {
                         }
 
                         CircleControl(
-                            systemImage: confirmingEnd ? "checkmark" : "stop.fill",
-                            label: confirmingEnd ? "End session" : "End session\u{2026}",
+                            systemImage: endConfirm.isArmed ? "checkmark" : "stop.fill",
+                            label: endConfirm.isArmed ? "End session" : "End session\u{2026}",
                             tint: Palette.accent
                         ) {
-                            if confirmingEnd { endSession() } else { askToEnd() }
+                            if endConfirm.isArmed { endSession() } else { askToEnd() }
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .animation(Motion.fill(reduceMotion: reduceMotion), value: confirmingEnd)
+                    .animation(Motion.fill(reduceMotion: reduceMotion), value: endConfirm.isArmed)
                 }
             }
         }
         .onChange(of: store.activeSessionID) { _, _ in
             announcedZero = false
-            confirmingEnd = false
+            endConfirm.withdraw()
         }
         // A confirmation nobody answered is not a decision to hold onto.
-        .onDisappear { confirmTimeout?.cancel() }
+        .onDisappear { endConfirm.withdraw() }
         .sheet(isPresented: $showingSubjects) {
             SubjectPicker(selection: store.activeSubjectID) { subjectID in
                 store.switchSubject(to: subjectID)
@@ -160,7 +158,7 @@ struct RunningView: View {
                 // Sized by the field it can grow into, seconds included, so
                 // dropping them doesn't resize what's left.
                 size: heroSize(for: measure),
-                dimmed: tick.isOvertime,
+                prominence: prominence(tick),
                 drawsAsOneField: true,
                 secondsHidden: isLuminanceReduced
             )
@@ -181,18 +179,22 @@ struct RunningView: View {
         .frame(maxWidth: .infinity)
         .overlay(alignment: .top) {
             if let status {
-                // The one state worth a colour. A held session and a running
-                // one are otherwise the same picture — a frozen clock reads as
-                // a clock — and this word is what says which. Dimmed it takes
-                // the palette's Always-On accent, since saturated orange goes
-                // muddy brown as luminance drops.
                 Text(status)
-                    .sectionLabelStyle(Palette.accent(luminanceReduced: isLuminanceReduced))
+                    .sectionLabelStyle()
                     .id(status)
                     .labelSwap(reduceMotion: reduceMotion)
             }
         }
         .animation(Motion.fill(reduceMotion: reduceMotion), value: status)
+    }
+
+    /// A held clock and a running one are otherwise the same picture — a
+    /// frozen count reads as a count — so the number itself steps back rather
+    /// than leaving one small word to carry the state. Held outranks overtime:
+    /// a session past its deadline and paused is not measuring either.
+    private func prominence(_ tick: Tick) -> HeroNumeral.Prominence {
+        if store.isPaused { return .held }
+        return tick.isOvertime ? .overtime : .counting
     }
 
     /// The top line reports state, and nothing else. The question that used to
@@ -207,28 +209,18 @@ struct RunningView: View {
         Haptics.crownDetent()
     }
 
-    /// Arms the confirmation. It withdraws itself rather than sitting there:
-    /// a stale question on a wrist is an accident waiting for the next tap.
     private func askToEnd() {
-        confirmingEnd = true
+        endConfirm.ask()
         Haptics.crownDetent()
-        confirmTimeout?.cancel()
-        confirmTimeout = Task {
-            try? await Task.sleep(for: .seconds(6))
-            guard !Task.isCancelled else { return }
-            confirmingEnd = false
-        }
     }
 
     private func withdrawConfirmation() {
-        confirmTimeout?.cancel()
-        confirmingEnd = false
+        endConfirm.withdraw()
         Haptics.crownDetent()
     }
 
     private func endSession() {
-        confirmTimeout?.cancel()
-        confirmingEnd = false
+        endConfirm.withdraw()
         // Under a minute there is no summary to show, so this is the only
         // acknowledgement the session gets.
         if store.end() == nil { Haptics.sessionAbandoned() }

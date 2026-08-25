@@ -65,17 +65,14 @@ struct DiemSnapshot: Codable, Equatable, Sendable {
         todaySec + (session?.elapsed(asOf: now) ?? 0)
     }
 
-    func progress(asOf now: Date = .now) -> Double {
-        goalSec > 0 ? min(today(asOf: now) / goalSec, 1) : 0
-    }
-
-    /// Laps past the goal, for the overflow arc.
-    func overflow(asOf now: Date = .now) -> Double {
-        goalSec > 0 ? max(0, today(asOf: now) / goalSec - 1) : 0
-    }
-
     /// The reading a ring or a bar draws, overflow included.
     func lap(asOf now: Date = .now) -> Lap {
         Lap(turns: goalSec > 0 ? today(asOf: now) / goalSec : 0)
+    }
+
+    /// The same reading, capped — what a system `Gauge` takes, which has no
+    /// notion of going past full.
+    func progress(asOf now: Date = .now) -> Double {
+        min(lap(asOf: now).turns, 1)
     }
 }

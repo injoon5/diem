@@ -223,6 +223,7 @@ final class SessionStore {
 
     /// Studied seconds per subject today, most-studied first. `nil` is free time.
     func todayBySubject(asOf now: Date = .now) -> [SubjectTotal] {
+        observe()
         var totals: [UUID?: TimeInterval] = [:]
         for interval in intervals(startingIn: Day.start(of: now)..<now.addingTimeInterval(1)) {
             totals[interval.subjectID, default: 0] += interval.duration(asOf: now)
@@ -237,15 +238,24 @@ final class SessionStore {
     /// and the aggregation walks a quarter of a year of intervals and as many
     /// calendar additions. Doing that once per change instead of once per body
     /// is the difference between the sheet sliding in and the sheet hitching.
-    @ObservationIgnored private var dailyCache: (days: Int, dayStart: Date, entries: [(day: Date, seconds: TimeInterval)])?
+    ///
+    /// Held per window rather than one slot for the last one asked: two callers
+    /// wanting different spans would otherwise evict each other on every read
+    /// and neither would ever hit.
+    @ObservationIgnored private var dailyCacheDay: Date?
+    @ObservationIgnored private var dailyCache: [Int: [(day: Date, seconds: TimeInterval)]] = [:]
 
     /// Studied seconds per study-day, oldest first.
     func dailySeconds(days: Int, asOf now: Date = .now) -> [(day: Date, seconds: TimeInterval)] {
         observe()
         let dayStart = Day.start(of: now)
+        if dailyCacheDay != dayStart {
+            dailyCacheDay = dayStart
+            dailyCache.removeAll(keepingCapacity: true)
+        }
         var entries: [(day: Date, seconds: TimeInterval)]
-        if let dailyCache, dailyCache.days == days, dailyCache.dayStart == dayStart {
-            entries = dailyCache.entries
+        if let cached = dailyCache[days] {
+            entries = cached
         } else {
             let starts = Array(Day.recentStarts(from: now, count: days).reversed())
             guard let earliest = starts.first else { return [] }
@@ -254,7 +264,7 @@ final class SessionStore {
                 totals[Day.start(of: interval.startedAt), default: 0] += interval.duration()
             }
             entries = starts.map { (day: $0, seconds: totals[$0] ?? 0) }
-            dailyCache = (days, dayStart, entries)
+            dailyCache[days] = entries
         }
         // The one interval the cache can't hold: the one still running.
         guard let live = live(), let openedAt = live.openedAt else { return entries }
@@ -448,12 +458,15 @@ final class SessionStore {
         rescheduleAlert()
     }
 
-    /// Everything derived from the log, dropped in one place. The log changes
-    /// only here, so this is the only place it has to happen.
+    /// Everything derived from the log, dropped in one place.
+    ///
+    /// `markSynced` is the one write that doesn't come through `commit()`, and
+    /// it is exempt because nothing derived reads `syncedAt` — it decides only
+    /// what the next push sends. Any other write must come through here.
     private func invalidateCaches() {
         liveCache = nil
         todayCache = nil
-        dailyCache = nil
+        dailyCache.removeAll(keepingCapacity: true)
         subjectListCache.removeAll(keepingCapacity: true)
         subjectCache.removeAll(keepingCapacity: true)
     }
@@ -524,6 +537,12 @@ final class SessionStore {
     /// still running — it is one the app never got to close. It is closed at its
     /// own start rather than credited with the hours in between; inventing study
     /// time is worse than losing it.
+    ///
+    /// Exactly one interval may be open, and only in the session being
+    /// recovered. Any other is an orphan of a launch that never got to close
+    /// it, and an orphan is not harmless: an open interval is measured against
+    /// `now` wherever the log is read whole, so it would go on growing against
+    /// today's per-subject totals for as long as the install lasts.
     private static func recoverActiveSession(in context: ModelContext) -> UUID? {
         let descriptor = FetchDescriptor<Interval>(
             predicate: #Predicate { $0.endedAt == nil },
@@ -532,10 +551,13 @@ final class SessionStore {
         let open = (try? context.fetch(descriptor)) ?? []
         guard let latest = open.first else { return nil }
 
-        let stale = open.filter { Date.now.timeIntervalSince($0.startedAt) > maxPlausibleInterval }
-        for interval in stale { interval.endedAt = interval.startedAt }
-        if !stale.isEmpty { try? context.save() }
+        let isStale = Date.now.timeIntervalSince(latest.startedAt) > maxPlausibleInterval
+        let survivor = isStale ? nil : latest
+        for interval in open where interval.id != survivor?.id {
+            interval.endedAt = interval.startedAt
+        }
+        if survivor == nil || open.count > 1 { try? context.save() }
 
-        return stale.contains(where: { $0.id == latest.id }) ? nil : latest.sessionID
+        return survivor?.sessionID
     }
 }

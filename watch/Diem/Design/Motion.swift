@@ -6,9 +6,6 @@ enum Motion {
     /// and leave a visible seam.
     static let standard = Animation.spring(response: 0.35, dampingFraction: 1.0)
 
-    /// Bounce only where the gesture carried momentum — the end of a crown flick.
-    static let flick = Animation.spring(response: 0.35, dampingFraction: 0.74)
-
     /// Digit rolls. Reduce Motion swaps the roll for a plain fade.
     static func numeric(reduceMotion: Bool) -> Animation {
         reduceMotion ? .linear(duration: 0.12) : standard

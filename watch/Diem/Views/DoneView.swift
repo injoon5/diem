@@ -12,9 +12,7 @@ struct DoneView: View {
     let onClose: () -> Void
 
     /// Discard has been tapped once and is waiting to be confirmed.
-    @State private var confirmingDiscard = false
-    /// Withdraws the confirmation if it is left standing.
-    @State private var confirmTimeout: Task<Void, Never>?
+    @State private var discardConfirm = Confirmation()
 
     var body: some View {
         ScrollView {
@@ -81,15 +79,15 @@ struct DoneView: View {
                 // bargain the stop button makes: it withdraws itself rather
                 // than sitting there, since a stale question on a wrist is an
                 // accident waiting for the next tap.
-                Button(confirmingDiscard ? "Discard?" : "Discard", role: .destructive) {
-                    if confirmingDiscard { discard() } else { askToDiscard() }
+                Button(discardConfirm.isArmed ? "Discard?" : "Discard", role: .destructive) {
+                    if discardConfirm.isArmed { discard() } else { askToDiscard() }
                 }
                 .buttonStyle(.plain)
                 .font(Typography.text(.footnote))
                 // Brighter while it stands: at the same weight as the label it
                 // replaces, arming it would be a question mark nobody saw.
-                .foregroundStyle(confirmingDiscard ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
-                .animation(Motion.fill(reduceMotion: reduceMotion), value: confirmingDiscard)
+                .foregroundStyle(discardConfirm.isArmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                .animation(Motion.fill(reduceMotion: reduceMotion), value: discardConfirm.isArmed)
             }
             .padding(.horizontal, 6)
             .padding(.bottom, 8)
@@ -101,12 +99,11 @@ struct DoneView: View {
                 Haptics.stop()
             }
         }
-        .onDisappear { confirmTimeout?.cancel() }
+        .onDisappear { discardConfirm.withdraw() }
     }
 
-    private func swatch(_ id: UUID?) -> AnyShapeStyle {
-        guard let subject = store.subject(id) else { return AnyShapeStyle(.tertiary) }
-        return AnyShapeStyle(Palette.subject(subject.colorIndex))
+    private func swatch(_ id: UUID?) -> Color {
+        Palette.subject(store.subject(id)?.colorIndex)
     }
 
     /// Same duration, and whatever was being studied when it ended — not
@@ -118,20 +115,13 @@ struct DoneView: View {
         Haptics.start()
     }
 
-    /// Arms the confirmation, and takes it back if nobody answers.
     private func askToDiscard() {
-        confirmingDiscard = true
+        discardConfirm.ask()
         Haptics.crownDetent()
-        confirmTimeout?.cancel()
-        confirmTimeout = Task {
-            try? await Task.sleep(for: .seconds(6))
-            guard !Task.isCancelled else { return }
-            confirmingDiscard = false
-        }
     }
 
     private func discard() {
-        confirmTimeout?.cancel()
+        discardConfirm.withdraw()
         store.discard(sessionID: session.id)
         Haptics.sessionAbandoned()
         onClose()

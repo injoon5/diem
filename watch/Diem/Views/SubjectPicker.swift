@@ -41,7 +41,7 @@ struct SubjectPicker: View {
         } label: {
             HStack(spacing: 8) {
                 Circle()
-                    .fill(colorIndex == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Palette.subject(colorIndex)))
+                    .fill(Palette.subject(colorIndex))
                     .frame(width: 8, height: 8)
                 Text(name).font(Typography.text(.body))
                 Spacer(minLength: 0)

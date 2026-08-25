@@ -32,6 +32,16 @@ struct StartView: View {
     }
     private var isScrubbing: Bool { crownDetent > 0 }
 
+    /// The chosen subject, if it is still one you can choose.
+    ///
+    /// `subject(_:)` answers for history too, so it returns a subject that has
+    /// been archived or deleted — right on the Done screen, wrong here, where
+    /// the Start screen went on offering a subject that Settings had just got
+    /// rid of, and would have started a session under it.
+    private var chosenSubject: Subject? {
+        store.subject(subjectID).flatMap { $0.isVisible ? $0 : nil }
+    }
+
     var body: some View {
         TimelineView(.periodic(from: anchor, by: 60)) { context in
             content(now: context.date)
@@ -86,7 +96,7 @@ struct StartView: View {
                 ToolbarItem(placement: .bottomBar) {
                     // Looked up once. The crown redraws this bar on every
                     // event, and the name and the colour are one subject.
-                    let subject = store.subject(subjectID)
+                    let subject = chosenSubject
                     HStack(spacing: 6) {
                         SubjectButton(
                             name: subject?.name,
@@ -109,7 +119,7 @@ struct StartView: View {
             }
         }
         .sheet(isPresented: $showingSubjects) {
-            SubjectPicker(selection: subjectID) { picked in
+            SubjectPicker(selection: chosenSubject?.id) { picked in
                 subjectID = picked
                 subjectChosen = true
                 showingSubjects = false
@@ -171,7 +181,7 @@ struct StartView: View {
 
     private func start() {
         let planned = isScrubbing ? Int(scrubSeconds) : nil
-        store.start(subjectID: subjectID, plannedSec: planned)
+        store.start(subjectID: chosenSubject?.id, plannedSec: planned)
         Haptics.start()
         resettingCrown = crownStep != 0
         crownStep = 0

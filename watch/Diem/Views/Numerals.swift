@@ -1,5 +1,22 @@
 import SwiftUI
 
+extension NumeralMotion {
+    /// How a change in this field is drawn. Reduce Motion swaps the roll for a
+    /// plain fade. Lives here rather than in `Format`, which stays free of
+    /// SwiftUI so the number rules can be compiled and tested anywhere.
+    func contentTransition(reduceMotion: Bool) -> ContentTransition {
+        guard !reduceMotion else { return .opacity }
+        switch self {
+        // A total can jump by any amount, so the system gets the number itself
+        // and works out the direction and distance of the roll.
+        case .value(let number): return .numericText(value: number)
+        // A count only ever goes one way, and its magnitude means nothing.
+        case .countdown: return .numericText(countsDown: true)
+        case .countUp: return .numericText(countsDown: false)
+        }
+    }
+}
+
 /// A numeral that never moves.
 ///
 /// `.monospacedDigit()` fixes per-digit width but not total string width, so the
@@ -29,17 +46,8 @@ struct NumeralText: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
-    /// Reduce Motion swaps the roll for a plain fade.
     private var transition: ContentTransition {
-        guard !reduceMotion else { return .opacity }
-        switch motion {
-        // A total can jump by any amount, so the system gets the number itself
-        // and works out the direction and distance of the roll.
-        case .value(let number): return .numericText(value: number)
-        // A count only ever goes one way, and its magnitude means nothing.
-        case .countdown: return .numericText(countsDown: true)
-        case .countUp: return .numericText(countsDown: false)
-        }
+        motion.contentTransition(reduceMotion: reduceMotion)
     }
 
     private struct DigitGroup: Identifiable {
@@ -160,18 +168,45 @@ struct NumeralText: View {
 /// replaced, so it leaves with the digits it belongs to instead of blinking
 /// out from under them.
 struct HeroNumeral: View {
+    /// How present the numeral is.
+    ///
+    /// A clock that is counting has the screen. Past its deadline it steps
+    /// back — the session has already done what was asked of it — and held it
+    /// steps back further, because it is no longer measuring anything and
+    /// should stop insisting that it is.
+    enum Prominence {
+        case counting
+        case overtime
+        case held
+
+        var opacity: Double {
+            switch self {
+            case .counting: 1
+            case .overtime: 0.6
+            case .held: 0.45
+            }
+        }
+    }
+
     let measure: Format.Measure
     var size: CGFloat = Typography.Size.hero
     var tracking: CGFloat = Typography.Size.heroTracking
     var weight: Font.Weight = .medium
-    var dimmed = false
+    var prominence: Prominence = .counting
     var drawsAsOneField = false
     var secondsHidden = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     /// What this numeral *is*, held steady while its value changes.
     private var fieldID: String { "\(measure.unit ?? "")-\(measure.motion.kind)" }
+    /// Always-On is already dim. Stepping back from there costs legibility
+    /// that the state doesn't need to buy twice.
+    private var shownOpacity: Double {
+        isLuminanceReduced ? max(0.6, prominence.opacity) : prominence.opacity
+    }
+
     private var unitFont: Font {
         Typography.unit(size * Typography.Size.unitRatio, behind: weight)
     }
@@ -232,8 +267,11 @@ struct HeroNumeral: View {
             .id(fieldID)
             .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
         }
-        .animation(Motion.standard, value: fieldID)
-        .foregroundStyle(dimmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+        // Not while dimmed: the display refreshes about once a minute there,
+        // and a blur-replace queued against it lands as stutter on the wake.
+        .animation(isLuminanceReduced ? nil : Motion.standard, value: fieldID)
+        .opacity(shownOpacity)
+        .animation(Motion.standard, value: shownOpacity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(measure.spoken)
     }
@@ -266,12 +304,7 @@ private struct HoursMinutesNumeral: View {
     }
 
     private var digitTransition: ContentTransition {
-        guard !reduceMotion else { return .opacity }
-        switch motion {
-        case .value(let number): return .numericText(value: number)
-        case .countdown: return .numericText(countsDown: true)
-        case .countUp: return .numericText(countsDown: false)
-        }
+        motion.contentTransition(reduceMotion: reduceMotion)
     }
 
     var body: some View {
