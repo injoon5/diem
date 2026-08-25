@@ -127,6 +127,9 @@ struct HeroNumeral: View {
 
     /// What this numeral *is*, held steady while its value changes.
     private var fieldID: String { "\(measure.unit ?? "")-\(measure.motion.kind)" }
+    private var unitFont: Font {
+        Typography.unit(size * Typography.Size.unitRatio, behind: weight)
+    }
     /// Totals over an hour keep their semantic `1h 30m` value, but the units
     /// are drawn separately so they remain subordinate to the digits.
     private var isHoursMinutes: Bool {
@@ -164,11 +167,11 @@ struct HeroNumeral: View {
                         )
                         if let unit = measure.unit {
                             Text("m")
-                                .font(Typography.unit(size * Typography.Size.unitRatio))
+                                .font(unitFont)
                                 .hidden()
                                 .overlay {
                                     Text(unit)
-                                        .font(Typography.unit(size * Typography.Size.unitRatio))
+                                        .font(unitFont)
                                         .foregroundStyle(.secondary)
                                         .fixedSize()
                                 }
@@ -248,7 +251,7 @@ private struct HoursMinutesNumeral: View {
 
     private func unit(_ value: String) -> some View {
         Text(value)
-            .font(Typography.unit(size * Typography.Size.inlineUnitRatio))
+            .font(Typography.unit(size * Typography.Size.inlineUnitRatio, behind: weight))
             .foregroundStyle(.secondary)
             .fixedSize()
     }

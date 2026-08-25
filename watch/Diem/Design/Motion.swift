@@ -27,6 +27,18 @@ enum Motion {
             : .spring(response: 0.42, dampingFraction: 0.88, blendDuration: 0.12)
     }
 
+    /// The crossing into and out of Always-On, where both bars leave and the
+    /// ring takes back the height between them.
+    ///
+    /// Critically damped and short on purpose. The display drops to about one
+    /// refresh a minute on the way down, so anything with overshoot risks being
+    /// caught mid-bounce and held there until the wrist comes back up.
+    static func dimming(reduceMotion: Bool) -> Animation {
+        reduceMotion
+            ? .linear(duration: 0.16)
+            : .spring(response: 0.3, dampingFraction: 1.0)
+    }
+
     /// A recorded total arrives infrequently, so it can settle softly without
     /// looking like a timer or introducing lag into direct manipulation.
     static func ringProgress(reduceMotion: Bool) -> Animation {
@@ -38,7 +50,13 @@ enum Motion {
 
 extension View {
     /// The Always-On display refreshes about once a minute, so queued
-    /// animations render as stutter on the next wake. Nothing moves while dimmed.
+    /// animations render as stutter on the next wake. Nothing moves while
+    /// dimmed.
+    ///
+    /// Scope this to what actually animates on a value — a numeral rolling, an
+    /// arc springing. Wrapped around a whole screen it also swallows the
+    /// layout change that *is* the crossing, which is the one movement here
+    /// worth seeing.
     func stillWhenDimmed(_ isLuminanceReduced: Bool) -> some View {
         transaction { transaction in
             if isLuminanceReduced { transaction.animation = nil }

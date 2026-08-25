@@ -70,3 +70,12 @@ final class Subject {
 
     var isVisible: Bool { !archived && deletedAt == nil }
 }
+
+extension Sequence<Subject> {
+    /// Alphabetical, for the screens where the list is being managed rather
+    /// than picked from. Localized and number-aware, so `Set 2` sorts before
+    /// `Set 10` and case doesn't decide the order.
+    func sortedByName() -> [Subject] {
+        sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+}

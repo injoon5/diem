@@ -139,7 +139,13 @@ struct RunningView: View {
         /// Minutes only, but still unambiguous: `+3 m` dimmed is three minutes
         /// over, not three minutes left.
         var alwaysOnMeasure: Format.Measure {
-            var measure = Format.minutesOnly(abs(remaining ?? elapsed))
+            // The field is the session's own range: a timed one can't read past
+            // what was planned, and an open-ended one can't read past what it
+            // has already done.
+            var measure = Format.minutesOnly(
+                abs(remaining ?? elapsed),
+                span: plannedSec.map(Double.init) ?? elapsed
+            )
             guard isOvertime else { return measure }
             measure.value = "+" + measure.value
             measure.widest = "+" + measure.widest

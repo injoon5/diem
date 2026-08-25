@@ -43,8 +43,12 @@ enum Typography {
         .system(size: size, weight: weight, design: .rounded)
     }
 
-    static func unit(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .regular, design: .rounded)
+    /// Units are set one step behind the numeral they label. Always-On drops
+    /// the numeral a weight — dimming optically thickens strokes — and the unit
+    /// has to come down with it, or a `.regular` `m` starts to lead a
+    /// `.regular` number.
+    static func unit(_ size: CGFloat, behind weight: Font.Weight = .medium) -> Font {
+        .system(size: size, weight: weight == .medium ? .regular : .light, design: .rounded)
     }
 
     /// Text: SF Compact, the system default face.
@@ -60,10 +64,15 @@ extension View {
             .tracking(tracking)
     }
 
-    func sectionLabelStyle() -> some View {
+    /// Takes the style rather than baking one in. It used to apply `.secondary`
+    /// itself, which meant a caller asking for something quieter had to set it
+    /// *before* this modifier to be heard at all — the innermost foreground
+    /// style is the one that paints, so `.sectionLabelStyle().foregroundStyle(
+    /// .tertiary)` read as a request and rendered as nothing.
+    func sectionLabelStyle<S: ShapeStyle>(_ style: S = HierarchicalShapeStyle.secondary) -> some View {
         self.font(Typography.text(.caption))
             .tracking(Typography.Size.labelTracking)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(style)
             .textCase(.uppercase)
     }
 }

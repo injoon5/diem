@@ -74,9 +74,19 @@ struct StartRing: View {
             // place throughout both states, so there is no cross-fade seam.
             RingArc(turns: turns, color: ringColor, lapColor: lapColor, lineWidth: lineWidth)
         }
-        .animation(Motion.ringMode(reduceMotion: reduceMotion), value: isScrubbing)
-        .animation(isScrubbing ? nil : Motion.ringProgress(reduceMotion: reduceMotion), value: turns)
-        .stillWhenDimmed(isLuminanceReduced)
+        // Named rather than blanketed: a transaction over the whole ring also
+        // clears the animation on its own frame, and the frame is exactly what
+        // changes when the bars leave.
+        .animation(
+            isLuminanceReduced ? nil : Motion.ringMode(reduceMotion: reduceMotion),
+            value: isScrubbing
+        )
+        .animation(
+            isScrubbing || isLuminanceReduced
+                ? nil
+                : Motion.ringProgress(reduceMotion: reduceMotion),
+            value: turns
+        )
         .padding(lineWidth / 2 + 1)
         // A Circle in a non-square frame draws an ellipse. Keep it round and as
         // large as the screen allows instead of pinning a fixed size.

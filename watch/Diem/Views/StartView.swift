@@ -145,6 +145,10 @@ struct StartView: View {
             // beat as the ring's change of mode.
             .id(isScrubbing)
             .transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
+            // The numeral holds still while dimmed. The ring around it doesn't
+            // have to, and this used to be applied to the whole screen — which
+            // swallowed the one movement worth seeing.
+            .stillWhenDimmed(isLuminanceReduced)
         }
         // Geometric centring puts the ring too low: the bottom bar carries a
         // filled accent circle and the top bar two small outlined glyphs, so
@@ -157,9 +161,12 @@ struct StartView: View {
         // them — the way an Activity ring does — buys back the diameter.
         .padding(.vertical, -14)
         .animation(Motion.fill(reduceMotion: reduceMotion), value: isScrubbing)
+        // Both bars leave when the wrist drops, and the ring — bounded by the
+        // height between them, not by the width — takes all of it back at once.
+        // That is most of a ring's diameter arriving in a single frame.
+        .animation(Motion.dimming(reduceMotion: reduceMotion), value: isLuminanceReduced)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isScrubbing ? "Session length" : "Today")
-        .stillWhenDimmed(isLuminanceReduced)
     }
 
     private func start() {

@@ -105,13 +105,21 @@ enum Format {
     }
 
     /// The Always-On layout drops to minutes only.
-    static func minutesOnly(_ seconds: TimeInterval) -> Measure {
+    ///
+    /// `span` reserves the field the same way `clock` does: the widest reading
+    /// this session can produce, not the widest any session could. A flat three
+    /// digits left a 25-minute session centring `25` in a box built for `480`,
+    /// with the better part of a digit of air between the number and its `m`.
+    static func minutesOnly(_ seconds: TimeInterval, span: TimeInterval? = nil) -> Measure {
         let minutes = Int(max(0, seconds) / 60)
+        let widestMinutes = Int(max(max(0, seconds), span ?? 0) / 60)
         return Measure(
             value: "\(minutes)",
             unit: "m",
-            widest: "888",
-            spoken: "\(minutes) minutes",
+            // Two digits at least: a countdown crossing ten would otherwise
+            // narrow its own field and pull the unit in with it.
+            widest: String(repeating: "8", count: max(2, String(widestMinutes).count)),
+            spoken: "\(minutes) minute\(minutes == 1 ? "" : "s")",
             motion: .value(Double(minutes))
         )
     }

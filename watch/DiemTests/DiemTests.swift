@@ -112,6 +112,24 @@ struct FormatTests {
         #expect(Format.count(remaining: -200, elapsed: 1700, plannedSec: 1500).value == "+03:20")
     }
 
+    @Test("Always-On reserves what this session can reach, not what any could")
+    func minutesOnlyWidth() {
+        // A 25-minute session never reads three digits, so it never reserves
+        // room for them — that room sat between the number and its unit.
+        #expect(Format.minutesOnly(25 * 60, span: 25 * 60).value == "25")
+        #expect(Format.minutesOnly(25 * 60, span: 25 * 60).widest == "88")
+        // A long one does.
+        #expect(Format.minutesOnly(90 * 60, span: 480 * 60).widest == "888")
+        // Two digits at least, so a countdown crossing ten holds its width.
+        #expect(Format.minutesOnly(5 * 60, span: 9 * 60).widest == "88")
+    }
+
+    @Test("One minute is not one minutes")
+    func minutesOnlySingular() {
+        #expect(Format.minutesOnly(60).spoken == "1 minute")
+        #expect(Format.minutesOnly(120).spoken == "2 minutes")
+    }
+
     @Test("Overtime carries its sign")
     func overtime() {
         #expect(Format.overtime(200).value == "+03:20")
