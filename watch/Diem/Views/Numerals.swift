@@ -20,8 +20,14 @@ struct NumeralText: View {
     /// share — which is what left it sitting visibly off-centre. A clock is one
     /// field: same face, same baseline, colon included.
     var drawsAsOneField = false
+    /// Drop the seconds off the end of the reading.
+    ///
+    /// Always-On is the same clock with its last two digits taken away, not a
+    /// screen of its own, so they leave on a slide and come back the same way.
+    var secondsHidden = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     /// Reduce Motion swaps the roll for a plain fade.
     private var transition: ContentTransition {
@@ -57,18 +63,56 @@ struct NumeralText: View {
         }
     }
 
+    /// The reading either side of its last colon: what stays when the seconds
+    /// are dropped, and the seconds themselves. Each half reserves its own
+    /// width, so dropping one cannot shift the other.
+    private var halves: (head: DigitGroup, seconds: DigitGroup?) {
+        let whole = DigitGroup(id: 0, value: value, widest: widest)
+        guard value.filter({ $0 == ":" }).count == widest.filter({ $0 == ":" }).count,
+              let valueCut = value.lastIndex(of: ":"),
+              let widestCut = widest.lastIndex(of: ":")
+        else { return (whole, nil) }
+        return (
+            DigitGroup(id: 0, value: String(value[..<valueCut]), widest: String(widest[..<widestCut])),
+            DigitGroup(id: 1, value: String(value[valueCut...]), widest: String(widest[widestCut...]))
+        )
+    }
+
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(groups) { group in
-                if group.id > 0 {
-                    Text(":")
-                        .numeralStyle(size: size, tracking: 0, weight: weight)
-                        .opacity(0.5)
+            if drawsAsOneField {
+                let halves = halves
+                digits(halves.head.value, reserving: halves.head.widest)
+                if let seconds = halves.seconds, !secondsHidden {
+                    digits(seconds.value, reserving: seconds.widest)
+                        // Out to the trailing edge, fading as it goes, while
+                        // what's left recentres in the space it gave up.
+                        .transition(
+                            reduceMotion
+                                ? AnyTransition.opacity
+                                : AnyTransition.move(edge: .trailing).combined(with: .opacity)
+                        )
                 }
-                digits(group.value, reserving: group.widest)
+            } else {
+                ForEach(groups) { group in
+                    if group.id > 0 {
+                        Text(":")
+                            .numeralStyle(size: size, tracking: 0, weight: weight)
+                            .opacity(0.5)
+                    }
+                    digits(group.value, reserving: group.widest)
+                }
             }
         }
-        .animation(Motion.numeric(reduceMotion: reduceMotion), value: value)
+        // Nothing rolls while dimmed — the display refreshes about once a
+        // minute, and a queued roll lands as stutter on the next wake. Named
+        // here rather than blanketed over the view, so the seconds leaving can
+        // still be seen.
+        .animation(
+            isLuminanceReduced ? nil : Motion.numeric(reduceMotion: reduceMotion),
+            value: value
+        )
+        .animation(Motion.dimming(reduceMotion: reduceMotion), value: secondsHidden)
     }
 
     /// The field is reserved at its widest value and the current one is drawn
@@ -122,6 +166,7 @@ struct HeroNumeral: View {
     var weight: Font.Weight = .medium
     var dimmed = false
     var drawsAsOneField = false
+    var secondsHidden = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -163,7 +208,8 @@ struct HeroNumeral: View {
                             tracking: tracking,
                             weight: weight,
                             motion: measure.motion,
-                            drawsAsOneField: drawsAsOneField
+                            drawsAsOneField: drawsAsOneField,
+                            secondsHidden: secondsHidden
                         )
                         if let unit = measure.unit {
                             Text("m")

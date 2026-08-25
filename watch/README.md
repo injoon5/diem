@@ -54,10 +54,18 @@ and rolling one into the other reads as a glitch.
 Springs are for discrete state changes, and every one is scoped with
 `.animation(_:value:)`.
 
-**Always-On is a second layout, not a dimmed copy.** Minutes only, one weight
-lighter, tracking loosened, no controls — and no animation at all, because the
-display refreshes about once a minute and queued animations land as stutter on
-the next wake.
+**Always-On is the same clock with its seconds taken off.** Not a second layout
+— the last two digits slide out to the trailing edge, what's left recentres in
+the space they gave up, and they slide back on the wake. One layout means the
+reading never changes units, size or place between lit and dimmed; only the
+controls go, and the ring on the Start screen grows into the room they leave.
+
+**Nothing else moves while dimmed.** A roll queued against a display that
+refreshes about once a minute lands as stutter on the next wake. Suppress it at
+the animation that would run — the numeral and the arc each check
+`isLuminanceReduced` themselves — rather than blanketing a transaction over the
+screen: a blanket also clears the animation on a view's own frame, which is
+exactly the crossing worth seeing.
 
 **Nothing on a redraw path touches SwiftData.** Every read the store exposes —
 `elapsed`, `remaining`, `isPaused`, `activeSubjectID`, `todaySeconds`,

@@ -121,8 +121,8 @@ struct RunningView: View {
 
     // MARK: - The clock
 
-    /// One reading of the live session: the numbers once, and everything the
-    /// two layouts need derived from them without going back to the store.
+    /// One reading of the live session, taken once per redraw so nothing below
+    /// has to go back to the store for it.
     private struct Tick {
         /// Seconds left on a timed session — `nil` when it is open-ended.
         let remaining: TimeInterval?
@@ -135,23 +135,6 @@ struct RunningView: View {
         var measure: Format.Measure {
             Format.count(remaining: remaining, elapsed: elapsed, plannedSec: plannedSec)
         }
-
-        /// Minutes only, but still unambiguous: `+3 m` dimmed is three minutes
-        /// over, not three minutes left.
-        var alwaysOnMeasure: Format.Measure {
-            // The field is the session's own range: a timed one can't read past
-            // what was planned, and an open-ended one can't read past what it
-            // has already done.
-            var measure = Format.minutesOnly(
-                abs(remaining ?? elapsed),
-                span: plannedSec.map(Double.init) ?? elapsed
-            )
-            guard isOvertime else { return measure }
-            measure.value = "+" + measure.value
-            measure.widest = "+" + measure.widest
-            measure.spoken += " over"
-            return measure
-        }
     }
 
     private func reading(at now: Date) -> Tick {
@@ -162,27 +145,24 @@ struct RunningView: View {
         )
     }
 
-    // MARK: - Layouts
+    // MARK: - Layout
 
-    @ViewBuilder
+    /// One layout, lit or dimmed. Always-On is this clock with its seconds
+    /// taken off — the reading a wrist glance can use, in the same place, at
+    /// the same size — rather than a screen of its own that swaps in whole.
     private func layout(_ tick: Tick) -> some View {
-        if isLuminanceReduced {
-            alwaysOn(tick)
-        } else {
-            active(tick)
-        }
-    }
-
-    private func active(_ tick: Tick) -> some View {
         let subject = store.subject(store.activeSubjectID)
         let measure = tick.measure
         return VStack(spacing: 2) {
             Spacer(minLength: 0)
             HeroNumeral(
                 measure: measure,
+                // Sized by the field it can grow into, seconds included, so
+                // dropping them doesn't resize what's left.
                 size: heroSize(for: measure),
                 dimmed: tick.isOvertime,
-                drawsAsOneField: true
+                drawsAsOneField: true,
+                secondsHidden: isLuminanceReduced
             )
             .padding(.horizontal, 6)
             SubjectButton(
@@ -201,8 +181,13 @@ struct RunningView: View {
         .frame(maxWidth: .infinity)
         .overlay(alignment: .top) {
             if let status {
+                // The one state worth a colour. A held session and a running
+                // one are otherwise the same picture — a frozen clock reads as
+                // a clock — and this word is what says which. Dimmed it takes
+                // the palette's Always-On accent, since saturated orange goes
+                // muddy brown as luminance drops.
                 Text(status)
-                    .sectionLabelStyle()
+                    .sectionLabelStyle(Palette.accent(luminanceReduced: isLuminanceReduced))
                     .id(status)
                     .labelSwap(reduceMotion: reduceMotion)
             }
@@ -247,38 +232,6 @@ struct RunningView: View {
         // Under a minute there is no summary to show, so this is the only
         // acknowledgement the session gets.
         if store.end() == nil { Haptics.sessionAbandoned() }
-    }
-
-    /// A second layout, not a dimmed copy: minutes only, one weight lighter
-    /// (dimming optically thickens strokes), tracking loosened, no controls.
-    private func alwaysOn(_ tick: Tick) -> some View {
-        VStack(spacing: 2) {
-            HeroNumeral(
-                measure: tick.alwaysOnMeasure,
-                tracking: Typography.Size.heroTracking + 0.6,
-                weight: .regular,
-                drawsAsOneField: true
-            )
-            .padding(.horizontal, 6)
-            if let name = store.subject(store.activeSubjectID)?.name {
-                Text(name)
-                    .font(Typography.text(.footnote))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // The one thing this layout cannot say on its own. Dimmed, the numeral
-        // only moves once a minute anyway, so a held count and a running one
-        // are the same picture — a wrist glance would read a paused session as
-        // studying. Pinned to the top, where the lit layout puts the same word,
-        // and as an overlay so the numeral doesn't shift down to make room.
-        .overlay(alignment: .top) {
-            if store.isPaused {
-                Text("Paused").sectionLabelStyle()
-            }
-        }
-        .stillWhenDimmed(true)
     }
 
     // MARK: - Derived
