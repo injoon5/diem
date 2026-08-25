@@ -45,6 +45,11 @@ goal, and the number in the middle becomes the duration being set rather than
 the day's total. The two are different quantities, so the swap is a blur, not a
 roll — rolling one into the other would read as the number counting itself down.
 
+The system's own crown indicator is hidden here. The ring is welded to the crown
+and is the largest thing on the screen; the green bar down the right edge said
+the same thing again, smaller, over the top of it ([B-38](../bug-triage.md#b-38)).
+The Goal screen keeps its indicator — there is no ring there.
+
 The arc tracks the crown continuously; the number and the click land on whole
 minutes. See [`../foundations/input-model.md`](../foundations/input-model.md).
 
@@ -159,7 +164,7 @@ stateDiagram-v2
 
 - Whether reclaiming crown focus when the last sheet closes actually restores it, or whether the focus has to be dropped and re-taken. [B-12b](../bug-triage.md#b-12).
 - Three sheets are attached to the same view. Modern SwiftUI generally handles this, but stacked `sheet(isPresented:)` modifiers on one view have historically been unreliable; this wants a device before it is called fine.
-- Whether the "Not saving" banner ever appears in practice. It is the visible half of [B-04](../bug-triage.md#b-04) and is reachable only by corrupting the store.
+- Whether the "Not saving" banner ever appears in practice. It is the visible half of [B-04](../bug-triage.md#b-04) and is reachable only by corrupting the store; its milder sibling, "Complication not updating", is what an unprovisioned App Group looks like.
 - Whether the −14pt vertical overrun clips the ring against the bezel on the 41mm watch.
 - Whether the optical 12pt lift still reads as centred once the bars are gone in Always-On, where the thing it was correcting for is no longer on screen.
 

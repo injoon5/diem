@@ -61,12 +61,16 @@ struct CircleControl: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(tint)
                 // Pause becomes play, stop becomes a checkmark: the same
-                // control changing what it does. Swapped hard, that read as
-                // the button being rebuilt underneath the thumb; the symbol
-                // transition is the system's own answer to it.
-                .contentTransition(
-                    reduceMotion ? .opacity : .symbolEffect(.replace)
-                )
+                // control changing what it does.
+                //
+                // Not `.symbolEffect(.replace)`. That draws one glyph's path
+                // into the other's, and a path morph is a thing you watch — on
+                // a control answering a thumb it is the slowest possible way to
+                // say something instant happened. The same blur replace every
+                // other label in the app swaps on, which is over before the
+                // finger is off the glass.
+                .id(systemImage)
+                .labelSwap(reduceMotion: reduceMotion)
                 .frame(width: 44, height: 44)
                 .contentShape(.circle)
         }

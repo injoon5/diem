@@ -1,6 +1,6 @@
 name: Diem
 options:
-  bundleIdPrefix: app.diem
+  bundleIdPrefix: com.injoon5
   createIntermediateGroups: true
   deploymentTarget:
     watchOS: "27.0"
@@ -31,23 +31,23 @@ targets:
     entitlements:
       path: Diem/Diem.entitlements
       properties:
-        # Time Sensitive is what lets the deadline alert through a Focus, which
-        # is the situation a study timer's alert exists for. The level was set
-        # in code without it, so the system quietly delivered an ordinary one.
-        com.apple.developer.usernotifications.time-sensitive: true
+        # Time Sensitive notifications are deliberately absent: the team
+        # provisioning profile does not carry that capability, so requesting it
+        # fails to sign. The completion alert uses the ordinary .active level.
         com.apple.security.application-groups:
-          - group.app.diem
+          - group.com.injoon5.diem
     info:
       path: Diem/Info.plist
       properties:
         CFBundleDisplayName: Diem
         WKApplication: true
-        # Both keys, in one place. The tracked `Info.plist` had `WKWatchOnly`
-        # and not this one; the spec had this one and not that — so the first
-        # `xcodegen generate` after a checkout rewrote a tracked file and
-        # silently dropped a key. The spec is the source of truth, and the
-        # generated plist is no longer committed.
-        WKRunsIndependentlyOfCompanionApp: true
+        # `WKWatchOnly` alone. Declaring `WKRunsIndependentlyOfCompanionApp`
+        # alongside it is what installation refuses — the two answer the same
+        # question and the pair is ambiguous. `WKRunsIndependentlyOfCompanionApp`
+        # is the answer for a watch app embedded in an iOS app that can run
+        # without it; there is no iOS target here, so `WKWatchOnly` is the true
+        # one. The spec is the source of truth and the generated plist is not
+        # committed, so this is the only place the key is stated.
         WKWatchOnly: true
         WKSupportsLiveActivityLaunchAttributes: true
         # What lets the app claim an extended runtime session, and so hold the
@@ -62,7 +62,7 @@ targets:
         NSSupportsLiveActivities: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.diem.watchkitapp
+        PRODUCT_BUNDLE_IDENTIFIER: com.injoon5.diem.watchkitapp
         INFOPLIST_KEY_CFBundleDisplayName: Diem
 
   DiemWidget:
@@ -78,7 +78,7 @@ targets:
       path: DiemWidget/DiemWidget.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.app.diem
+          - group.com.injoon5.diem
     info:
       path: DiemWidget/Info.plist
       properties:
@@ -87,7 +87,7 @@ targets:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.diem.watchkitapp.widget
+        PRODUCT_BUNDLE_IDENTIFIER: com.injoon5.diem.watchkitapp.widget
 
   DiemTests:
     type: bundle.unit-test
@@ -98,7 +98,7 @@ targets:
       - target: Diem
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.diem.watchkitapp.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.injoon5.diem.watchkitapp.tests
 
 schemes:
   Diem:

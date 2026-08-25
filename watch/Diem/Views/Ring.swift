@@ -104,8 +104,12 @@ struct GoalRing: View {
 /// recent hour and the turn beneath shows through dimmed, the way the goal
 /// ring's lap does.
 ///
-/// Butt caps, not round: these bands abut, and a rounded end on each would have
-/// every band bulge over its neighbour and read as a gap that isn't there.
+/// Round at the two ends of the bar, butt everywhere inside it. A rounded end on
+/// *every* band would have each one bulge over its neighbour and read as a gap
+/// that isn't there — but leaving the bar's own two ends squared off was the
+/// other mistake, next to a goal ring that is round at both ends. The ends are
+/// drawn round underneath and the butt-capped bands are laid over the top, so
+/// the only round caps left showing are the two the bar actually has.
 struct SubjectRing: View {
     /// A run with its colour already looked up.
     ///
@@ -173,23 +177,127 @@ struct SubjectRing: View {
         return bands
     }
 
+    /// A whole turn of the bar as one stroke, with the colour changes inside it
+    /// expressed as gradient stops rather than as separate arcs.
+    private struct LapArc: Identifiable {
+        let id: Int
+        let from: Double
+        let to: Double
+        let stops: [Gradient.Stop]
+        /// The colours at the two ends, flat. A round cap overhangs the arc, and
+        /// an angular gradient outside its own span wraps to the far end of the
+        /// stop list — which painted the cap at the top of the ring in the
+        /// colour of whatever was being studied last.
+        let head: Color
+        let tail: Color
+    }
+
+    /// How much of a turn a colour change is given to happen over.
+    ///
+    /// Roughly seven degrees — about a stroke-width of arc at the diameter this
+    /// ring is drawn at, which is the distance over which two colours read as
+    /// meeting rather than as one being interrupted by the other.
+    private static let blend: Double = 0.02
+
+    /// The bands grouped into turns, each turn carrying the stops that colour it.
+    ///
+    /// A band's colour is held flat across its whole length except for half a
+    /// blend at each end that abuts a *different* colour, where the stop is
+    /// pulled inwards and the gradient does the rest. Ends that are the bar's
+    /// own, or that meet the same colour, or that sit on a turn boundary, are
+    /// not pulled in: a turn boundary is a hard edge on purpose — it is where a
+    /// later turn is laid over an earlier one.
+    private func laps(_ bands: [Band], top: Int) -> [LapArc] {
+        var arcs: [LapArc] = []
+        var index = 0
+        while index < bands.count {
+            let lap = bands[index].lap
+            var last = index
+            while last + 1 < bands.count, bands[last + 1].lap == lap { last += 1 }
+            let group = Array(bands[index...last])
+
+            var stops: [Gradient.Stop] = []
+            for (offset, band) in group.enumerated() {
+                let raw = Palette.subject(band.colorIndex)
+                let color = band.lap == top ? raw : Palette.lapped(raw)
+                // Never more than a third of the band from either end, so a run
+                // of a minute or two is still its own colour in the middle
+                // rather than a smear between its neighbours.
+                let room = min(Self.blend / 2, (band.to - band.from) / 3)
+                let before = offset > 0 ? group[offset - 1] : nil
+                let after = offset + 1 < group.count ? group[offset + 1] : nil
+                let head = before.map { $0.colorIndex == band.colorIndex ? 0 : room } ?? 0
+                let tail = after.map { $0.colorIndex == band.colorIndex ? 0 : room } ?? 0
+                stops.append(Gradient.Stop(color: color, location: band.from + head))
+                stops.append(Gradient.Stop(color: color, location: band.to - tail))
+            }
+
+            arcs.append(
+                LapArc(
+                    id: lap,
+                    from: group[0].from,
+                    to: group[group.count - 1].to,
+                    stops: stops,
+                    head: stops[0].color,
+                    tail: stops[stops.count - 1].color
+                )
+            )
+            index = last + 1
+        }
+        return arcs
+    }
+
+    /// One turn of the bar.
+    ///
+    /// The stops are locations on the whole turn, and so is the arc, so the
+    /// gradient lands on the stroke without either having to know where the
+    /// other starts.
+    private func arc(_ lap: LapArc) -> some View {
+        Circle()
+            .trim(from: lap.from, to: lap.to)
+            .stroke(
+                AngularGradient(stops: lap.stops, center: .center),
+                style: .init(lineWidth: lineWidth, lineCap: .butt)
+            )
+    }
+
+    /// A round cap for one end of the bar, laid underneath it.
+    ///
+    /// A hair of arc with a round cap draws as a dot the width of the stroke,
+    /// centred on the point. Half of it is the cap that shows past the end of
+    /// the bar; the other half is covered by the band drawn over it. Both ends
+    /// were laid as whole round-capped turns at first, which on a bar that
+    /// hasn't lapped yet meant the second one — the tail, in the tail's colour
+    /// — was drawn straight over the first, and the cap at the top of the ring
+    /// came out in the colour of whatever was being studied last.
+    private func capArc(at position: Double, color: Color) -> some View {
+        Circle()
+            .trim(from: max(0, position - 0.0008), to: min(1, position + 0.0008))
+            .stroke(color, style: .init(lineWidth: lineWidth, lineCap: .round))
+    }
+
     var body: some View {
         let bands = bands
         let top = bands.last?.lap ?? 0
+        let laps = laps(bands, top: top)
         ZStack {
             Circle()
                 .stroke(Palette.ghostTrack, style: .init(lineWidth: lineWidth, lineCap: .round))
 
+            // The bar's two ends, round, underneath everything. The inner half
+            // of each is covered by the butt-capped turn drawn over it; the
+            // outer half is the cap that shows.
+            if let first = laps.first {
+                capArc(at: first.from, color: first.head)
+            }
+            if let last = laps.last {
+                capArc(at: last.to, color: last.tail)
+            }
+
             // Drawn in the order the day happened, so a later turn covers an
             // earlier one exactly as winding a bar round twice would.
-            ForEach(bands) { band in
-                let color = Palette.subject(band.colorIndex)
-                Circle()
-                    .trim(from: band.from, to: band.to)
-                    .stroke(
-                        band.lap == top ? color : Palette.lapped(color),
-                        style: .init(lineWidth: lineWidth, lineCap: .butt)
-                    )
+            ForEach(laps) { lap in
+                arc(lap)
             }
         }
         .rotationEffect(.degrees(-90))

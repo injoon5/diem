@@ -92,7 +92,7 @@ enum SessionAlerts {
                 // body says the one thing the heading does not.
                 content.title = subject ?? "Session complete"
                 content.body = "Time's up."
-                content.interruptionLevel = .timeSensitive
+                content.interruptionLevel = .active
                 await add(content, id: completeIdentifier, after: complete, to: center)
             }
 

@@ -16,6 +16,21 @@ enum Motion {
             : .spring(response: 0.22, dampingFraction: 0.86)
     }
 
+    /// One thing becoming another in place: pause becoming play, stop becoming
+    /// a checkmark, the ✕ that arrives beside them — and a numeral changing
+    /// field, `59m` to `1h 00m`, which is the same event with digits in it.
+    ///
+    /// This used to run on `fill`, which is the timing for a state change
+    /// arriving from somewhere else — and at a 0.35 response the glyph was
+    /// still settling well after the finger had lifted, so the button read as
+    /// thinking about it. Like `press`, this answers a touch, and a touch is
+    /// answered immediately or not at all.
+    static func swap(reduceMotion: Bool) -> Animation {
+        reduceMotion
+            ? .linear(duration: 0.1)
+            : .spring(response: 0.2, dampingFraction: 0.9)
+    }
+
     /// One root screen replacing another.
     static func screen(reduceMotion: Bool) -> Animation {
         reduceMotion ? .linear(duration: 0.16) : standard

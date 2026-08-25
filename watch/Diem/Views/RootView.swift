@@ -55,8 +55,25 @@ struct RootView: View {
             // with no subjects and no history, which is indistinguishable from
             // a fresh install right up until the day's work disappears at quit.
             // Falling back was the right call; falling back quietly was not.
+            // The private on-disk store is the milder version of the same
+            // thing: the day is kept, the complication is the part that stops.
             .safeAreaInset(edge: .top, spacing: 0) {
-                if DiemContainer.isEphemeral {
+                switch DiemContainer.storage {
+                case .group:
+                    EmptyView()
+                case .local:
+                    // The day is safe; only the shared half is not. Said in the
+                    // same place and quieter, because nothing is being lost.
+                    Text("Complication not updating")
+                        .sectionLabelStyle()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .padding(.horizontal, 6)
+                        .accessibilityLabel(
+                            "Diem is saving, but cannot reach the shared container, "
+                                + "so the complication is not updating."
+                        )
+                case .memory:
                     Text("Not saving — reopen Diem")
                         .sectionLabelStyle(Palette.accent)
                         .lineLimit(1)

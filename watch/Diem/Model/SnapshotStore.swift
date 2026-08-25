@@ -6,7 +6,7 @@ import Foundation
 /// Apple platform under it — `DiemSnapshot` is arithmetic and belongs with the
 /// rest of the core that can be compiled and tested anywhere.
 enum SnapshotStore {
-    static let appGroup = "group.app.diem"
+    static let appGroup = "group.com.injoon5.diem"
     static let widgetKind = "DiemToday"
     static let sessionWidgetKind = "DiemSession"
 
