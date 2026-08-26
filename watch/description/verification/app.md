@@ -76,6 +76,7 @@ not currently build.
 | SET-06 | P1 | device | Delete asks for confirmation ([B-21](../bug-triage.md#b-21)) | Any subject | Tap Delete once, wait 6s | The label arms to "Delete?" and then takes itself back. Nothing is deleted. | — |
 | SET-07 | P2 | device | Deleting keeps history | A subject with a past session | Delete it, open Metrics | Past sessions still show the name | — |
 | SET-08 | P2 | device | Duplicate names are refused ([B-20](../bug-triage.md#b-20)) | Any | Add "Maths", then try to add "maths" | "Already used." under the field and Save disabled | — |
+| SET-08b | P2 | device | Saving a name does not flash its own duplicate warning | Any | Add "Physics" and watch the sheet as it closes | The sheet dismisses with nothing under the field. Saving makes the name taken, and the sheet is still on screen while it goes. | — |
 | SET-09 | P2 | device | The eleventh subject gets the least-used colour ([B-22](../bug-triage.md#b-22)) | Ten subjects, all colours used once | Add an eleventh | Any colour. Add a twelfth and check it is not the eleventh's. | — |
 
 ## Metrics — `MET`

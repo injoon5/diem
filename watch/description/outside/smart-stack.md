@@ -1,7 +1,14 @@
 # The session card
 
-The `accessoryRectangular` widget that puts a running session in the Smart
-Stack, and gets itself put there unasked.
+The `accessoryRectangular` family of [the complication](complications.md), which
+puts a running session in the Smart Stack and gets itself put there unasked.
+
+It was a widget of its own until the two were merged. Two entries in the gallery
+meant two things to install and a stack that could hold both at once — one card
+reading `1h 30m`, the card under it counting the session half of it came from.
+They read the same snapshot and answer the same question, so they are one card,
+and which of its two readings it shows is the session's business rather than
+something to be chosen at install.
 
 ## What you see
 
@@ -11,8 +18,13 @@ Two layouts, depending on whether anything is running.
 with a 30pt stop button at the trailing edge. The count is rendered by the
 system's own timer text, so it ticks without the widget being refreshed.
 
-**Nothing running** — "TODAY" above the day's total in the compact spelling
-(`1.5h`), with a play button.
+**Nothing running** — "TODAY" above the day's total in the app's own spelling
+(`1h 30m`), with a play button.
+
+The goal bar sits under both. It is the day either way, and a card that kept it
+for one reading and dropped it for the other would change shape every time a
+session started. The reading takes the width it is given and the button takes
+the 30 points it asks for, so both layouts hang their control off the same edge.
 
 The buttons are sized as targets rather than as glyphs. At its own size the stop
 symbol is a few points across, on a card that also opens the app when missed.
@@ -54,7 +66,8 @@ See [`../foundations/surfaces.md`](../foundations/surfaces.md#relevance).
 
 **Compose** is not possible here: the Start button commits an open-ended, free
 session with no way to set either. **Commit** and **Close** both work. **Run** is
-what the card mostly shows. **Account** is only the compact total.
+what the card mostly shows. **Account** is the day's total and the goal bar
+under it.
 
 The End button is the interesting one. It runs an intent in the widget
 extension's process, and that process holds its own view of the database. The
@@ -67,7 +80,7 @@ anything. See [B-03](../bug-triage.md#b-03).
 
 | At the start | What differs |
 | --- | --- |
-| Nothing running | Today's compact total and a play button. Starting gives a free, open-ended session. |
+| Nothing running | Today's total, the goal bar, and a play button. Starting gives a free, open-ended session. |
 | Session running | Subject, count, stop button. |
 | Session held | The count is frozen. Nothing else marks it — the card does not say "Paused". |
 
@@ -93,8 +106,10 @@ anything. See [B-03](../bug-triage.md#b-03).
 **Always-On** — the system dims the card. The timer text keeps its own cadence.
 
 **Typography** — 22pt numerals, monospaced, accentable so a tinted watch face
-can recolour them. The card deliberately spells the total the way the app does
-rather than the compact way the circular complication has to.
+can recolour them. The subject's name is set in the same face as the "TODAY"
+label it replaces: the same line of the same card, with only the word in it
+changing. The card deliberately spells the total the way the app does rather
+than the compact way the circular complication has to.
 
 **Motion** — none. Widget content is redrawn, never animated.
 

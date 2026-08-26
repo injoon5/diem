@@ -82,8 +82,8 @@ Every feature document follows the same eight sections:
 | [`app/metrics.md`](app/metrics.md) | Today, this week, twelve weeks. | drafted |
 | [`app/pairing.md`](app/pairing.md) | The code, and what it does not tell you. | drafted |
 | **Outside the app** | | |
-| [`outside/smart-stack.md`](outside/smart-stack.md) | The session card and how it is surfaced. | drafted |
-| [`outside/complications.md`](outside/complications.md) | Four families of Today. | drafted |
+| [`outside/smart-stack.md`](outside/smart-stack.md) | The card while a session runs, and how it is surfaced. | drafted |
+| [`outside/complications.md`](outside/complications.md) | One widget, four families of Today. | drafted |
 | [`outside/intents.md`](outside/intents.md) | Siri, the Action Button, and the widget buttons. | drafted |
 | **Checking** | | |
 | [`verification/README.md`](verification/README.md) | How to run a pass. | drafted |

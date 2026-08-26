@@ -305,9 +305,18 @@ private struct NameField: View {
     /// nothing but reach the control the sheet was opened for.
     @FocusState private var typing: Bool
 
+    /// Set by Save, and the reason the duplicate warning is asked about at all.
+    ///
+    /// Saving makes the name taken — by the very subject just saved — and the
+    /// sheet is still on screen for the length of its dismissal. So the last
+    /// thing a name that was fine the whole way through did was flash
+    /// `Already used.` under itself on the way out. Once committed there is
+    /// nothing left to warn about: the field stops asking.
+    @State private var committed = false
+
     private var trimmed: String { text.trimmingCharacters(in: .whitespaces) }
-    private var duplicate: Bool { isTaken(trimmed) }
-    private var canSave: Bool { !trimmed.isEmpty && !duplicate }
+    private var duplicate: Bool { !committed && isTaken(trimmed) }
+    private var canSave: Bool { !committed && !trimmed.isEmpty && !duplicate }
 
     var body: some View {
         // Presented as a bare sheet, the title had nothing to draw in — so the
@@ -350,6 +359,10 @@ private struct NameField: View {
 
     private func commit() {
         guard canSave else { return }
+        // Before the store is touched, so the re-render the write provokes
+        // finds the field no longer asking whether the name is taken. It also
+        // makes a second tap on a button still on screen a no-op.
+        committed = true
         onCommit(trimmed)
         dismiss()
     }

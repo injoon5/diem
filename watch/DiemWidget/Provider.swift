@@ -15,11 +15,6 @@ struct SnapshotEntry: TimelineEntry {
 }
 
 struct SnapshotProvider: TimelineProvider {
-    /// Only the session card asks the Smart Stack for room. The Today
-    /// complication is something you go and look at; a running session is the
-    /// one thing here worth putting in front of you unasked.
-    var claimsRelevance = false
-
     func placeholder(in context: Context) -> SnapshotEntry { .placeholder }
 
     func getSnapshot(in context: Context, completion: @escaping (SnapshotEntry) -> Void) {
@@ -42,8 +37,12 @@ struct SnapshotProvider: TimelineProvider {
         completion(Timeline(entries: [entry], policy: .after(min(cadence, nextDay))))
     }
 
-    /// What gets the session card shown in the Smart Stack at all without
-    /// being added by hand, and floats it to the top once it is.
+    /// What gets the card shown in the Smart Stack at all without being added
+    /// by hand, and floats it to the top once it is.
+    ///
+    /// Only while a session is running. The day's total is something you go and
+    /// look at; a session with an End button on it is the one thing here worth
+    /// putting in front of you unasked, and the card is showing it.
     ///
     /// The window itself is `DiemSnapshot.Live.relevanceWindow` — arithmetic,
     /// and so kept where it can be tested. What is decided here is how the
@@ -57,7 +56,7 @@ struct SnapshotProvider: TimelineProvider {
     /// `RelevantContext` comes from RelevanceKit, which App Intents pulls in —
     /// hence the import above, which is otherwise unused in this file.
     func relevance() async -> WidgetRelevance<Void> {
-        guard claimsRelevance, let session = SnapshotStore.read().session else {
+        guard let session = SnapshotStore.read().session else {
             return WidgetRelevance([])
         }
         // No `configuration:` argument: the initializers that take one are

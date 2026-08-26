@@ -1,6 +1,10 @@
-# The Today complication
+# The complication
 
-Four families of one reading: the day against the goal.
+Four families of one reading: the day against the goal. In the rectangular
+family — the one the Smart Stack shows — that reading gives way to the running
+session while there is one, which is the whole of
+[`smart-stack.md`](smart-stack.md). One widget, one entry in the gallery, two
+things it can be saying.
 
 ## What you see
 
@@ -8,12 +12,21 @@ Four families of one reading: the day against the goal.
 | --- | --- |
 | `accessoryCircular` | A capacity gauge with the compact total in the middle |
 | `accessoryCorner` | A book glyph with a gauge as its curved label |
-| `accessoryRectangular` | "TODAY", the full total at 22pt, and a goal bar |
+| `accessoryRectangular` | "TODAY", the full total at 22pt, a goal bar, and a Start button — or the running session and an End button |
 | `accessoryInline` | "1.5h studied" |
 
 Everything is glanceable in under a second, legible in monochrome, and free of
-live-ticking seconds — a complication that ticks is a complication that costs
-refreshes for a reading nobody is watching that closely.
+live-ticking seconds wherever the day's total is what is being shown — a
+complication that ticks is a complication that costs refreshes for a reading
+nobody is watching that closely. The running count is the exception, and it
+costs nothing: the system renders it from an interval, not the widget from a
+timeline.
+
+The small families stay on the total whatever is running, because the total
+already counts it: a session in its tenth minute is ten minutes of the number on
+the face. Four characters and a gauge have room for one reading, and the one
+that survives being glanced at is the one that answers "how much have I done
+today".
 
 ## Two spellings, on purpose
 
@@ -42,13 +55,16 @@ own cap radius draws as a sliver rather than as the round end the ring has.
 
 ## What you can do
 
-Tap it. It opens the app. There are no buttons.
+Tap it. It opens the app. The three small families have no buttons; the
+rectangular one carries a single Start or End, because it is the Smart Stack
+card as well.
 
 ## The five phases
 
-Only **Account**. The complication claims no relevance and offers no actions: it
-is something you go and look at, and the app takes the view that a running
-session is the one thing worth putting in front of you unasked.
+For the three small families, only **Account** — they are something you go and
+look at. The rectangular family also carries **Commit** and **Close** on its one
+button, and claims relevance while a session is running, which is what puts it
+in front of you unasked. See [`smart-stack.md`](smart-stack.md).
 
 ## Variants
 
@@ -61,7 +77,7 @@ session is the one thing worth putting in front of you unasked.
 
 | During | What differs |
 | --- | --- |
-| Session running | The total includes it and advances, because the snapshot carries an instant to count from rather than a number. |
+| Session running | The total includes it and advances, because the snapshot carries an instant to count from rather than a number. The rectangular family swaps the total for the session itself. |
 | Session held | The total is frozen at the held value. |
 
 ## Interrupts

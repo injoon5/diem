@@ -629,7 +629,7 @@ final class SessionStore {
             SnapshotStore.write(snapshot)
             WidgetCenter.shared.reloadAllTimelines()
             if relevanceChanged {
-                WidgetCenter.shared.invalidateRelevance(ofKind: SnapshotStore.sessionWidgetKind)
+                WidgetCenter.shared.invalidateRelevance(ofKind: SnapshotStore.widgetKind)
             }
         }
     }
