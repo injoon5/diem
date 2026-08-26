@@ -48,6 +48,12 @@ enum LayoutHarness {
     /// the goal ring draws a shadow at all.
     static var isStart: Bool { arguments.contains("-DiemHarnessStart") }
 
+    /// Swaps the hero numeral across the field boundary — `59 m` to `1h 00m`
+    /// and back — twice a second, over the ring it has to stay clear of. The
+    /// crossing lasts a fifth of a second and happens twice a day in real use,
+    /// which is not a thing anybody can look at.
+    static var showsNumeral: Bool { arguments.contains("-DiemHarnessNumeral") }
+
     /// Forty-seven minutes over four subjects, the last of them two seconds
     /// old: a bar with several joins in it, one of them brand new, and an end
     /// far enough round to be nowhere near the start.
@@ -91,6 +97,41 @@ extension LayoutHarness {
         // Not presented: the harness wants the Start screen, and a session that
         // has just ended puts the Done screen in front of it.
         _ = store.end(at: now - 60, presentingDone: false)
+    }
+}
+
+/// The hero numeral, crossing the hour, on a loop.
+///
+/// Behind the goal ring and inside the same padding the Start screen gives it,
+/// because the bug this exists for is the numeral fouling the arc on the way
+/// past — which only shows at the width the real screen has.
+struct NumeralHarness: View {
+    /// Faster than the swap it drives, on purpose. A wrist crossing the hour on
+    /// the crown re-crosses it several times a second, so every transition is
+    /// interrupted part-way by the next one — which is the state a numeral is
+    /// most likely to be caught out of place in, and the one a swap every
+    /// second never reaches.
+    private static let period: TimeInterval = 0.2
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: Self.period)) { context in
+            let seconds = Int(context.date.timeIntervalSince1970 / Self.period) % 2 == 0
+                ? 59 * 60.0
+                : 60 * 60.0
+            ZStack {
+                GoalRing(goalTurns: 0.4)
+                HeroNumeral(
+                    measure: Format.total(seconds),
+                    size: Typography.Size.ringNumeral,
+                    tracking: Typography.Size.ringNumeralTracking
+                )
+                .padding(.horizontal, 10)
+            }
+            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.vertical, -14)
+        }
+        .containerBackground(.black, for: .navigation)
     }
 }
 

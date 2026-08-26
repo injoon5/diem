@@ -137,7 +137,9 @@ no watch and no simulator.
 comes up on a running session three quarters of an hour old;
 `-DiemHarnessDimmed` holds it in the state a dropped wrist puts it in, and
 `-DiemHarnessStart` puts today past the goal and nothing on the clock, so the
-Start screen comes up with its ring lapped; `-DiemHarnessCentreLine` draws a
+Start screen comes up with its ring lapped; `-DiemHarnessNumeral` swaps the hero numeral across the field boundary five
+times a second over the ring, which is the only way to see a fifth of a second
+of crossing that happens twice a day; `-DiemHarnessCentreLine` draws a
 hairline down the true middle of the display,
 which is the only way to tell centred from nearly centred by looking. See
 `Views/LayoutHarness.swift`. It never syncs and never asks for notifications —

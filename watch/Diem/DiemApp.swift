@@ -56,12 +56,16 @@ private extension View {
     @ViewBuilder
     func harnessed() -> some View {
         #if DEBUG
-        self
+        if LayoutHarness.showsNumeral {
+            NumeralHarness()
+        } else {
+            self
             .overlay { if LayoutHarness.showsCentreLine { CentreLine() } }
             .task {
                 LayoutHarness.announce()
                 LayoutHarness.seed(DiemContainer.store)
             }
+        }
         #else
         self
         #endif

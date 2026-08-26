@@ -14,6 +14,17 @@ struct StartView: View {
     /// The value the crown was just reset to in code, so the reset doesn't
     /// click. Cleared by the first change that is not it.
     @State private var resetTo: Double?
+    /// The crown is being turned back past nothing, and has been answered once.
+    @State private var refused = false
+
+    /// How far below zero the crown may travel before it is stopped.
+    ///
+    /// The range needs somewhere to go or there is no event to answer: a
+    /// binding already clamped at its own minimum reports nothing at all while
+    /// the wrist keeps turning, so backwards from a standing start was silence.
+    /// Four tenths of a step is a hair of give under the thumb — the give a
+    /// backstop has — and it rounds to nothing, so no reading changes.
+    private static let backstop: Double = -0.4
     @State private var showingSubjects = false
     @State private var showingSettings = false
     @State private var showingMetrics = false
@@ -24,7 +35,7 @@ struct StartView: View {
 
     /// The whole step the crown has settled nearest — what the numeral reads
     /// and what a tap on Start commits.
-    private var crownDetent: Int { Int(crownStep.rounded()) }
+    private var crownDetent: Int { max(0, Int(crownStep.rounded())) }
     private var scrubSeconds: TimeInterval { DurationScrub.seconds(forStep: crownDetent) }
     /// The same duration without the rounding, so the arc stays welded to the
     /// crown rather than snapping a step behind it.
@@ -60,7 +71,7 @@ struct StartView: View {
         .focused($crownFocused)
         .digitalCrownRotation(
             $crownStep,
-            from: Double(DurationScrub.minStep),
+            from: Self.backstop,
             through: Double(DurationScrub.maxStep),
             sensitivity: .medium,
             isContinuous: false,
@@ -81,6 +92,19 @@ struct StartView: View {
             CrownHint(isVisible: !isScrubbing && !isLuminanceReduced)
         }
         .digitalCrownAccessory(.visible)
+        // Turning back past nothing is answered rather than ignored. The ring
+        // is already empty and the numeral already reads what today holds, so
+        // without this the wrist gets no reply at all and the crown reads as
+        // having stopped working.
+        .onChange(of: crownStep) { _, step in
+            if step <= Self.backstop + 0.02 {
+                guard !refused else { return }
+                refused = true
+                Haptics.refused()
+            } else if step >= 0 {
+                refused = false
+            }
+        }
         .onChange(of: crownDetent) { _, _ in
             // The reset that follows a commit must not click. It used to arm a
             // latch that only this handler could clear — and a crown turned
@@ -248,5 +272,6 @@ struct StartView: View {
         Haptics.start()
         resetTo = 0
         crownStep = 0
+        refused = false
     }
 }
