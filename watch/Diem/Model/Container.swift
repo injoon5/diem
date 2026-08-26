@@ -44,16 +44,30 @@ enum DiemContainer {
         let schema = Schema(versionedSchema: DiemSchemaV1.self)
 
         // The App Group store: shared, and preserved across updates.
-        do {
-            return try ModelContainer(
-                for: schema,
-                migrationPlan: DiemMigrationPlan.self,
-                configurations: ModelConfiguration(
-                    schema: schema,
-                    groupContainer: .identifier(SnapshotStore.appGroup)
+        //
+        // Asked for only once the container is known to be reachable. A
+        // `ModelConfiguration` naming a group this process has no entitlement
+        // for does not throw — SwiftData traps inside itself, "Unable to find
+        // App Group Container in Entitlements" — so every line of recovery
+        // below it was unreachable in exactly the case it was written for: a
+        // build signed without the group, which is what a simulator build and
+        // a re-signed one both are. `containerURL` is the same question asked
+        // where a no is an answer rather than a crash.
+        if FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: SnapshotStore.appGroup) != nil {
+            do {
+                return try ModelContainer(
+                    for: schema,
+                    migrationPlan: DiemMigrationPlan.self,
+                    configurations: ModelConfiguration(
+                        schema: schema,
+                        groupContainer: .identifier(SnapshotStore.appGroup)
+                    )
                 )
-            )
-        } catch {
+            } catch {
+                storage = .local
+            }
+        } else {
             storage = .local
         }
 

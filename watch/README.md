@@ -16,7 +16,7 @@ xcodegen generate && open Diem.xcodeproj
 | `Diem/Views` | Start, Running, Done, Settings, Metrics, and the shared parts |
 | `Diem/Intents` | Start / Pause / End, behind every other surface |
 | `Diem/Runtime` | The extended runtime session that holds the foreground |
-| `Scripts` | `core-check.sh` — builds and tests the Foundation-only core anywhere |
+| `Scripts` | `core-check.sh` — the Foundation-only core, anywhere; `ring-gallery.sh` — the ring, drawn to PNGs |
 | `Diem/Sync` | DTOs and the client. Only completed intervals go over the wire |
 | `DiemWidget` | Four complication families, the Smart Stack card, the Control |
 
@@ -82,13 +82,16 @@ path of the numeral roll. A view takes its reading once and passes it down
 schedule is anchored to `@State`, never to `.now`, or every redraw hands it a
 new schedule.
 
-**Three rings, two meanings for a turn.** The Start screen at rest is today
+**Three rings, three meanings for a turn.** The Start screen at rest is today
 against the goal — one revolution is the goal met, and past it the ring laps.
-Under the crown, and behind the running clock, one revolution is an hour: the
-duration being scrubbed, and the session so far drawn as a bar of coloured runs
-bent into a circle, going round again over what is already there. The Start ring
-is the day; the running ring is this session, which is what the clock in front
-of it is measuring. Check which you are reading before changing either.
+Under the crown, one revolution is an hour: the duration being scrubbed. Behind
+the running clock is the session so far, drawn as a bar of coloured runs bent
+into a circle and going round again over what is already there — and there a
+revolution is the *planned time*, so a closed ring is the session done and
+overtime is a second lap laid over the first. A session with no planned time has
+no such number and keeps the hour. The Start ring is the day; the running ring
+is this session, which is what the clock in front of it is measuring. Check
+which you are reading before changing either.
 
 **A running session keeps the app.** Not by the app's own choice — a watchOS app
 is put away the moment the wrist drops. `SessionRuntime` claims a `mindfulness`
@@ -121,6 +124,29 @@ the app's headline feature. `Scripts/core-check.sh` builds and tests everything
 that decides a number, on any machine with a Swift toolchain and no Apple SDK.
 It cannot reach the views. Run a real build before believing the app compiles,
 and prefer putting new arithmetic where the script can see it.
+
+**The ring is checked, not eyeballed.** Where each band of the session lands and
+where its colours blend is `Views/SubjectBar.swift` — no SwiftUI in it, so
+`core-check.sh` covers it — and `Views/SubjectRing.swift` only draws what it is
+told. The cases that matter are the ones a wrist cannot reach on demand: a
+subject switched to two seconds ago, twenty subjects in an hour, a session past
+the turn. `sh Scripts/ring-gallery.sh` draws all of them to PNGs on a Mac, with
+no watch and no simulator.
+
+**Always-On is a screen you can open.** A debug build launched with `-DiemHarness`
+comes up on a running session three quarters of an hour old;
+`-DiemHarnessDimmed` holds it in the state a dropped wrist puts it in, and
+`-DiemHarnessStart` puts today past the goal and nothing on the clock, so the
+Start screen comes up with its ring lapped; `-DiemHarnessNumeral` swaps the hero numeral across the field boundary five
+times a second over the ring, which is the only way to see a fifth of a second
+of crossing that happens twice a day; `-DiemHarnessCentreLine` draws a
+hairline down the true middle of the display,
+which is the only way to tell centred from nearly centred by looking. See
+`Views/LayoutHarness.swift`. It never syncs and never asks for notifications —
+the session it puts on the clock never happened.
+
+    xcrun simctl launch booted com.injoon5.diem.watchkitapp \
+        -DiemHarness -DiemHarnessDimmed -DiemHarnessCentreLine
 
 **The accent is never on text.** International Orange in Display P3, on the ring
 and the pill fill only. There is deliberately no app-wide tint.

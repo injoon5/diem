@@ -14,6 +14,17 @@ struct StartView: View {
     /// The value the crown was just reset to in code, so the reset doesn't
     /// click. Cleared by the first change that is not it.
     @State private var resetTo: Double?
+    /// The crown is being turned back past nothing, and has been answered once.
+    @State private var refused = false
+
+    /// How far below zero the crown may travel before it is stopped.
+    ///
+    /// The range needs somewhere to go or there is no event to answer: a
+    /// binding already clamped at its own minimum reports nothing at all while
+    /// the wrist keeps turning, so backwards from a standing start was silence.
+    /// Four tenths of a step is a hair of give under the thumb — the give a
+    /// backstop has — and it rounds to nothing, so no reading changes.
+    private static let backstop: Double = -0.4
     @State private var showingSubjects = false
     @State private var showingSettings = false
     @State private var showingMetrics = false
@@ -24,7 +35,7 @@ struct StartView: View {
 
     /// The whole step the crown has settled nearest — what the numeral reads
     /// and what a tap on Start commits.
-    private var crownDetent: Int { Int(crownStep.rounded()) }
+    private var crownDetent: Int { max(0, Int(crownStep.rounded())) }
     private var scrubSeconds: TimeInterval { DurationScrub.seconds(forStep: crownDetent) }
     /// The same duration without the rounding, so the arc stays welded to the
     /// crown rather than snapping a step behind it.
@@ -49,6 +60,22 @@ struct StartView: View {
             content(now: context.date)
         }
         .containerBackground(.black, for: .navigation)
+        // Beside the crown, where the system's own accessory used to sit: down
+        // the right edge, under the thumb that is about to turn it and clear of
+        // the Metrics button above.
+        //
+        // An overlay rather than a crown accessory, because the accessory
+        // cannot be had without the indicator beside it. Against the screen and
+        // not the content: the content area stops well short of the bezel, and
+        // a hint hung on its trailing edge lands on the arc rather than outside
+        // it. Gone the moment the invitation is accepted, so the scrub happens
+        // against a clean edge.
+        .overlay(alignment: .topTrailing) {
+            CrownHint(isVisible: !isScrubbing && !isLuminanceReduced)
+                .padding(.trailing, 5)
+                .padding(.top, 68)
+                .ignoresSafeArea()
+        }
         // The crown drives the duration; the ring binds straight to it.
         //
         // No `by:` stride — a detented binding only ever hands back whole
@@ -60,26 +87,45 @@ struct StartView: View {
         .focused($crownFocused)
         .digitalCrownRotation(
             $crownStep,
-            from: Double(DurationScrub.minStep),
+            from: Self.backstop,
             through: Double(DurationScrub.maxStep),
             sensitivity: .medium,
             isContinuous: false,
             isHapticFeedbackEnabled: false
         )
         // The ring *is* the crown's indicator on this screen — it is welded to
-        // the wrist and it is the largest thing here. The system's own green
-        // bar down the right edge said the same thing again, smaller, over the
-        // top of it.
+        // the wrist and it is the largest thing here. The system's own bar down
+        // the right edge says the same thing again, smaller, over the top of
+        // it, so it is turned off outright.
         //
-        // What stands in its place is not an indicator. It is the invitation to
-        // turn the crown at all — the one thing the ring cannot say — and it is
-        // gone the moment it is accepted, so the scrub still happens against a
-        // clean edge. Custom content replaces the system bar rather than
-        // joining it; `.visible` is what stops the accessory fading out while
-        // the crown is idle, which is exactly when a hint is worth having.
-        .digitalCrownAccessory(.visible)
-        .digitalCrownAccessory {
-            CrownHint(isVisible: !isScrubbing && !isLuminanceReduced)
+        // Custom accessory content does not replace that bar, which is what
+        // this screen assumed for two releases: supplying content and asking
+        // for `.visible` put the hint on screen *beside* the indicator rather
+        // than instead of it, so the reading everyone can see was said three
+        // times at once. `.hidden` is the only setting that takes the bar away,
+        // and it takes any accessory content with it — so the invitation to
+        // turn the crown, which is the one thing the ring cannot say, is drawn
+        // by this screen instead, in `content`, where it can be placed and
+        // timed rather than handed over.
+        .digitalCrownAccessory(.hidden)
+        // Belt and braces, and free: if what is showing is the container's
+        // scroll indicator rather than the crown's — this screen deliberately
+        // overhangs its own bounds by fourteen points at each end, which is
+        // enough to make a container think it scrolls — then this is the switch
+        // that governs it.
+        .scrollIndicators(.hidden)
+        // Turning back past nothing is answered rather than ignored. The ring
+        // is already empty and the numeral already reads what today holds, so
+        // without this the wrist gets no reply at all and the crown reads as
+        // having stopped working.
+        .onChange(of: crownStep) { _, step in
+            if step <= Self.backstop + 0.02 {
+                guard !refused else { return }
+                refused = true
+                Haptics.refused()
+            } else if step >= 0 {
+                refused = false
+            }
         }
         .onChange(of: crownDetent) { _, _ in
             // The reset that follows a commit must not click. It used to arm a
@@ -248,5 +294,6 @@ struct StartView: View {
         Haptics.start()
         resetTo = 0
         crownStep = 0
+        refused = false
     }
 }

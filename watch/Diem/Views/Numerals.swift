@@ -103,7 +103,22 @@ struct NumeralText: View {
                     ZStack {
                         digits(
                             secondsHidden ? Self.struckOut(seconds.value) : seconds.value,
-                            reserving: seconds.widest
+                            reserving: seconds.widest,
+                            alignment: secondsHidden ? .leading : .center,
+                            // Tracking is a correction for digits, and the
+                            // marks that replace them are not digits: −1.2 at
+                            // this size is more than the side bearing a hyphen
+                            // has, so the pair closed up and welded into one
+                            // stepped mark. The field is reserved on the
+                            // digits' own tracking and the mark is pinned to
+                            // its leading edge, so setting this loose moves
+                            // nothing.
+                            tracking: secondsHidden ? 0 : nil,
+                            // And a mark is not a number rolling over. The
+                            // numeric transition interpolates glyphs it takes
+                            // for digits, which is the other half of what was
+                            // happening to the dashes.
+                            transition: secondsHidden ? .identity : nil
                         )
                         // A step back while they are dashes. They are standing
                         // in for a number nobody is being told, and at full
@@ -139,30 +154,60 @@ struct NumeralText: View {
         .animation(Motion.dimming(reduceMotion: reduceMotion), value: secondsHidden)
     }
 
-    /// U+2012 FIGURE DASH — cut to the width of a digit in this face, unlike a
-    /// hyphen. The dashes stand exactly where the digits stood, so the colon in
-    /// front of them does not shift as they arrive.
-    private static let figureDash: Character = "\u{2012}"
+    /// U+2010 HYPHEN — short, with side bearings, so a pair of them reads as
+    /// two marks.
+    ///
+    /// This was U+2012 FIGURE DASH, which is cut to exactly the width of a
+    /// digit in this face: two of them meet with nothing in between and draw
+    /// one long unbroken rule where two struck-out figures were meant. The en
+    /// dash is barely better — half an em leaves a nick, not a gap. The hyphen
+    /// is the only dash in the family narrow enough that the pair reads as a
+    /// pair at the size the hero numeral is drawn.
+    private static let strikeDash: Character = "\u{2010}"
 
-    /// The seconds group with its digits struck out: `:07` becomes `:‒‒`.
+    /// The seconds group with its digits struck out: `:07` becomes `:‐‐`.
+    ///
+    /// One mark per digit, so what is on screen still says how much is being
+    /// withheld.
     private static func struckOut(_ group: String) -> String {
-        String(group.map { $0.isNumber ? Self.figureDash : $0 })
+        let kept = group.filter { !$0.isNumber }
+        let struck = group.filter(\.isNumber).count
+        guard struck > 0 else { return group }
+        return kept + String(repeating: String(strikeDash), count: struck)
     }
 
     /// The field is reserved at its widest value and the current one is drawn
     /// inside it, so shorter strings sit centred instead of shifting the layout.
-    private func digits(_ text: String, reserving widest: String) -> some View {
+    ///
+    /// Centred is right for a value that is short because it is small — `5`
+    /// where `59` fits. It is wrong for the seconds struck out, where the mark
+    /// replaces the digits but the colon in front of them is the same colon in
+    /// the same place: centring a group two glyphs narrower than its field
+    /// slides that colon half a digit to the right, and on a clock whose whole
+    /// job is that nothing moves, the one thing that moved was the colon.
+    /// Pinned to the leading edge, the colon lands where it always lands and
+    /// only the mark after it is free to be any width that looks right.
+    private func digits(
+        _ text: String,
+        reserving widest: String,
+        alignment: Alignment = .center,
+        tracking overrideTracking: CGFloat? = nil,
+        transition overrideTransition: ContentTransition? = nil
+    ) -> some View {
+        // The field is always reserved on the value's own metrics; only what is
+        // drawn inside it may be set differently.
         number(widest)
             .hidden()
-            .overlay {
-                number(text)
-                    .contentTransition(transition)
+            .overlay(alignment: alignment) {
+                number(text, tracking: overrideTracking ?? tracking)
+                    .contentTransition(overrideTransition ?? transition)
                     .fixedSize()
             }
     }
 
-    private func number(_ text: String) -> some View {
-        styled(text)
+    private func number(_ text: String, tracking: CGFloat? = nil) -> some View {
+        let tracking = tracking ?? self.tracking
+        return styled(text)
             .numeralStyle(size: size, tracking: tracking, weight: weight)
             .lineLimit(1)
             // Tracking is applied after the last glyph as well as between them,
