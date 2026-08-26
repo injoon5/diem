@@ -75,6 +75,13 @@ because the clock is the thing that has stopped.
 **Tap Hold again** to resume. Both fire the same click, so hold and resume are
 indistinguishable by feel.
 
+**Double tap** does the same thing — this screen's primary action is the hold,
+which is the one control worth reaching with no free hand. It stays on that
+control while the End question is up, where the control means "keep going": a
+double tap can take the question back, never commit it. Withdrawn while the
+picker is open. See
+[`../foundations/input-model.md`](../foundations/input-model.md#the-double-tap).
+
 **Tap the subject button** to switch what is being studied. Running, that closes
 the current interval and opens a new one immediately. Held, the choice waits for
 the next interval rather than rewriting a record the server may already hold.

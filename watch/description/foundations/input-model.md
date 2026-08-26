@@ -45,6 +45,27 @@ Step 0 is "no length" — an open-ended session, and the state the crown rests i
 Both curves round-trip: a duration converted to a step and back is the same
 duration. That is tested.
 
+### The crown hint
+
+The crown is the Start screen's main control and nothing said so: a ring with a
+number in it is a reading, not an invitation, and the one gesture that sets a
+length was discoverable only by accident.
+
+So a small crown glyph sits beside the Digital Crown itself — a **crown
+accessory**, drawn by the system at the crown's position rather than laid out on
+the screen, which is why it costs the ring nothing. It bobs two points along the
+axis the crown turns, slowly enough to read as an invitation rather than an
+alert. It is the only repeating animation in the app.
+
+It shows while the crown is at rest and the screen is lit, and it is gone the
+moment the crown is turned — the scrub happens against a clean edge, which is
+the point of hiding the system's indicator in the first place. Reduce Motion
+keeps the glyph and drops the bob. VoiceOver is told nothing: the ring beside it
+already carries the label and the value.
+
+The Goal screen has no hint and keeps the system's own indicator instead. There
+is no ring there for the bar to talk over.
+
 ### Detents
 
 A **detent** is one whole step. The number on screen and the haptic land on
@@ -57,6 +78,34 @@ minutes. One click per detent, and none for a step the app made itself.
 The stated floor is 44pt, and everything meets it. Two places used not to — the
 subject picker's rows at 40pt and the colour swatch cells at 34pt:
 [B-13](../bug-triage.md#b-13).
+
+### The double tap
+
+The watch's own gesture — pinch the index finger and thumb twice — runs the
+**primary action** of whatever screen is in front of you. All three root
+screens declare one:
+
+| Screen | What a double tap does |
+| --- | --- |
+| Start | Starts the session the screen is composed for: the subject shown, and whatever length the crown is holding. |
+| Running | Holds the session, and holds it again to resume. |
+| Summary | Done — banks the session and goes back to Start. |
+
+A screen gets one, so the choice is what a free hand would be reaching for. On
+the Running screen the gesture stays on the left control across the End
+question, where that control's meaning has inverted to "keep going" — a double
+tap can take a question back, and must never be the thing that ends a session.
+
+On the summary it is Done rather than Again for the same reason: both close the
+screen, and the one that finishes what just happened is the one almost everybody
+wants. It stays Done while the Discard question is armed — the question dies
+unanswered when the screen goes, which is safe, and the gesture must never be
+what deletes a session.
+
+The gesture is answered by whatever is in front of you, so it is withdrawn while
+a sheet — the picker, Settings, Metrics — is up. It fires the control's own
+action, which means it fires the control's own haptic: a double tap that starts
+a session feels exactly like a tap that starts one.
 
 ### Questions
 
@@ -94,7 +143,8 @@ two-tap end. **Close** — the second tap. **Account** — no input.
 
 | During | What differs |
 | --- | --- |
-| Question armed | The left control's meaning inverts from Hold to "Keep going". |
+| Question armed | The left control's meaning inverts from Hold to "Keep going" — and the double tap inverts with it, because it is that control's action, not the hold's. |
+| A sheet open | The screen's primary action is withdrawn; the double tap does nothing until the sheet closes. |
 | Reduce Motion | Press scale is dropped; label swaps fade instead of blurring; digit rolls become fades. |
 | Dimmed | Every control is removed from the screen, so there is nothing to press. |
 
@@ -102,7 +152,7 @@ two-tap end. **Close** — the second tap. **Account** — no input.
 
 | Interrupt | Effect |
 | --- | --- |
-| Wrist down | Controls leave the screen entirely. A question keeps its six-second clock and will have withdrawn itself before the wrist is back. |
+| Wrist down | Controls leave the screen entirely — faded to nothing *and disabled*, so the primary action goes with them and a double tap has nothing to run until the wrist is back up, which is also when the gesture is delivered. A question keeps its six-second clock and will have withdrawn itself before then. |
 | Crown press | Leaves the app. Nothing is committed. |
 | Session started or ended elsewhere | No effect on input state, but the screen underneath may be describing a session that is over — see [B-03](../bug-triage.md#b-03). |
 | 4am boundary | No effect. |

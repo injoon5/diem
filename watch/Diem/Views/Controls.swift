@@ -46,11 +46,70 @@ struct SubjectButton: View {
     }
 }
 
+/// The one thing the Start screen cannot say in words: that the crown does
+/// something here.
+///
+/// Drawn beside the Digital Crown by the system rather than placed on the
+/// screen. `digitalCrownAccessory` is an overlay at the crown's own position,
+/// so this costs the ring no diameter and moves nothing in either bar — which
+/// is the whole reason it is a crown accessory and not a caption.
+///
+/// The system's own indicator used to sit there and was taken away for saying
+/// what the ring already says, smaller and over the top of it. This says the
+/// one thing the ring cannot: that there is something to turn. It says it only
+/// until the crown is turned, because an invitation that has been accepted is
+/// clutter.
+struct CrownHint: View {
+    /// Shown while the crown is at rest and the screen is lit.
+    var isVisible: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var bobbed = false
+
+    var body: some View {
+        Image(systemName: "digitalcrown.arrow.clockwise")
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(.tertiary)
+            // Along the crown's own axis: a hint that moves the way the thing
+            // it is pointing at moves. Two points is well under a millimetre —
+            // enough to catch an eye already at that edge of the screen, not
+            // enough to become the most interesting thing on it.
+            .offset(y: reduceMotion ? 0 : (bobbed ? -2 : 2))
+            .animation(bob, value: bobbed)
+            .opacity(isVisible ? 1 : 0)
+            .animation(Motion.standard, value: isVisible)
+            // Nothing to say: the ring beside it already carries the label and
+            // the value, and a glyph meaning "turn this" is a picture of a
+            // gesture that is not how VoiceOver sets the length anyway.
+            .accessibilityHidden(true)
+            .onAppear { bobbed = isVisible }
+            .onChange(of: isVisible) { _, visible in bobbed = visible }
+    }
+
+    /// The repeat runs only while the hint is on screen. A `repeatForever`
+    /// left attached to a view faded to nothing is a timer nobody can see.
+    private var bob: Animation? {
+        guard isVisible, !reduceMotion else { return nil }
+        return Motion.crownNudge
+    }
+}
+
 /// A round toolbar button for the bottom bar.
 struct CircleControl: View {
     var systemImage: String
     var label: String
     var tint: Color = .primary
+    /// Whether the watch's double-tap gesture runs this control.
+    ///
+    /// A screen has one primary action, so this is the screen's answer to
+    /// "what would you be reaching for", and it is set from where the screen
+    /// knows: the Start button on the Start screen, pause on the Running one.
+    /// Passed as a flag rather than applied by the caller because the shortcut
+    /// belongs to a *control*, and the control is the `Button` in here.
+    ///
+    /// False while a sheet is up. The gesture is answered by whatever is in
+    /// front of you, and a picker over this screen is not this screen.
+    var isPrimaryGesture = false
     var action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -75,6 +134,10 @@ struct CircleControl: View {
                 .contentShape(.circle)
         }
         .buttonStyle(GlassControlStyle(tint: tint))
+        // Declared either way rather than applied conditionally: a modifier
+        // that comes and goes takes the button's identity with it, and this
+        // one has a flag for exactly this.
+        .handGestureShortcut(.primaryAction, isEnabled: isPrimaryGesture)
         .accessibilityLabel(label)
     }
 }

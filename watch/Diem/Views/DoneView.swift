@@ -62,17 +62,33 @@ struct DoneView: View {
 
                 GlassEffectContainer(spacing: 8) {
                     VStack(spacing: 8) {
-                        EndActionButton(
-                            title: "Again",
-                            systemImage: "arrow.clockwise",
-                            tint: Palette.accent
-                        ) { again() }
-
+                        // First, accented, and the screen's primary action,
+                        // which is also what the watch's double-tap gesture
+                        // runs: pinching twice banks the session and goes back
+                        // to Start. It stays Done even while the Discard
+                        // question is armed — the gesture can leave a question
+                        // unanswered, and the screen withdraws it on the way
+                        // out, but it must never be what deletes a session.
+                        //
+                        // Three steps down the screen, in this order: the one
+                        // that agrees with what just happened, the one that
+                        // asks for another, and the one that throws it away.
                         EndActionButton(
                             title: "Done",
                             systemImage: "checkmark",
-                            tint: .white.opacity(0.10)
+                            tint: Palette.accent,
+                            isPrimaryGesture: true
                         ) { onClose() }
+
+                        // Secondary. Repeating is a deliberate choice — a
+                        // thing to reach for rather than the thing that
+                        // happens by default — so it is under the accent
+                        // rather than over it, in the quiet glass.
+                        EndActionButton(
+                            title: "Again",
+                            systemImage: "arrow.clockwise",
+                            tint: .white.opacity(0.10)
+                        ) { again() }
                     }
                 }
                 // The reading has said its piece; this is the next thing, and
@@ -171,6 +187,12 @@ private struct EndActionButton: View {
     let title: String
     let systemImage: String
     let tint: Color
+    /// Whether the watch's double-tap gesture runs this control.
+    ///
+    /// The same flag `CircleControl` carries, for the same reason: a screen
+    /// declares one primary action, and the shortcut belongs to the `Button`
+    /// rather than to whatever the caller wraps it in.
+    var isPrimaryGesture = false
     let action: () -> Void
 
     var body: some View {
@@ -187,6 +209,7 @@ private struct EndActionButton: View {
                 .contentShape(.capsule)
         }
         .buttonStyle(EndActionButtonStyle(tint: tint))
+        .handGestureShortcut(.primaryAction, isEnabled: isPrimaryGesture)
         .accessibilityLabel(title)
     }
 }

@@ -67,6 +67,13 @@ enum Motion {
             : .spring(response: 0.3, dampingFraction: 1.0)
     }
 
+    /// The crown hint's bob, beside the Digital Crown on the Start screen.
+    ///
+    /// The one animation in the app that repeats, so it is the one that has to
+    /// survive being watched: slow enough to read as an invitation rather than
+    /// an alert, and small enough that the eye can put it down again.
+    static let crownNudge = Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)
+
     /// A recorded total arrives infrequently, so it can settle softly without
     /// looking like a timer or introducing lag into direct manipulation.
     static func ringProgress(reduceMotion: Bool) -> Animation {

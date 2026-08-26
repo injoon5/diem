@@ -22,6 +22,11 @@ not currently build.
 | START-12 | P1 | device | Always-On does not resize the ring ([doc](../app/start-screen.md#cross-cutting)) | Any state | Lower the wrist, raise it again | The four controls fade out and back; the ring is the same diameter, in the same place, throughout | — |
 | START-10 | P2 | device | Three sheets on one view all present ([open question](../app/start-screen.md#open-questions-and-verification)) | Fresh launch | Open Settings, dismiss; Metrics, dismiss; the picker, dismiss | All three present and dismiss | — |
 | START-11 | P2 | device, VoiceOver | The ring's progress is announced ([B-15](../bug-triage.md#b-15)) | 1h of 2h studied | Swipe to the ring | "Today", then "1 hour of 2 hours, 50 percent" | — |
+| START-12b | P2 | device | The crown hint invites and then gets out of the way ([doc](../app/start-screen.md#what-you-see)) | Fresh launch, crown at rest | Look at the right edge, then turn the crown | A small crown glyph beside the crown, bobbing gently; it fades out as the scrub begins and comes back when the crown returns to zero | — |
+| START-12c | P2 | device | The hint costs the layout nothing | Fresh launch | Compare the ring against a build without the hint, or watch it as the hint fades | The ring is the same diameter in the same place; nothing in either bar moves | — |
+| START-12d | P3 | device, Reduce Motion | The hint holds still | Reduce Motion on | Open the app | The glyph is there and does not bob | — |
+| START-13 | P1 | device with double tap | The double tap starts the composed session ([doc](../app/start-screen.md#what-you-can-do)) | Series 9 or later, a subject chosen, crown at 25m | Double tap | A 25m session under that subject, and the start haptic — the same thing tapping Start does | — |
+| START-14 | P2 | device with double tap | The gesture is withdrawn under a sheet | Following START-13, but with the subject picker open | Double tap | Nothing starts. The system's own gesture behaviour applies to the sheet instead. | — |
 
 ## Running screen — `RUN`
 
@@ -42,6 +47,8 @@ not currently build.
 | RUN-12 | P2 | device | Overtime takes the same size as the countdown it replaced ([B-16](../bug-triage.md#b-16)) | 1m session on a 41mm watch | Let it run past zero | `+00:07` sits inside the arc at the same face size `00:07` had | — |
 | RUN-13 | P1 | device | The deadline notification is delivered while the app holds the foreground ([B-18](../bug-triage.md#b-18)) | 1m session, notifications allowed, wrist down | Wait past the deadline | A wrist tap within a few seconds of the deadline. A delegate now presents it; it used to be suppressed. | — |
 | RUN-14 | P2 | device | Hold and resume are indistinguishable by feel ([doc](../foundations/input-model.md#cross-cutting)) | Any session, wrist down | Tap Hold, then Resume | Both feel identical — a stated observation, not a defect | — |
+| RUN-15 | P1 | device with double tap | The double tap holds and resumes ([doc](../app/running-screen.md#what-you-can-do)) | Series 9 or later, a session running | Double tap, then double tap again | Held, then resumed — the clock stops and starts, with the same click a tap gives | — |
+| RUN-16 | P1 | device with double tap | The double tap never ends a session | Session running | Tap End once to arm the question, then double tap | The question is withdrawn and the session is still running. The gesture follows the left control, which now means "keep going". | — |
 
 ## Summary — `DONE`
 
@@ -53,6 +60,9 @@ not currently build.
 | DONE-04 | P2 | device | Again repeats the last subject, not the biggest | Two subjects: 20m on A, 5m on B, ending on B | End, tap Again | The new session is on B | — |
 | DONE-05 | P1 | device | Discard asks twice and withdraws itself | Any kept session | Tap Discard once, wait 6s | The label reverts; nothing is deleted | — |
 | DONE-06 | P2 | device, VoiceOver | An armed Discard announces its state ([B-15](../bug-triage.md#b-15)) | Any kept session | VoiceOver onto Discard, activate | The label stays "Discard"; the hint becomes "Discards this session. Double tap to confirm." | — |
+| DONE-07 | P2 | device | Done leads, Again is secondary ([doc](../app/done-screen.md#what-you-see)) | Any kept session | End a session and look | Done first, in the accent; Again under it in near-transparent white; Discard quiet below both | — |
+| DONE-08 | P1 | device with double tap | The double tap is Done ([doc](../app/done-screen.md#what-you-can-do)) | Series 9 or later, any kept session | Double tap | The Start screen, with the session banked — the same thing tapping Done does. Not a repeat. | — |
+| DONE-09 | P1 | device with double tap | The double tap never discards | Any kept session | Tap Discard once to arm it, then double tap | The screen closes and the session is kept. Reopen Metrics and it is still in the day's total. | — |
 
 ## Subject picker — `PICK`
 
@@ -76,6 +86,7 @@ not currently build.
 | SET-06 | P1 | device | Delete asks for confirmation ([B-21](../bug-triage.md#b-21)) | Any subject | Tap Delete once, wait 6s | The label arms to "Delete?" and then takes itself back. Nothing is deleted. | — |
 | SET-07 | P2 | device | Deleting keeps history | A subject with a past session | Delete it, open Metrics | Past sessions still show the name | — |
 | SET-08 | P2 | device | Duplicate names are refused ([B-20](../bug-triage.md#b-20)) | Any | Add "Maths", then try to add "maths" | "Already used." under the field and Save disabled | — |
+| SET-08b | P2 | device | Saving a name does not flash its own duplicate warning | Any | Add "Physics" and watch the sheet as it closes | The sheet dismisses with nothing under the field. Saving makes the name taken, and the sheet is still on screen while it goes. | — |
 | SET-09 | P2 | device | The eleventh subject gets the least-used colour ([B-22](../bug-triage.md#b-22)) | Ten subjects, all colours used once | Add an eleventh | Any colour. Add a twelfth and check it is not the eleventh's. | — |
 
 ## Metrics — `MET`

@@ -143,6 +143,7 @@ stateDiagram-v2
 - Whether the six-second question is the right length for Delete, where the consequence is smaller than Discard's but the wording is scarier.
 - A deleted subject now reaches the server, because the push includes tombstones: [B-05](../bug-triage.md#b-05).
 - Duplicate names are refused as they are typed, with "Already used." under the field: [B-20](../bug-triage.md#b-20). Whether refusing is better than disambiguating is still a product call.
+- The warning stops being asked for the moment Save is pressed. Saving is what makes the name taken — by the subject just saved — and the sheet is still on screen for the length of its dismissal, so a name that was fine the whole way through flashed "Already used." under itself on the way out.
 - The name field has no length limit, and every screen that shows a name truncates to one line.
 - Save is the only thing that saves. Closing the watch's full-screen text input — Done, dictation, or backing out — used to commit the name and close the sheet, so the duplicate warning and the chance to read back what dictation heard were never reachable: [B-35](../bug-triage.md#b-35).
 

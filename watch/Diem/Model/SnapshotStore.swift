@@ -7,8 +7,9 @@ import Foundation
 /// rest of the core that can be compiled and tested anywhere.
 enum SnapshotStore {
     static let appGroup = "group.com.injoon5.diem"
+    /// One kind, because there is one widget: the card shows the day's total
+    /// or the running session, and both are the same complication.
     static let widgetKind = "DiemToday"
-    static let sessionWidgetKind = "DiemSession"
 
     private static var url: URL? {
         FileManager.default

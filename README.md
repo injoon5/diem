@@ -39,8 +39,9 @@ cd watch && xcodegen generate && open Diem.xcodeproj
 
 Add an asset catalog with `AppIcon` before archiving; the spec doesn't ship one.
 
-Targets: `Diem` (the app), `DiemWidget` (complications, the Smart Stack card and
-the Action Button Control) and `DiemTests`. Model, design and intents are shared
+Targets: `Diem` (the app), `DiemWidget` (one complication in four families —
+which is the Smart Stack card as well — and the Action Button Control) and
+`DiemTests`. Model, design and intents are shared
 with the extension; views are not, and neither is `Diem/Runtime` — claiming the
 foreground is something only the app can do.
 
@@ -105,7 +106,10 @@ makes.
 **Session relevance is wired, and now asked for at the moment it changes.**
 `SnapshotProvider.relevance()` claims a window for as long as a session is
 running, so the Smart Stack surfaces the card on session start instead of
-waiting to be added by hand. The window is `.scheduled` rather than a plain date
+waiting to be added by hand. There is one card to surface: the complication and
+the session card were two widgets reading the same snapshot, and are now one
+that shows the day's total until a session starts and the session itself while
+one runs. The window is `.scheduled` rather than a plain date
 range — the documented reading of that kind is content that wants acting on, and
 a running session with an End button on it is exactly that. A timeline reload is
 not a relevance reload, so `commit()` also invalidates the card's relevance, but

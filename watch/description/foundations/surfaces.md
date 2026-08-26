@@ -11,8 +11,7 @@ Four ways in:
 | Surface | What it is |
 | --- | --- |
 | **The app** | Three root screens — Start, Running, Done — plus three sheets. |
-| **The Today complication** | Four families, on a watch face. The day against the goal. |
-| **The session card** | An `accessoryRectangular` widget in the Smart Stack, with an End button. |
+| **The complication** | Four families, on a watch face and in the Smart Stack. The day against the goal — and, in `accessoryRectangular`, the running session with an End button. |
 | **The Control** | The Action Button, and Siri, and Shortcuts. All three run the same intents. |
 
 ## Two processes, one database
@@ -86,8 +85,11 @@ Two things make the claim move: whether a session is live, and where it ends.
 Only those two invalidate the card's relevance, because a relevance reload is
 not free and a subject switch does not change the claim.
 
-The Today complication deliberately claims nothing. It is something you go and
-look at; a running session is the one thing here worth putting in front of you.
+The claim belongs to the session rather than to the widget. There is one kind
+to invalidate now that the complication and the session card are the same card,
+and it claims a window only while something is running: the day's total is
+something you go and look at, and a running session with an End button on it is
+the one thing here worth putting in front of you unasked.
 
 ## The frontmost hold
 

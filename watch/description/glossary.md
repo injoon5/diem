@@ -100,6 +100,11 @@ detents; the ring tracks between them.
 **Question** — an armed confirmation. The first tap arms it, the second commits,
 and it withdraws itself after six seconds.
 
+**Double tap** — the watch's own gesture, index finger and thumb pinched twice.
+It runs the **primary action** of the screen in front of you: Start on the Start
+screen, Hold on the Running one, Done on the summary. A screen declares at most
+one, and it is never the action that deletes something.
+
 **Always-On** — the dimmed state, `isLuminanceReduced`. Not a separate screen:
 the same clock with its seconds struck out to dashes, inside bars that keep
 their height and lose their controls. Nothing resizes across the crossing; on
@@ -111,11 +116,13 @@ the Running screen the whole picture slides down to the middle of what is lit.
 widget extension reads instead of the database. Written by the app on every
 state change.
 
-**Session card** — the `accessoryRectangular` Smart Stack widget showing the
-running session and an End button.
+**Complication** — the app's one widget, in four families. It shows the day
+against the goal, and — in `accessoryRectangular`, the family the Smart Stack
+shows — the running session and an End button while one is live.
 
-**Today complication** — the four-family widget showing the day against the
-goal.
+**Session card** — the `accessoryRectangular` complication while a session is
+running. Not a second widget: the same card, showing the other of its two
+readings. It was a widget of its own until the two were merged.
 
 **Relevance** — the window a widget claims so the Smart Stack surfaces it
 unasked. A window, not an event.

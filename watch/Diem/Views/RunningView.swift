@@ -84,13 +84,24 @@ struct RunningView: View {
             // in the gap between them, which is empty until it is asked.
             ToolbarItem(placement: .bottomBar) {
                 HStack(spacing: 0) {
+                    // The screen's primary action, and so what the watch's
+                    // double-tap gesture runs: pinching twice holds the
+                    // session and pinching twice again lets it go, which is
+                    // the one thing worth doing here without a free hand.
+                    //
+                    // It stays on this control while the End question is up,
+                    // where the control is the way out rather than the hold.
+                    // That is the right end of the bar for a gesture to land
+                    // on: a double tap can take a question back, and must
+                    // never be the thing that ends a session.
                     CircleControl(
                         systemImage: endConfirm.isArmed
                             ? "xmark"
                             : (store.isPaused ? "play.fill" : "pause.fill"),
                         label: endConfirm.isArmed
                             ? "Keep going"
-                            : (store.isPaused ? "Resume" : "Pause")
+                            : (store.isPaused ? "Resume" : "Pause"),
+                        isPrimaryGesture: !showingSubjects
                     ) {
                         if endConfirm.isArmed {
                             withdrawConfirmation()
