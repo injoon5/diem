@@ -62,31 +62,33 @@ struct DoneView: View {
 
                 GlassEffectContainer(spacing: 8) {
                     VStack(spacing: 8) {
-                        // Again keeps its place at the top and gives up the
-                        // accent. Both capsules close the screen, and the one
-                        // that finishes what just happened is the one almost
-                        // everybody wants; the accent belongs to it, and so
-                        // does the gesture. Repeating is the deliberate
-                        // choice, which is a thing to reach for rather than
-                        // the thing that happens by default.
-                        EndActionButton(
-                            title: "Again",
-                            systemImage: "arrow.clockwise",
-                            tint: .white.opacity(0.10)
-                        ) { again() }
-
-                        // The screen's primary action: pinching twice banks
-                        // the session and goes back to Start. It stays Done
-                        // even while the Discard question is armed — the
-                        // gesture can leave a question unanswered, and the
-                        // screen withdraws it on the way out, but it must
-                        // never be what deletes a session.
+                        // First, accented, and the screen's primary action,
+                        // which is also what the watch's double-tap gesture
+                        // runs: pinching twice banks the session and goes back
+                        // to Start. It stays Done even while the Discard
+                        // question is armed — the gesture can leave a question
+                        // unanswered, and the screen withdraws it on the way
+                        // out, but it must never be what deletes a session.
+                        //
+                        // Three steps down the screen, in this order: the one
+                        // that agrees with what just happened, the one that
+                        // asks for another, and the one that throws it away.
                         EndActionButton(
                             title: "Done",
                             systemImage: "checkmark",
                             tint: Palette.accent,
                             isPrimaryGesture: true
                         ) { onClose() }
+
+                        // Secondary. Repeating is a deliberate choice — a
+                        // thing to reach for rather than the thing that
+                        // happens by default — so it is under the accent
+                        // rather than over it, in the quiet glass.
+                        EndActionButton(
+                            title: "Again",
+                            systemImage: "arrow.clockwise",
+                            tint: .white.opacity(0.10)
+                        ) { again() }
                     }
                 }
                 // The reading has said its piece; this is the next thing, and

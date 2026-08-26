@@ -57,7 +57,7 @@ not currently build.
 | DONE-04 | P2 | device | Again repeats the last subject, not the biggest | Two subjects: 20m on A, 5m on B, ending on B | End, tap Again | The new session is on B | — |
 | DONE-05 | P1 | device | Discard asks twice and withdraws itself | Any kept session | Tap Discard once, wait 6s | The label reverts; nothing is deleted | — |
 | DONE-06 | P2 | device, VoiceOver | An armed Discard announces its state ([B-15](../bug-triage.md#b-15)) | Any kept session | VoiceOver onto Discard, activate | The label stays "Discard"; the hint becomes "Discards this session. Double tap to confirm." | — |
-| DONE-07 | P2 | device | Done carries the accent, Again does not ([doc](../app/done-screen.md#what-you-see)) | Any kept session | End a session and look | The lower capsule is the accented one; Again is near-transparent white above it, in the place it has always been | — |
+| DONE-07 | P2 | device | Done leads, Again is secondary ([doc](../app/done-screen.md#what-you-see)) | Any kept session | End a session and look | Done first, in the accent; Again under it in near-transparent white; Discard quiet below both | — |
 | DONE-08 | P1 | device with double tap | The double tap is Done ([doc](../app/done-screen.md#what-you-can-do)) | Series 9 or later, any kept session | Double tap | The Start screen, with the session banked — the same thing tapping Done does. Not a repeat. | — |
 | DONE-09 | P1 | device with double tap | The double tap never discards | Any kept session | Tap Discard once to arm it, then double tap | The screen closes and the session is kept. Reopen Metrics and it is still in the day's total. | — |
 
