@@ -60,6 +60,22 @@ struct StartView: View {
             content(now: context.date)
         }
         .containerBackground(.black, for: .navigation)
+        // Beside the crown, where the system's own accessory used to sit: down
+        // the right edge, under the thumb that is about to turn it and clear of
+        // the Metrics button above.
+        //
+        // An overlay rather than a crown accessory, because the accessory
+        // cannot be had without the indicator beside it. Against the screen and
+        // not the content: the content area stops well short of the bezel, and
+        // a hint hung on its trailing edge lands on the arc rather than outside
+        // it. Gone the moment the invitation is accepted, so the scrub happens
+        // against a clean edge.
+        .overlay(alignment: .topTrailing) {
+            CrownHint(isVisible: !isScrubbing && !isLuminanceReduced)
+                .padding(.trailing, 5)
+                .padding(.top, 68)
+                .ignoresSafeArea()
+        }
         // The crown drives the duration; the ring binds straight to it.
         //
         // No `by:` stride — a detented binding only ever hands back whole
@@ -78,20 +94,26 @@ struct StartView: View {
             isHapticFeedbackEnabled: false
         )
         // The ring *is* the crown's indicator on this screen — it is welded to
-        // the wrist and it is the largest thing here. The system's own green
-        // bar down the right edge said the same thing again, smaller, over the
-        // top of it.
+        // the wrist and it is the largest thing here. The system's own bar down
+        // the right edge says the same thing again, smaller, over the top of
+        // it, so it is turned off outright.
         //
-        // What stands in its place is not an indicator. It is the invitation to
-        // turn the crown at all — the one thing the ring cannot say — and it is
-        // gone the moment it is accepted, so the scrub still happens against a
-        // clean edge. Custom content replaces the system bar rather than
-        // joining it; `.visible` is what stops the accessory fading out while
-        // the crown is idle, which is exactly when a hint is worth having.
-        .digitalCrownAccessory {
-            CrownHint(isVisible: !isScrubbing && !isLuminanceReduced)
-        }
-        .digitalCrownAccessory(.visible)
+        // Custom accessory content does not replace that bar, which is what
+        // this screen assumed for two releases: supplying content and asking
+        // for `.visible` put the hint on screen *beside* the indicator rather
+        // than instead of it, so the reading everyone can see was said three
+        // times at once. `.hidden` is the only setting that takes the bar away,
+        // and it takes any accessory content with it — so the invitation to
+        // turn the crown, which is the one thing the ring cannot say, is drawn
+        // by this screen instead, in `content`, where it can be placed and
+        // timed rather than handed over.
+        .digitalCrownAccessory(.hidden)
+        // Belt and braces, and free: if what is showing is the container's
+        // scroll indicator rather than the crown's — this screen deliberately
+        // overhangs its own bounds by fourteen points at each end, which is
+        // enough to make a container think it scrolls — then this is the switch
+        // that governs it.
+        .scrollIndicators(.hidden)
         // Turning back past nothing is answered rather than ignored. The ring
         // is already empty and the numeral already reads what today holds, so
         // without this the wrist gets no reply at all and the crown reads as

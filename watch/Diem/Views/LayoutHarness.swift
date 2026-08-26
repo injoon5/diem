@@ -89,6 +89,11 @@ extension LayoutHarness {
     /// A third of a turn past the goal, already finished and put away.
     @MainActor
     fileprivate static func seedFinishedDay(_ store: SessionStore) {
+        // Once, not once per launch. Seeding on every start stacked another
+        // day's worth on top of the last, so the ring crept round further every
+        // time the harness was opened and the state under test quietly changed
+        // between two screenshots of it.
+        guard store.todaySeconds() == 0 else { return }
         let subject = store.subjects().first { $0.name == "Maths" }
             ?? store.addSubject(name: "Maths", colorIndex: 0)
         let length = store.goalSeconds * 1.3
