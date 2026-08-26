@@ -77,10 +77,10 @@ struct StartView: View {
         // clean edge. Custom content replaces the system bar rather than
         // joining it; `.visible` is what stops the accessory fading out while
         // the crown is idle, which is exactly when a hint is worth having.
-        .digitalCrownAccessory(.visible)
         .digitalCrownAccessory {
             CrownHint(isVisible: !isScrubbing && !isLuminanceReduced)
         }
+        .digitalCrownAccessory(.visible)
         .onChange(of: crownDetent) { _, _ in
             // The reset that follows a commit must not click. It used to arm a
             // latch that only this handler could clear — and a crown turned

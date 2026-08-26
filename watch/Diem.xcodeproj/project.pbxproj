@@ -13,6 +13,7 @@
 		18456788418A185BDEBFF9E6 /* SessionRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CA3439E31625AE5D9A9F009 /* SessionRuntime.swift */; };
 		19F035EDD477589ECFA9596A /* StartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EAB8755B77699528C038DCD /* StartView.swift */; };
 		1C36EEBC95F285CE97B58C5D /* RunningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1190389AF45A3D9D91DE58 /* RunningView.swift */; };
+		34848083F3B78AAA840A6FF3 /* RingShadow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDE15D4A70FC72BE4903AD1 /* RingShadow.swift */; };
 		38B40E6845BE5EEF066699B0 /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850E867C6B95294573F84B5D /* SnapshotStore.swift */; };
 		3A02C322C2C8A28DB6CD19F7 /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F4A3B1D342701FFD25F739A /* Intents.swift */; };
 		426A581AA6EA3C0383739028 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54334F5537871E2C7EA6BD23 /* Models.swift */; };
@@ -123,6 +124,7 @@
 		6B9823903628D82B230AE4D1 /* DiemWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DiemWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F7012673AE82E08FDA6339B /* Snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Snapshot.swift; sourceTree = "<group>"; };
 		79FEC56E15B2434B72337B47 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
+		7BDE15D4A70FC72BE4903AD1 /* RingShadow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingShadow.swift; sourceTree = "<group>"; };
 		850E867C6B95294573F84B5D /* SnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotStore.swift; sourceTree = "<group>"; };
 		8ACB09F69A16D15845B39A78 /* Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Format.swift; sourceTree = "<group>"; };
 		8F4A3B1D342701FFD25F739A /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
@@ -280,6 +282,7 @@
 				00A63377F93089CCF2F40A27 /* Numerals.swift */,
 				37FDC359D05C5F9A350995E4 /* PairingView.swift */,
 				D5F0C3D3CDD39E28D521A192 /* Ring.swift */,
+				7BDE15D4A70FC72BE4903AD1 /* RingShadow.swift */,
 				CF2ADE59FD605940AF33827A /* RootView.swift */,
 				AA1190389AF45A3D9D91DE58 /* RunningView.swift */,
 				BCCD9CE090CFD7D47DBA617E /* Scrub.swift */,
@@ -448,6 +451,7 @@
 				C309A1B7ADB3CE0DD25781F4 /* PairingView.swift in Sources */,
 				C7588ED70D2F2A49D9D48D4B /* Palette.swift in Sources */,
 				AC29144BCBC0923AE6735F08 /* Ring.swift in Sources */,
+				34848083F3B78AAA840A6FF3 /* RingShadow.swift in Sources */,
 				CC53FB880880FB2E5B77428E /* RootView.swift in Sources */,
 				1C36EEBC95F285CE97B58C5D /* RunningView.swift in Sources */,
 				9C0D8270DF11F8EBADF6C4C9 /* Scrub.swift in Sources */,

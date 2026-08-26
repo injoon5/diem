@@ -42,12 +42,22 @@ enum LayoutHarness {
     /// notification permission.
     static var hasGoal: Bool { arguments.contains("-DiemHarnessGoal") }
 
+    /// Leaves nothing running and puts today past the goal, so the harness
+    /// comes up on the Start screen with its ring lapped — the state that
+    /// otherwise takes a whole day of study to reach, and the only one in which
+    /// the goal ring draws a shadow at all.
+    static var isStart: Bool { arguments.contains("-DiemHarnessStart") }
+
     /// Forty-seven minutes over four subjects, the last of them two seconds
     /// old: a bar with several joins in it, one of them brand new, and an end
     /// far enough round to be nowhere near the start.
     @MainActor
     static func seed(_ store: SessionStore) {
         guard isOn, store.activeSessionID == nil else { return }
+        if isStart {
+            seedFinishedDay(store)
+            return
+        }
         let names = ["Maths", "Physics", "Korean", "History"]
         let subjects = names.enumerated().map { index, name in
             store.subjects().first { $0.name == name }
@@ -66,6 +76,21 @@ enum LayoutHarness {
         store.switchSubject(to: subjects[1].id, at: now - 26 * 60)
         store.switchSubject(to: subjects[2].id, at: now - 9 * 60)
         store.switchSubject(to: subjects[3].id, at: now - 2)
+    }
+}
+
+extension LayoutHarness {
+    /// A third of a turn past the goal, already finished and put away.
+    @MainActor
+    fileprivate static func seedFinishedDay(_ store: SessionStore) {
+        let subject = store.subjects().first { $0.name == "Maths" }
+            ?? store.addSubject(name: "Maths", colorIndex: 0)
+        let length = store.goalSeconds * 1.3
+        let now = Date.now
+        _ = store.start(subjectID: subject.id, plannedSec: nil, at: now - length - 60)
+        // Not presented: the harness wants the Start screen, and a session that
+        // has just ended puts the Done screen in front of it.
+        _ = store.end(at: now - 60, presentingDone: false)
     }
 }
 

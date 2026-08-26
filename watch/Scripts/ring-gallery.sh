@@ -120,7 +120,7 @@ struct Sheet: View {
 ///
 /// Rows are settings, columns are sessions. Read down a column to see what a
 /// change costs, across a row to see whether it survives every shape of lap.
-let shadows: [(String, SubjectRing.Lapping.Shadow)] = [
+let shadows: [(String, RingShadow)] = [
     ("none", .none),
     ("goal ring   .60 / r2 / 1", .init(opacity: 0.60, radius: 2, offset: 1)),
     ("harder      .85 / r1.5 / 1.5", .init(opacity: 0.85, radius: 1.5, offset: 1.5)),
@@ -263,6 +263,7 @@ swiftc -O \
     -o "$WORK/gallery" \
     "$WATCH/Diem/Design/Palette.swift" \
     "$WATCH/Diem/Views/SubjectBar.swift" \
+    "$WATCH/Diem/Views/RingShadow.swift" \
     "$WATCH/Diem/Views/SubjectRing.swift" \
     "$WORK/main.swift"
 

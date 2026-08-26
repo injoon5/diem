@@ -28,7 +28,12 @@ struct RingArc: View {
                     .stroke(lapColor, style: .init(lineWidth: lineWidth, lineCap: .round))
                     // The only shadow in the ring, and it earns its place: it
                     // is what makes the second lap read as lying over the first.
-                    .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                    //
+                    // The session ring laps the same way and now casts the same
+                    // shadow. This used to be its own literal, a good deal
+                    // softer, so the two shapes of one idea sat at different
+                    // depths on two screens a single tap apart.
+                    .ringShadow(.standard)
             }
             if !lapped {
                 Circle()

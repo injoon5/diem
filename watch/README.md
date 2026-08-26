@@ -136,7 +136,9 @@ no watch and no simulator.
 **Always-On is a screen you can open.** A debug build launched with `-DiemHarness`
 comes up on a running session three quarters of an hour old;
 `-DiemHarnessDimmed` holds it in the state a dropped wrist puts it in, and
-`-DiemHarnessCentreLine` draws a hairline down the true middle of the display,
+`-DiemHarnessStart` puts today past the goal and nothing on the clock, so the
+Start screen comes up with its ring lapped; `-DiemHarnessCentreLine` draws a
+hairline down the true middle of the display,
 which is the only way to tell centred from nearly centred by looking. See
 `Views/LayoutHarness.swift`. It never syncs and never asks for notifications —
 the session it puts on the clock never happened.
