@@ -100,6 +100,10 @@ detents; the ring tracks between them.
 **Question** — an armed confirmation. The first tap arms it, the second commits,
 and it withdraws itself after six seconds.
 
+**Double tap** — the watch's own gesture, index finger and thumb pinched twice.
+It runs the **primary action** of the screen in front of you: Start on the Start
+screen, Hold on the Running one. A screen declares at most one.
+
 **Always-On** — the dimmed state, `isLuminanceReduced`. Not a separate screen:
 the same clock with its seconds struck out to dashes, inside bars that keep
 their height and lose their controls. Nothing resizes across the crossing; on

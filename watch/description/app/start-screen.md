@@ -56,6 +56,12 @@ minutes. See [`../foundations/input-model.md`](../foundations/input-model.md).
 **Tap the subject button** to open the picker. **Tap Start** to commit. **Tap
 the gear or the chart** for Settings and Metrics.
 
+**Double tap** — the watch's own gesture, index finger and thumb — is Start.
+This screen's primary action is the thing it exists for: pinching twice commits
+the session already composed, subject and crown included, without a second hand.
+It is withdrawn while any of the three sheets is up. See
+[`../foundations/input-model.md`](../foundations/input-model.md#the-double-tap).
+
 The Start control's spoken label changes with the crown: "Start" at rest,
 "Start 25m" once a length is set.
 

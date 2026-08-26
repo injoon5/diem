@@ -51,6 +51,17 @@ struct CircleControl: View {
     var systemImage: String
     var label: String
     var tint: Color = .primary
+    /// Whether the watch's double-tap gesture runs this control.
+    ///
+    /// A screen has one primary action, so this is the screen's answer to
+    /// "what would you be reaching for", and it is set from where the screen
+    /// knows: the Start button on the Start screen, pause on the Running one.
+    /// Passed as a flag rather than applied by the caller because the shortcut
+    /// belongs to a *control*, and the control is the `Button` in here.
+    ///
+    /// False while a sheet is up. The gesture is answered by whatever is in
+    /// front of you, and a picker over this screen is not this screen.
+    var isPrimaryGesture = false
     var action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -75,6 +86,10 @@ struct CircleControl: View {
                 .contentShape(.circle)
         }
         .buttonStyle(GlassControlStyle(tint: tint))
+        // Declared either way rather than applied conditionally: a modifier
+        // that comes and goes takes the button's identity with it, and this
+        // one has a flag for exactly this.
+        .handGestureShortcut(.primaryAction, isEnabled: isPrimaryGesture)
         .accessibilityLabel(label)
     }
 }

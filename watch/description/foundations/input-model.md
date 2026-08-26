@@ -58,6 +58,31 @@ The stated floor is 44pt, and everything meets it. Two places used not to — th
 subject picker's rows at 40pt and the colour swatch cells at 34pt:
 [B-13](../bug-triage.md#b-13).
 
+### The double tap
+
+The watch's own gesture — pinch the index finger and thumb twice — runs the
+**primary action** of whatever screen is in front of you. Two screens declare
+one:
+
+| Screen | What a double tap does |
+| --- | --- |
+| Start | Starts the session the screen is composed for: the subject shown, and whatever length the crown is holding. |
+| Running | Holds the session, and holds it again to resume. |
+
+A screen gets one, so the choice is what a free hand would be reaching for. On
+the Running screen the gesture stays on the left control across the End
+question, where that control's meaning has inverted to "keep going" — a double
+tap can take a question back, and must never be the thing that ends a session.
+
+The Done screen declares none. Which of Again, Done and Discard is *the* action
+there is a product call nobody has made, and the gesture does nothing rather
+than guess.
+
+The gesture is answered by whatever is in front of you, so it is withdrawn while
+a sheet — the picker, Settings, Metrics — is up. It fires the control's own
+action, which means it fires the control's own haptic: a double tap that starts
+a session feels exactly like a tap that starts one.
+
 ### Questions
 
 Three things ask before they act: the stop button on the running screen, Discard
@@ -94,7 +119,8 @@ two-tap end. **Close** — the second tap. **Account** — no input.
 
 | During | What differs |
 | --- | --- |
-| Question armed | The left control's meaning inverts from Hold to "Keep going". |
+| Question armed | The left control's meaning inverts from Hold to "Keep going" — and the double tap inverts with it, because it is that control's action, not the hold's. |
+| A sheet open | The screen's primary action is withdrawn; the double tap does nothing until the sheet closes. |
 | Reduce Motion | Press scale is dropped; label swaps fade instead of blurring; digit rolls become fades. |
 | Dimmed | Every control is removed from the screen, so there is nothing to press. |
 
@@ -102,7 +128,7 @@ two-tap end. **Close** — the second tap. **Account** — no input.
 
 | Interrupt | Effect |
 | --- | --- |
-| Wrist down | Controls leave the screen entirely. A question keeps its six-second clock and will have withdrawn itself before the wrist is back. |
+| Wrist down | Controls leave the screen entirely — faded to nothing *and disabled*, so the primary action goes with them and a double tap has nothing to run until the wrist is back up, which is also when the gesture is delivered. A question keeps its six-second clock and will have withdrawn itself before then. |
 | Crown press | Leaves the app. Nothing is committed. |
 | Session started or ended elsewhere | No effect on input state, but the screen underneath may be describing a session that is over — see [B-03](../bug-triage.md#b-03). |
 | 4am boundary | No effect. |

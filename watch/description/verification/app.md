@@ -22,6 +22,8 @@ not currently build.
 | START-12 | P1 | device | Always-On does not resize the ring ([doc](../app/start-screen.md#cross-cutting)) | Any state | Lower the wrist, raise it again | The four controls fade out and back; the ring is the same diameter, in the same place, throughout | — |
 | START-10 | P2 | device | Three sheets on one view all present ([open question](../app/start-screen.md#open-questions-and-verification)) | Fresh launch | Open Settings, dismiss; Metrics, dismiss; the picker, dismiss | All three present and dismiss | — |
 | START-11 | P2 | device, VoiceOver | The ring's progress is announced ([B-15](../bug-triage.md#b-15)) | 1h of 2h studied | Swipe to the ring | "Today", then "1 hour of 2 hours, 50 percent" | — |
+| START-13 | P1 | device with double tap | The double tap starts the composed session ([doc](../app/start-screen.md#what-you-can-do)) | Series 9 or later, a subject chosen, crown at 25m | Double tap | A 25m session under that subject, and the start haptic — the same thing tapping Start does | — |
+| START-14 | P2 | device with double tap | The gesture is withdrawn under a sheet | Following START-13, but with the subject picker open | Double tap | Nothing starts. The system's own gesture behaviour applies to the sheet instead. | — |
 
 ## Running screen — `RUN`
 
@@ -42,6 +44,8 @@ not currently build.
 | RUN-12 | P2 | device | Overtime takes the same size as the countdown it replaced ([B-16](../bug-triage.md#b-16)) | 1m session on a 41mm watch | Let it run past zero | `+00:07` sits inside the arc at the same face size `00:07` had | — |
 | RUN-13 | P1 | device | The deadline notification is delivered while the app holds the foreground ([B-18](../bug-triage.md#b-18)) | 1m session, notifications allowed, wrist down | Wait past the deadline | A wrist tap within a few seconds of the deadline. A delegate now presents it; it used to be suppressed. | — |
 | RUN-14 | P2 | device | Hold and resume are indistinguishable by feel ([doc](../foundations/input-model.md#cross-cutting)) | Any session, wrist down | Tap Hold, then Resume | Both feel identical — a stated observation, not a defect | — |
+| RUN-15 | P1 | device with double tap | The double tap holds and resumes ([doc](../app/running-screen.md#what-you-can-do)) | Series 9 or later, a session running | Double tap, then double tap again | Held, then resumed — the clock stops and starts, with the same click a tap gives | — |
+| RUN-16 | P1 | device with double tap | The double tap never ends a session | Session running | Tap End once to arm the question, then double tap | The question is withdrawn and the session is still running. The gesture follows the left control, which now means "keep going". | — |
 
 ## Summary — `DONE`
 

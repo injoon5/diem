@@ -125,10 +125,18 @@ struct StartView: View {
 
                     Spacer(minLength: 0)
 
+                    // The screen's primary action, and so what the watch's
+                    // double-tap gesture runs: pinching twice starts the
+                    // session the screen is already composed for — the subject
+                    // chosen and whatever the crown is holding — without
+                    // reaching for the glass. Not while a sheet is up: the
+                    // gesture answers what is in front of you, and a picker
+                    // over this screen is not this screen.
                     CircleControl(
                         systemImage: "play.fill",
                         label: isScrubbing ? "Start \(Format.duration(scrubSeconds))" : "Start",
-                        tint: Palette.accent
+                        tint: Palette.accent,
+                        isPrimaryGesture: !isPresentingSheet
                     ) {
                         start()
                     }
