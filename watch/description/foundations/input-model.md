@@ -61,22 +61,25 @@ subject picker's rows at 40pt and the colour swatch cells at 34pt:
 ### The double tap
 
 The watch's own gesture — pinch the index finger and thumb twice — runs the
-**primary action** of whatever screen is in front of you. Two screens declare
-one:
+**primary action** of whatever screen is in front of you. All three root
+screens declare one:
 
 | Screen | What a double tap does |
 | --- | --- |
 | Start | Starts the session the screen is composed for: the subject shown, and whatever length the crown is holding. |
 | Running | Holds the session, and holds it again to resume. |
+| Summary | Done — banks the session and goes back to Start. |
 
 A screen gets one, so the choice is what a free hand would be reaching for. On
 the Running screen the gesture stays on the left control across the End
 question, where that control's meaning has inverted to "keep going" — a double
 tap can take a question back, and must never be the thing that ends a session.
 
-The Done screen declares none. Which of Again, Done and Discard is *the* action
-there is a product call nobody has made, and the gesture does nothing rather
-than guess.
+On the summary it is Done rather than Again for the same reason: both close the
+screen, and the one that finishes what just happened is the one almost everybody
+wants. It stays Done while the Discard question is armed — the question dies
+unanswered when the screen goes, which is safe, and the gesture must never be
+what deletes a session.
 
 The gesture is answered by whatever is in front of you, so it is withdrawn while
 a sheet — the picker, Settings, Metrics — is up. It fires the control's own

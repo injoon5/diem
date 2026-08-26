@@ -9,7 +9,7 @@ A scrolling screen, top to bottom:
 1. One word — **"Complete"** or **"Ended"** — as a small uppercase label.
 2. The session's studied time as a numeral, sized by the field it holds — 44pt for `35m`, stepping down to 34pt for `1h 30m`.
 3. If the session touched more than one subject, a **breakdown**: one row per subject, a 6pt dot, the name, the time, largest first.
-4. Two full-width glass capsules: **Again** in the accent, **Done** in near-transparent white.
+4. Two full-width glass capsules: **Again** in near-transparent white, **Done** in the accent.
 5. Below them, quiet and unadorned, a **Discard** link.
 
 The breakdown appears on more than one *subject*, not more than one interval — a
@@ -23,12 +23,25 @@ to fit.
 Discard is last, quiet and unadorned because throwing the session away is the
 one action here that cannot be undone.
 
+The accent is on **Done**, the lower of the two capsules, rather than on the
+one at the top. Both close the screen; the one that finishes what just happened
+is the one almost everybody wants, and repeating is the deliberate choice — a
+thing to reach for rather than the thing that happens by default. Again keeps
+its position, so the pair has not moved under anyone's thumb; only the emphasis
+has.
+
 ## What you can do
 
 **Again** starts a new session with the same length and the subject that was
 running when this one *ended* — not whichever subject took the most of it.
 
-**Done** closes the screen and returns to Start.
+**Done** closes the screen and returns to Start. It is this screen's primary
+action, so the watch's **double tap** does it: the session is already banked by
+the time this screen appears, and pinching twice is the way to agree with that
+without a free hand. The gesture stays on Done even while the Discard question
+is armed — leaving that question unanswered is safe, since the screen withdraws
+it on the way out, and a double tap must never be what deletes a session. See
+[`../foundations/input-model.md`](../foundations/input-model.md#the-double-tap).
 
 **Discard** asks first. The first tap turns the word into "Discard?" and
 brightens it a step; the second deletes the session's intervals. Six seconds

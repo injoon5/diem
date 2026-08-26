@@ -62,16 +62,30 @@ struct DoneView: View {
 
                 GlassEffectContainer(spacing: 8) {
                     VStack(spacing: 8) {
+                        // Again keeps its place at the top and gives up the
+                        // accent. Both capsules close the screen, and the one
+                        // that finishes what just happened is the one almost
+                        // everybody wants; the accent belongs to it, and so
+                        // does the gesture. Repeating is the deliberate
+                        // choice, which is a thing to reach for rather than
+                        // the thing that happens by default.
                         EndActionButton(
                             title: "Again",
                             systemImage: "arrow.clockwise",
-                            tint: Palette.accent
+                            tint: .white.opacity(0.10)
                         ) { again() }
 
+                        // The screen's primary action: pinching twice banks
+                        // the session and goes back to Start. It stays Done
+                        // even while the Discard question is armed — the
+                        // gesture can leave a question unanswered, and the
+                        // screen withdraws it on the way out, but it must
+                        // never be what deletes a session.
                         EndActionButton(
                             title: "Done",
                             systemImage: "checkmark",
-                            tint: .white.opacity(0.10)
+                            tint: Palette.accent,
+                            isPrimaryGesture: true
                         ) { onClose() }
                     }
                 }
@@ -171,6 +185,12 @@ private struct EndActionButton: View {
     let title: String
     let systemImage: String
     let tint: Color
+    /// Whether the watch's double-tap gesture runs this control.
+    ///
+    /// The same flag `CircleControl` carries, for the same reason: a screen
+    /// declares one primary action, and the shortcut belongs to the `Button`
+    /// rather than to whatever the caller wraps it in.
+    var isPrimaryGesture = false
     let action: () -> Void
 
     var body: some View {
@@ -187,6 +207,7 @@ private struct EndActionButton: View {
                 .contentShape(.capsule)
         }
         .buttonStyle(EndActionButtonStyle(tint: tint))
+        .handGestureShortcut(.primaryAction, isEnabled: isPrimaryGesture)
         .accessibilityLabel(title)
     }
 }

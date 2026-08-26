@@ -102,7 +102,8 @@ and it withdraws itself after six seconds.
 
 **Double tap** — the watch's own gesture, index finger and thumb pinched twice.
 It runs the **primary action** of the screen in front of you: Start on the Start
-screen, Hold on the Running one. A screen declares at most one.
+screen, Hold on the Running one, Done on the summary. A screen declares at most
+one, and it is never the action that deletes something.
 
 **Always-On** — the dimmed state, `isLuminanceReduced`. Not a separate screen:
 the same clock with its seconds struck out to dashes, inside bars that keep
