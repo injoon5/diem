@@ -28,6 +28,21 @@ struct SubjectButton: View {
                         name == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
                     )
                     .lineLimit(1)
+                    // A long name shrinks a little before it is cut. `Social
+                    // Studies` came out as `Social…` on the Running screen,
+                    // where the chip has to fit inside a chord of the ring
+                    // rather than the screen's full width — and a subject
+                    // truncated mid-word is the one piece of text on that
+                    // screen the user chose the wording of themselves.
+                    //
+                    // Seven tenths buys a few more characters before the
+                    // ellipsis; it does not buy a long name. On the Running
+                    // screen the chip sits inside a chord of the ring and gets
+                    // about fifty points of text width, so `Social Studies`
+                    // would need to come down by well over half to fit whole —
+                    // past the point where it is still the same control. Names
+                    // that long are cut, and cut a word later than they were.
+                    .minimumScaleFactor(0.7)
                     .id(name ?? placeholder)
                     .labelSwap(reduceMotion: reduceMotion)
                 Image(systemName: "chevron.down")
