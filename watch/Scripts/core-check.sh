@@ -42,7 +42,8 @@ for file in \
     Diem/Model/Snapshot.swift \
     Diem/Model/SessionAssembly.swift \
     Diem/Design/Format.swift \
-    Diem/Views/Scrub.swift
+    Diem/Views/Scrub.swift \
+    Diem/Views/SubjectBar.swift
 do
     cp "$WATCH/$file" "$WORK/Sources/Diem/"
 done

@@ -695,3 +695,199 @@ struct SessionTests {
         #expect(log.sessions().map(\.id) == [second, first])
     }
 }
+
+@Suite("The session bar on the ring")
+struct SubjectBarTests {
+    private func run(_ index: Int?, minutes: Double) -> SubjectBar.Run {
+        SubjectBar.Run(colorIndex: index, seconds: minutes * 60)
+    }
+
+    private func run(_ index: Int?, seconds: TimeInterval) -> SubjectBar.Run {
+        SubjectBar.Run(colorIndex: index, seconds: seconds)
+    }
+
+    /// The cases that are awkward to reach on a wrist, in one list, so the
+    /// invariants below are checked against all of them rather than against
+    /// whichever one was on someone's mind. `Scripts/ring-gallery.sh` draws the
+    /// same list.
+    private static let sessions: [(name: String, runs: [SubjectBar.Run])] = [
+        ("nothing", []),
+        ("one subject", [SubjectBar.Run(colorIndex: 0, seconds: 720)]),
+        ("switched two seconds ago", [
+            SubjectBar.Run(colorIndex: 0, seconds: 1200),
+            SubjectBar.Run(colorIndex: 4, seconds: 2),
+        ]),
+        ("free time between two subjects", [
+            SubjectBar.Run(colorIndex: 2, seconds: 900),
+            SubjectBar.Run(colorIndex: nil, seconds: 600),
+            SubjectBar.Run(colorIndex: 6, seconds: 900),
+        ]),
+        ("twenty subjects, a minute each", (0..<20).map {
+            SubjectBar.Run(colorIndex: $0, seconds: 60)
+        }),
+        ("rapid switching", (0..<24).map { SubjectBar.Run(colorIndex: $0, seconds: 20) }),
+        ("just past the turn", [
+            SubjectBar.Run(colorIndex: 5, seconds: 2400),
+            SubjectBar.Run(colorIndex: 9, seconds: 1500),
+        ]),
+        ("lapped, switched two seconds ago", [
+            SubjectBar.Run(colorIndex: 5, seconds: 3600),
+            SubjectBar.Run(colorIndex: 9, seconds: 2),
+        ]),
+        ("two and a half hours of one subject", [
+            SubjectBar.Run(colorIndex: 7, seconds: 9000),
+        ]),
+        ("a long day of many subjects", (0..<14).map {
+            SubjectBar.Run(colorIndex: $0, seconds: 540)
+        }),
+    ]
+
+    @Test("A run of no length is not a band, and does not move the bar on")
+    func emptyRuns() {
+        let bands = SubjectBar.bands([
+            run(0, minutes: 10),
+            run(1, seconds: 0),
+            run(2, seconds: -600),
+            run(3, minutes: 10),
+        ])
+        #expect(bands.count == 2)
+        #expect(bands.map(\.colorIndex) == [0, 3])
+        #expect(bands[1].from == bands[0].to)
+    }
+
+    @Test("An hour is a turn, and a run is cut where the turn is")
+    func cutAtTheTurn() {
+        let bands = SubjectBar.bands([run(0, minutes: 90)])
+        #expect(bands.count == 2)
+        #expect(bands[0].lap == 0)
+        #expect(bands[0].to == 1)
+        #expect(bands[1].lap == 1)
+        #expect(bands[1].from == 0)
+        #expect(abs(bands[1].to - 0.5) < 1e-9)
+    }
+
+    @Test("A session of exactly an hour has not lapped")
+    func exactlyOneTurn() {
+        let bands = SubjectBar.bands([run(0, minutes: 60)])
+        // One band, closing the turn — not a second one of no length opening
+        // the next, which would dim the whole first turn for nothing.
+        #expect(bands.count == 1)
+        #expect(SubjectBar.top(bands) == 0)
+    }
+
+    @Test("Past the turn, the newest band is the one on top")
+    func lapping() {
+        let laps = SubjectBar.laps([run(0, minutes: 60), run(1, seconds: 2)])
+        #expect(laps.map(\.id) == [0, 1])
+        #expect(SubjectBar.top(SubjectBar.bands([run(0, minutes: 60), run(1, seconds: 2)])) == 1)
+        // The end of the bar is on the turn on top, which is what carries the
+        // round cap.
+        #expect(laps.last?.tailBand.lowerBound == 0)
+    }
+
+    @Test("Stops run forwards, and stay on the turn", arguments: sessions.map(\.name))
+    func stopsAreOrdered(name: String) {
+        let runs = Self.sessions.first { $0.name == name }!.runs
+        for lap in SubjectBar.laps(runs) {
+            var previous = -Double.infinity
+            for stop in lap.stops {
+                // Out-of-order stops are what an angular gradient answers by
+                // wrapping to the far end of the list, which draws the colour
+                // of something studied an hour ago at the end of the bar.
+                #expect(stop.location >= previous)
+                #expect(stop.location >= 0)
+                #expect(stop.location <= 1)
+                previous = stop.location
+            }
+            #expect(lap.stops.first?.location == lap.from)
+            #expect(lap.stops.last?.location == lap.to)
+        }
+    }
+
+    @Test("Every band keeps a stretch of its own colour", arguments: sessions.map(\.name))
+    func nothingIsAllBlend(name: String) {
+        let runs = Self.sessions.first { $0.name == name }!.runs
+        let bands = SubjectBar.bands(runs)
+        let stops = SubjectBar.laps(bands).flatMap(\.stops)
+        #expect(stops.count == bands.count * 2)
+        for (index, band) in bands.enumerated() {
+            let held = stops[index * 2 + 1].location - stops[index * 2].location
+            // A third from either end at the very most, so what is left holding
+            // the band's own colour is never less than a third of it.
+            #expect(held >= band.length / 3 - 1e-12)
+        }
+    }
+
+    @Test("A join gives up the same arc on both sides of it")
+    func blendIsSymmetric() {
+        // Twenty minutes, then a subject two seconds old. Clamped against the
+        // long run alone, the fade started a full half-blend back and the two
+        // seconds had a thousandth of a turn to be their own colour in: what
+        // you saw was the old subject washing out, not the new one starting.
+        let runs = [run(0, minutes: 20), run(4, seconds: 2)]
+        let stops = SubjectBar.laps(runs).flatMap(\.stops)
+        let join = 1200.0 / SubjectBar.secondsPerTurn
+        let before = join - stops[1].location
+        let after = stops[2].location - join
+        #expect(abs(before - after) < 1e-12)
+        // And no wider than the short side can afford.
+        #expect(before <= (2 / SubjectBar.secondsPerTurn) / 3 + 1e-12)
+    }
+
+    @Test("Two stretches of the same subject are one colour, not a join")
+    func sameSubjectDoesNotBlend() {
+        let runs = [run(3, minutes: 10), run(3, minutes: 10)]
+        let stops = SubjectBar.laps(runs).flatMap(\.stops)
+        // The stops meet exactly at the join: nothing is pulled in, because
+        // there is no colour change to give it room.
+        #expect(stops[1].location == stops[2].location)
+    }
+
+    @Test("The bar's own two ends are held flat, so the round caps are true")
+    func endsAreNotPulledIn() {
+        let runs = [run(0, minutes: 20), run(4, minutes: 20)]
+        let laps = SubjectBar.laps(runs)
+        #expect(laps.first?.stops.first?.location == 0)
+        #expect(laps.first?.stops.first?.colorIndex == 0)
+        // The cap at the end is drawn flat in the colour the gradient holds
+        // there, and it only matches because the end is not pulled in.
+        #expect(laps.last?.stops.last?.location == laps.last?.to)
+        #expect(laps.last?.stops.last?.colorIndex == 4)
+    }
+
+    @Test("A planned session makes the goal one turn, not the hour")
+    func goalIsTheTurn() {
+        // Twelve minutes of a twenty-five minute goal is not twelve sixtieths
+        // of the ring, it is very nearly half of it.
+        let bands = SubjectBar.bands([run(0, minutes: 12)], perTurn: 25 * 60)
+        #expect(bands.count == 1)
+        #expect(abs(bands[0].to - 12.0 / 25.0) < 1e-12)
+
+        // And the ring closes when the session is done, so overtime laps.
+        let over = SubjectBar.bands([run(0, minutes: 29)], perTurn: 25 * 60)
+        #expect(SubjectBar.top(over) == 1)
+        #expect(over[0].to == 1)
+        #expect(abs(over[1].to - 4.0 / 25.0) < 1e-12)
+    }
+
+    @Test("A turn of no length falls back to the hour rather than dividing by it")
+    func turnOfNoLength() {
+        for perTurn in [0.0, -600.0] {
+            let bands = SubjectBar.bands([run(0, minutes: 30)], perTurn: perTurn)
+            #expect(bands.count == 1)
+            #expect(bands[0].to == 0.5)
+        }
+    }
+
+    @Test("Free time is a band like any other")
+    func freeTime() {
+        let runs = [run(2, minutes: 15), run(nil, minutes: 10), run(6, minutes: 15)]
+        let bands = SubjectBar.bands(runs)
+        #expect(bands.map(\.colorIndex) == [2, nil, 6])
+        let stops = SubjectBar.laps(bands).flatMap(\.stops)
+        // It blends into its neighbours: it is a different colour from them,
+        // and the ring has no other way to say a subject ended.
+        #expect(stops[1].location < bands[0].to)
+        #expect(stops[2].location > bands[1].from)
+    }
+}

@@ -13,10 +13,22 @@ struct RunningView: View {
     @State private var endConfirm = Confirmation()
     /// A fixed anchor, so the tick doesn't re-phase on every redraw.
     @State private var anchor = Date.now
-    /// How much height the bottom bar is holding, measured rather than
-    /// guessed: it is not the same on a 40mm as on a 49mm, and in Always-On
-    /// the picture has to know how far down the middle of the lit screen is.
-    @State private var barHeight: CGFloat = 0
+    /// What the screen is holding above and below this view, measured rather
+    /// than guessed: neither number is the same on a 40mm as on a 49mm, and
+    /// larger text sizes move them again.
+    @State private var insets = ScreenInsets()
+
+    /// The top band the time is drawn in, and the bottom bar the controls sit
+    /// in.
+    private struct ScreenInsets: Equatable {
+        var top: CGFloat = 0
+        var bottom: CGFloat = 0
+
+        /// How far the middle of this view's space is from the middle of the
+        /// screen. Positive means the space sits above the screen's middle,
+        /// which is what an empty bar under it does.
+        var drop: CGFloat { (bottom - top) / 2 }
+    }
 
     /// Dimmed, the display refreshes about once a minute, so a per-second
     /// schedule there only burns budget. Paused, the numeral is frozen — the
@@ -44,8 +56,8 @@ struct RunningView: View {
             }
         }
         .containerBackground(.black, for: .navigation)
-        // How tall the bottom bar is, asked rather than assumed: it is a
-        // different number on every watch, and larger text sizes move it again.
+        // What the screen is holding either side of this view, asked rather
+        // than assumed.
         //
         // A view that ignores the safe area is laid out against the whole
         // screen, and its proxy reports the insets it stepped over — which is
@@ -55,10 +67,13 @@ struct RunningView: View {
         .background {
             Color.clear
                 .ignoresSafeArea()
-                .onGeometryChange(for: CGFloat.self) { proxy in
-                    proxy.safeAreaInsets.bottom
-                } action: { inset in
-                    barHeight = inset
+                .onGeometryChange(for: ScreenInsets.self) { proxy in
+                    ScreenInsets(
+                        top: proxy.safeAreaInsets.top,
+                        bottom: proxy.safeAreaInsets.bottom
+                    )
+                } action: { measured in
+                    insets = measured
                 }
         }
         .navigationBarBackButtonHidden()
@@ -257,7 +272,15 @@ struct RunningView: View {
             //
             // The colours are resolved here, where the store is. The ring has
             // no way to look a subject up.
-            SubjectRing(runs: coloredRuns(tick.runs), lineWidth: 8)
+            // One revolution is the planned time, so a closed ring is the
+            // session done. A free session has no such time and keeps the hour
+            // the crown scrubs against.
+            SubjectRing(
+                runs: coloredRuns(tick.runs),
+                secondsPerTurn: tick.plannedSec.map(TimeInterval.init)
+                    ?? SubjectBar.secondsPerTurn,
+                lineWidth: 8
+            )
                 // Held, the whole screen steps back together — and the ring is
                 // most of the screen. It was the one thing still at full
                 // brightness behind a clock that had gone quiet, which read as
@@ -366,15 +389,22 @@ struct RunningView: View {
         .padding(.vertical, -14)
         // Always-On empties the bottom bar but not its height, so the whole
         // picture sat in the top two-thirds of a screen with nothing under it.
-        // Dimmed, it slides down to the middle of what is actually lit: half
-        // the bar it is now free to stand in, plus the six points of optical
-        // lift above — a correction for weight that is no longer on screen.
+        // Dimmed, it slides down to the middle of the display, plus the six
+        // points of optical lift above — a correction for weight that is no
+        // longer on screen.
+        //
+        // Half the bar is not that distance. This view's space is short of the
+        // screen at *both* ends — the band the time is drawn in above it as
+        // well as the bar below — so its middle is already the difference of
+        // the two below the screen's, and dropping it by half the bar alone
+        // overshot by half the band above. On a 46mm that is ten points, which
+        // is a ring visibly hanging low on a screen with nothing else on it.
         //
         // An offset, not a change of layout. The ring keeps its diameter across
         // the crossing, one translation carries the arc and the clock inside it
         // together, and a translation is the cheapest thing there is to animate
         // on a display about to drop to a refresh a minute.
-        .offset(y: isLuminanceReduced ? barHeight / 2 + 6 : 0)
+        .offset(y: isLuminanceReduced ? insets.drop + 6 : 0)
         .animation(Motion.dimming(reduceMotion: reduceMotion), value: isLuminanceReduced)
         .animation(Motion.fill(reduceMotion: reduceMotion), value: status(tick))
     }

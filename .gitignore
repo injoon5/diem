@@ -9,3 +9,6 @@ DerivedData/
 # nobody made — and the two had already drifted apart in both directions.
 watch/Diem/Info.plist
 watch/DiemWidget/Info.plist
+
+# Written by `sh Scripts/ring-gallery.sh` — pictures of the ring, not sources.
+watch/.ring-gallery/
