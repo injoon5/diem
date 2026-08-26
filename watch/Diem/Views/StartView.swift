@@ -210,6 +210,7 @@ struct StartView: View {
         }
         .sheet(isPresented: $showingSettings) { SettingsView() }
         .sheet(isPresented: $showingMetrics) { MetricsView() }
+        .harnessOpensMetrics($showingMetrics)
         .onAppear {
             crownFocused = true
             guard !subjectChosen else { return }
