@@ -45,6 +45,27 @@ Step 0 is "no length" — an open-ended session, and the state the crown rests i
 Both curves round-trip: a duration converted to a step and back is the same
 duration. That is tested.
 
+### The crown hint
+
+The crown is the Start screen's main control and nothing said so: a ring with a
+number in it is a reading, not an invitation, and the one gesture that sets a
+length was discoverable only by accident.
+
+So a small crown glyph sits beside the Digital Crown itself — a **crown
+accessory**, drawn by the system at the crown's position rather than laid out on
+the screen, which is why it costs the ring nothing. It bobs two points along the
+axis the crown turns, slowly enough to read as an invitation rather than an
+alert. It is the only repeating animation in the app.
+
+It shows while the crown is at rest and the screen is lit, and it is gone the
+moment the crown is turned — the scrub happens against a clean edge, which is
+the point of hiding the system's indicator in the first place. Reduce Motion
+keeps the glyph and drops the bob. VoiceOver is told nothing: the ring beside it
+already carries the label and the value.
+
+The Goal screen has no hint and keeps the system's own indicator instead. There
+is no ring there for the bar to talk over.
+
 ### Detents
 
 A **detent** is one whole step. The number on screen and the haptic land on

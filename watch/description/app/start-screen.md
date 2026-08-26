@@ -33,6 +33,17 @@ is actually on screen. It is also allowed to overrun the bars slightly, the way
 an Activity ring does, because it is bounded by the height between them rather
 than by the width.
 
+Beside the Digital Crown, on the right edge, a small **crown hint**: a crown
+glyph at 14pt in tertiary white, bobbing two points along the axis the crown
+turns. It is a *crown accessory* rather than anything on the screen — the system
+draws it at the crown's own position, so it costs the ring no diameter and moves
+nothing in either bar.
+
+It is shown only while the crown is at rest and the screen is lit, and it fades
+out the moment the crown is turned: it is the invitation, not the indicator, and
+an invitation that has been accepted is clutter. Reduce Motion keeps the glyph
+and drops the bob.
+
 If no subject has been chosen the button reads a dimmed "Subject" with no dot.
 If the last-used subject has since been archived or deleted, it reads "Subject"
 too — the screen will not offer a subject that Settings has got rid of.
@@ -45,10 +56,13 @@ goal, and the number in the middle becomes the duration being set rather than
 the day's total. The two are different quantities, so the swap is a blur, not a
 roll — rolling one into the other would read as the number counting itself down.
 
-The system's own crown indicator is hidden here. The ring is welded to the crown
+The system's own crown indicator is not here. The ring is welded to the crown
 and is the largest thing on the screen; the green bar down the right edge said
 the same thing again, smaller, over the top of it ([B-38](../bug-triage.md#b-38)).
-The Goal screen keeps its indicator — there is no ring there.
+What stands in its place is the crown hint above — a custom accessory, which
+replaces the system bar rather than joining it, and which is gone by the time
+the scrub it invites begins. The Goal screen keeps its indicator — there is no
+ring there.
 
 The arc tracks the crown continuously; the number and the click land on whole
 minutes. See [`../foundations/input-model.md`](../foundations/input-model.md).

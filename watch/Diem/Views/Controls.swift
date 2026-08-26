@@ -46,6 +46,54 @@ struct SubjectButton: View {
     }
 }
 
+/// The one thing the Start screen cannot say in words: that the crown does
+/// something here.
+///
+/// Drawn beside the Digital Crown by the system rather than placed on the
+/// screen. `digitalCrownAccessory` is an overlay at the crown's own position,
+/// so this costs the ring no diameter and moves nothing in either bar — which
+/// is the whole reason it is a crown accessory and not a caption.
+///
+/// The system's own indicator used to sit there and was taken away for saying
+/// what the ring already says, smaller and over the top of it. This says the
+/// one thing the ring cannot: that there is something to turn. It says it only
+/// until the crown is turned, because an invitation that has been accepted is
+/// clutter.
+struct CrownHint: View {
+    /// Shown while the crown is at rest and the screen is lit.
+    var isVisible: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var bobbed = false
+
+    var body: some View {
+        Image(systemName: "digitalcrown.arrow.clockwise")
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(.tertiary)
+            // Along the crown's own axis: a hint that moves the way the thing
+            // it is pointing at moves. Two points is well under a millimetre —
+            // enough to catch an eye already at that edge of the screen, not
+            // enough to become the most interesting thing on it.
+            .offset(y: reduceMotion ? 0 : (bobbed ? -2 : 2))
+            .animation(bob, value: bobbed)
+            .opacity(isVisible ? 1 : 0)
+            .animation(Motion.standard, value: isVisible)
+            // Nothing to say: the ring beside it already carries the label and
+            // the value, and a glyph meaning "turn this" is a picture of a
+            // gesture that is not how VoiceOver sets the length anyway.
+            .accessibilityHidden(true)
+            .onAppear { bobbed = isVisible }
+            .onChange(of: isVisible) { _, visible in bobbed = visible }
+    }
+
+    /// The repeat runs only while the hint is on screen. A `repeatForever`
+    /// left attached to a view faded to nothing is a timer nobody can see.
+    private var bob: Animation? {
+        guard isVisible, !reduceMotion else { return nil }
+        return Motion.crownNudge
+    }
+}
+
 /// A round toolbar button for the bottom bar.
 struct CircleControl: View {
     var systemImage: String
