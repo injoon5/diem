@@ -36,6 +36,21 @@ struct DiemComplicationView: View {
     let snapshot: DiemSnapshot
     var now: Date = .now
 
+    /// The colour every progress surface here is drawn in: the same copper the
+    /// ring uses in the app, so the gauge on the face and the bar on the card
+    /// are the app's reading rather than the system's default fill.
+    ///
+    /// It survives only where the system lets it. A complication is handed a
+    /// rendering mode: `.fullColor` — the Smart Stack, the gallery, and faces
+    /// that render complications in colour — draws exactly what is asked for,
+    /// while `.accented` flattens the whole view into two groups and paints
+    /// them in the *face's* tint, whatever colour was asked for. That is what
+    /// `widgetAccentable()` decides: the numeral and the fill are in the
+    /// accented group, the `TODAY` label and the ghost track are not. So the
+    /// colour is stated once, unconditionally, and each mode takes what it can
+    /// use — there is no branch here, because there is nothing to decide.
+    private var progressTint: Color { Palette.ring }
+
     private var today: String { snapshot.compactToday(asOf: now) }
     private var progress: Double { snapshot.progress(asOf: now) }
 
@@ -55,6 +70,9 @@ struct DiemComplicationView: View {
                     .monospacedDigit()
             }
             .gaugeStyle(.accessoryCircularCapacity)
+            // The app's copper, so a stock gauge reads as this app's progress
+            // rather than as the system's.
+            .tint(progressTint)
             .widgetAccentable()
 
         case .accessoryCorner:
@@ -65,6 +83,7 @@ struct DiemComplicationView: View {
                     Gauge(value: progress) {
                         Text(today)
                     }
+                    .tint(progressTint)
                 }
 
         // The one family with room for two things at once, and the one the
@@ -143,7 +162,7 @@ struct DiemComplicationView: View {
     private func column(@ViewBuilder _ content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             content()
-            GoalBar(lap: snapshot.lap(asOf: now))
+            GoalBar(lap: snapshot.lap(asOf: now), color: progressTint)
                 .padding(.top, 1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -203,6 +222,9 @@ struct DiemComplicationView: View {
 /// over the top.
 private struct GoalBar: View {
     let lap: Lap
+    /// The same colour the gauges take, handed down rather than looked up, so
+    /// the four families cannot end up drawing the day in two coppers.
+    var color: Color = Palette.ring
     var height: CGFloat = 4
 
     var body: some View {
@@ -213,13 +235,13 @@ private struct GoalBar: View {
 
                 if lap.isLapped {
                     Capsule()
-                        .fill(Palette.lapped(Palette.ring))
+                        .fill(Palette.lapped(color))
                         .widgetAccentable()
                 }
 
                 if filled > 0 {
                     Capsule()
-                        .fill(Palette.ring)
+                        .fill(color)
                         // Never thinner than it is tall: a capsule narrower
                         // than its own cap radius draws as a sliver rather
                         // than as the round end the ring has.

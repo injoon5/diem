@@ -38,6 +38,28 @@ saying `1.5h` for a total the app was calling `1h 30m`.
 The compact spelling drops the decimal past ten hours, because `10.5h` does not
 fit either.
 
+## Colour
+
+Every progress surface here is the app's copper — the ring's colour, not the
+system's default gauge fill — and it is stated once and handed to all four
+families, so the card and the face cannot end up drawing the day in two
+different coppers. The numerals stay white, the way the app's own hero numeral
+is: the copper is reserved for progress, and the orange accent is reserved for
+things you press.
+
+How much of that survives is the system's call, not the app's. A complication is
+handed a **rendering mode**:
+
+| Mode | Where | What happens to the colour |
+| --- | --- | --- |
+| `.fullColor` | The Smart Stack, the widget gallery, faces that render complications in colour | Drawn as asked: copper fill, white numerals |
+| `.accented` | A tinted watch face | The view is flattened into two groups and painted in the *face's* tint. The colour asked for is discarded. |
+
+`widgetAccentable()` is what decides the two groups: the numerals and the fill
+are in the accented one, the "TODAY" label and the ghost track are not. So there
+is no branch in the code — the colour is declared unconditionally and each mode
+takes what it can use.
+
 ## The goal bar
 
 The rectangular family draws its own bar rather than using a stock linear
@@ -73,7 +95,8 @@ in front of you unasked. See [`smart-stack.md`](smart-stack.md).
 | Nothing studied | An empty gauge and `0m`. |
 | Goal met | A full gauge. |
 | Goal lapped | The gauge is capped at full — only the rectangular family's hand-drawn bar shows the lap. |
-| Tinted watch face | The numerals and the bar are accentable and take the face's tint; the ghost track does not. |
+| Tinted watch face | The numerals and the bar are accentable and take the face's tint, in place of the copper; the ghost track does not. |
+| Full colour | The gauge and the bar draw in the app's copper, matching the ring on the Start screen. |
 
 | During | What differs |
 | --- | --- |

@@ -36,6 +36,7 @@ part no scripted pass can do.
 | COMP-04 | P1 | device, overnight | The total resets at the 4am boundary ([B-07](../bug-triage.md#b-07)) | 2h studied, watch left alone from 03:45 | Look at the complication at 04:05 | Zero and an empty ring, without the app having run. The snapshot carries the day it was banked in. | — |
 | COMP-05 | P2 | device | The count advances without a refresh | Session running | Watch the rectangular card for a minute | The total climbs | — |
 | COMP-06 | P3 | device, tinted face | Accentable elements take the face tint; the track does not | Any | Tint the face | Numerals and fill tint; the ghost track stays neutral | — |
+| COMP-06b | P2 | device | The gauge draws in the app's copper where colour survives ([doc](../outside/complications.md#colour)) | 1h of a 2h goal | Compare the circular gauge and the card's bar against the Start screen's ring | The same copper in all three. On a tinted face the tint replaces it — that is COMP-06, not a failure here. | — |
 | COMP-07 | P3 | device, monochrome face | Everything stays legible without colour | Any | Switch to a monochrome face | The lap is still readable as a lap | — |
 | COMP-08 | P3 | device, VoiceOver | The circular family speaks a usable value ([doc](../outside/complications.md#cross-cutting)) | 90m studied | VoiceOver onto it | "1.5h" — a product call, still open, not a failure | — |
 
