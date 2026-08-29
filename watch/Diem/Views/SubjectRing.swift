@@ -91,21 +91,69 @@ struct SubjectRing: View {
         return lap == top ? raw : raw.opacity(lapping.lapped)
     }
 
+    /// A saturated waypoint between subject colours that sit far apart in the
+    /// palette. Device-space interpolation crossed the centre of the colour
+    /// space instead, producing a grey or brown notch exactly where a switch
+    /// should read as one colour flowing into another. Adjacent colours already
+    /// have a natural path. Free keeps the hard boundaries `SubjectBar` gives
+    /// it and never reaches this bridge.
+    private func bridge(
+        from first: Int?,
+        to second: Int?,
+        lap: Int,
+        top: Int
+    ) -> Color? {
+        guard let first, let second else { return nil }
+        let count = Palette.subjectCount
+        let a = ((first % count) + count) % count
+        let b = ((second % count) + count) % count
+        guard abs(a - b) > 1 else { return nil }
+        return color((a + b) / 2, lap: lap, top: top)
+    }
+
+    private func gradientStops(_ lap: SubjectBar.Lap, top: Int) -> [Gradient.Stop] {
+        var result: [Gradient.Stop] = []
+        for (index, stop) in lap.stops.enumerated() {
+            result.append(
+                Gradient.Stop(
+                    color: color(stop.colorIndex, lap: lap.id, top: top),
+                    location: stop.location
+                )
+            )
+            guard index + 1 < lap.stops.count else { continue }
+            let next = lap.stops[index + 1]
+            guard stop.colorIndex != next.colorIndex,
+                  stop.location < next.location,
+                  let bridge = bridge(
+                      from: stop.colorIndex,
+                      to: next.colorIndex,
+                      lap: lap.id,
+                      top: top
+                  )
+            else { continue }
+            result.append(
+                Gradient.Stop(
+                    color: bridge,
+                    location: (stop.location + next.location) / 2
+                )
+            )
+        }
+        return result
+    }
+
     /// One turn of the bar.
     ///
     /// The stops are locations on the whole turn, and so is the arc, so the
     /// gradient lands on the stroke without either having to know where the
     /// other starts.
     private func arc(_ lap: SubjectBar.Lap, top: Int) -> some View {
-        Circle()
+        let gradient = Gradient(stops: gradientStops(lap, top: top))
+            .colorSpace(.perceptual)
+
+        return Circle()
             .trim(from: lap.from, to: lap.to)
             .stroke(
-                AngularGradient(
-                    stops: lap.stops.map {
-                        Gradient.Stop(color: color($0.colorIndex, lap: lap.id, top: top), location: $0.location)
-                    },
-                    center: .center
-                ),
+                AngularGradient.conicGradient(gradient, center: .center),
                 style: .init(lineWidth: lineWidth, lineCap: .butt)
             )
     }

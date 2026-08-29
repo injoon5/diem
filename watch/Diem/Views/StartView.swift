@@ -8,6 +8,7 @@ struct StartView: View {
     @State private var crownStep: Double = 0
     @FocusState private var crownFocused: Bool
     @State private var subjectID: UUID?
+    @State private var subjectSwapDirection: CGFloat = 1
     /// The picker has been opened at least once, so "Free" stays chosen instead
     /// of being overwritten by the last subject on the next appearance.
     @State private var subjectChosen = false
@@ -40,7 +41,10 @@ struct StartView: View {
     /// The same duration without the rounding, so the arc stays welded to the
     /// crown rather than snapping a step behind it.
     private var scrubTurns: Double {
-        DurationScrub.turns(forSeconds: DurationScrub.seconds(forFractionalStep: crownStep))
+        DurationScrub.turns(
+            forSeconds: DurationScrub.seconds(forFractionalStep: crownStep),
+            perTurn: store.goalSeconds
+        )
     }
     private var isScrubbing: Bool { crownDetent > 0 }
     private var isPresentingSheet: Bool { showingSubjects || showingSettings || showingMetrics }
@@ -151,18 +155,29 @@ struct StartView: View {
             //
             // Keep the two utility actions in the top corners.
             ToolbarItem(placement: .topBarLeading) {
-                Button { showingSettings = true } label: {
-                    Image(systemName: "gearshape")
+                if isLuminanceReduced {
+                    // Hiding a toolbar Button's label leaves watchOS's button
+                    // chrome behind. Keep this slot to preserve the bar's
+                    // layout, but make it a noninteractive view instead.
+                    Color.clear.frame(width: 44, height: 44)
+                } else {
+                    Button { showingSettings = true } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
                 }
-                .accessibilityLabel("Settings")
-                .dimmedAway(isLuminanceReduced, reduceMotion: reduceMotion)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showingMetrics = true } label: {
-                    Image(systemName: "chart.bar")
+                if isLuminanceReduced {
+                    // See the leading item: this holds the toolbar's space
+                    // without leaving a visible button around an empty icon.
+                    Color.clear.frame(width: 44, height: 44)
+                } else {
+                    Button { showingMetrics = true } label: {
+                        Image(systemName: "chart.bar")
+                    }
+                    .accessibilityLabel("Metrics")
                 }
-                .accessibilityLabel("Metrics")
-                .dimmedAway(isLuminanceReduced, reduceMotion: reduceMotion)
             }
             // The subject picker is a bottom-leading control, while the
             // start action stays pinned to the bottom edge instead of
@@ -174,7 +189,9 @@ struct StartView: View {
                 HStack(spacing: 6) {
                     SubjectButton(
                         name: subject?.name,
-                        colorIndex: subject?.colorIndex
+                        colorIndex: subject?.colorIndex,
+                        showsChevron: !isLuminanceReduced,
+                        swapDirection: subjectSwapDirection
                     ) {
                         showingSubjects = true
                     }
@@ -204,6 +221,7 @@ struct StartView: View {
         // dismissed a sheet that was already going.
         .sheet(isPresented: $showingSubjects) {
             SubjectPicker(selection: chosenSubject?.id) { picked in
+                subjectSwapDirection = swapDirection(from: chosenSubject?.id, to: picked)
                 subjectID = picked
                 subjectChosen = true
             }
@@ -224,6 +242,22 @@ struct StartView: View {
             guard !presenting else { return }
             crownFocused = true
         }
+    }
+
+    /// Picker order gives the text transition a physical direction. `Free` is
+    /// the final row, matching the picker rather than inventing a second order
+    /// just for animation.
+    private func swapDirection(from oldID: UUID?, to newID: UUID?) -> CGFloat {
+        let subjects = store.subjects()
+        func rank(_ id: UUID?) -> Int {
+            guard let id else { return subjects.count }
+            return subjects.firstIndex { $0.id == id } ?? subjects.count
+        }
+
+        let oldRank = rank(oldID)
+        let newRank = rank(newID)
+        guard oldRank != newRank else { return subjectSwapDirection }
+        return newRank > oldRank ? 1 : -1
     }
 
     private func content(now: Date) -> some View {

@@ -1,12 +1,18 @@
 import SwiftUI
 
-/// Borderless — no background, no border. Name plus a chevron at a smaller size
-/// and lower opacity; unset it reads a dimmed "Subject". The 44pt target comes
-/// from padding, not from a visible shape.
+/// Borderless — no background, no border. The subject name and its chevron are
+/// the label while lit; Always-On drops the affordance without moving the name.
+/// Unset it reads a dimmed "Subject". The 44pt target comes from padding, not
+/// from a visible shape.
 struct SubjectButton: View {
     var name: String?
     var colorIndex: Int?
     var showsDot = false
+    var showsChevron = true
+    /// Positive when the new subject is later in the picker, negative when it
+    /// is earlier. The label follows that direction instead of every change
+    /// pretending to move forward.
+    var swapDirection: CGFloat = 1
     /// What no subject reads as. A prompt on the Start screen; on the Running
     /// screen "Free" is the state the session is actually in.
     var placeholder: String = "Subject"
@@ -44,16 +50,26 @@ struct SubjectButton: View {
                     // that long are cut, and cut a word later than they were.
                     .minimumScaleFactor(0.7)
                     .id(name ?? placeholder)
-                    .labelSwap(reduceMotion: reduceMotion)
+                    .subjectSwap(
+                        direction: swapDirection,
+                        reduceMotion: reduceMotion
+                    )
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.tertiary)
+                    // Keep its width while dimmed so the subject text does not
+                    // shift merely because the display entered Always-On.
+                    .opacity(showsChevron ? 1 : 0)
+                    .animation(
+                        Motion.dimming(reduceMotion: reduceMotion),
+                        value: showsChevron
+                    )
             }
             .padding(.horizontal, 10)
             .frame(minWidth: 44, minHeight: 44)
             .contentShape(.rect)
             // The capsule grows into its new width instead of snapping.
-            .animation(Motion.standard, value: name)
+            .animation(Motion.swap(reduceMotion: reduceMotion), value: name)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Subject")
