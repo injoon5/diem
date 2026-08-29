@@ -42,9 +42,18 @@ enum DurationScrub {
         return seconds(forStep: low) * (1 - t) + seconds(forStep: high) * t
     }
 
-    /// One full revolution of the ring is 60 minutes.
-    static func turns(forSeconds seconds: TimeInterval) -> Double {
-        seconds / 3600
+    /// The scrubbed duration as revolutions of a ring whose full turn is
+    /// `perTurn` seconds.
+    ///
+    /// The Start screen's ring measures against the daily goal in both of its
+    /// modes: an hour scrubbed under a four-hour goal draws a quarter turn, not
+    /// a closed ring. It used to close at 60 minutes regardless, so the one
+    /// ring on that screen meant two different things a crown-click apart — the
+    /// arc would grow past the goal's own arc and read as a session that had
+    /// already overshot the day. The hour survives as the fallback for a goal
+    /// that is switched off.
+    static func turns(forSeconds seconds: TimeInterval, perTurn: TimeInterval = 3600) -> Double {
+        seconds / (perTurn > 0 ? perTurn : 3600)
     }
 }
 

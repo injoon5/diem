@@ -49,6 +49,41 @@ enum Palette {
         Color(.displayP3, red: 0.85, green: 0.38, blue: 0.78),  // magenta
     ]
 
+    /// A circular version of the subject spectrum. An angular gradient meets
+    /// its own end at twelve o'clock, so leaving magenta at 1 and lime at 0
+    /// put a hard colour edge at the most prominent point on the ring. Mixing
+    /// those endpoints directly only traded the edge for a muddy warm patch.
+    /// Walk back through the cool spectrum instead, then repeat lime at the
+    /// end: the loop closes in both colour and direction without inventing a
+    /// colour that is deliberately absent from the subject palette.
+    private static let homeRingColors =
+        subjects
+        + Array(subjects.dropFirst().dropLast().reversed())
+        + [subjects[0]]
+
+    /// The same spectrum used by the running session ring. The home ring uses
+    /// the whole palette when it is reporting the day, before the crown turns
+    /// it into the single accent-colour duration control.
+    ///
+    /// Device-space interpolation loses chroma between distant swatches and
+    /// left greyish troughs in an otherwise luminous ring. The perceptual
+    /// colour space keeps the transitions even in both brightness and colour.
+    static let homeRingGradient = homeRingStyle()
+
+    /// A completed home-ring lap keeps the gradient visible beneath the turn
+    /// currently being drawn, just as a solid goal ring does.
+    static let homeRingLappedGradient = homeRingStyle(opacity: 0.42)
+
+    static let homeRingCurrentLapGradient = homeRingStyle(opacity: 0.72)
+
+    private static func homeRingStyle(opacity: Double = 1) -> AnyShapeStyle {
+        let gradient = Gradient(colors: homeRingColors.map { $0.opacity(opacity) })
+            .colorSpace(.perceptual)
+        return AnyShapeStyle(
+            AngularGradient.conicGradient(gradient, center: .center)
+        )
+    }
+
     static var subjectCount: Int { subjects.count }
 
     /// What each swatch is called, so a grid of ten colours is not a row of ten

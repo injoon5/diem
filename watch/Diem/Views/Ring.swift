@@ -5,11 +5,12 @@ import SwiftUI
 /// Under a full turn it is a plain arc. Past one turn the completed lap dims
 /// on the same path and the overflow restores only the completed portion. The
 /// ring never grows a second track or competes with the content inside it.
-struct RingArc: View {
+struct RingArc<BaseStyle: ShapeStyle, LappedStyle: ShapeStyle, LapStyle: ShapeStyle>: View {
     /// Total revolutions. 1.0 is a closed ring.
     var turns: Double
-    var color: Color
-    var lapColor: Color
+    var color: BaseStyle
+    var lappedColor: LappedStyle
+    var lapColor: LapStyle
     var lineWidth: CGFloat
 
     /// Shared with the complication's bar, which laps the same way in a
@@ -22,7 +23,7 @@ struct RingArc: View {
         ZStack {
             if lapped {
                 Circle()
-                    .stroke(Palette.lapped(color), style: .init(lineWidth: lineWidth, lineCap: .round))
+                    .stroke(lappedColor, style: .init(lineWidth: lineWidth, lineCap: .round))
                 Circle()
                     .trim(from: 0, to: fraction)
                     .stroke(lapColor, style: .init(lineWidth: lineWidth, lineCap: .round))
@@ -47,8 +48,9 @@ struct RingArc: View {
 
 /// Today against the goal, as a ring: one revolution is the goal met.
 ///
-/// It doubles as the duration being scrubbed while the crown turns, where one
-/// revolution is an hour instead.
+/// It doubles as the duration being scrubbed while the crown turns, and the
+/// revolution keeps its meaning: the arc is what the session about to start
+/// would be worth against the same goal.
 ///
 /// One persistent arc handles both modes. The crown remains direct while
 /// scrubbing; only the transition into and out of that mode is springed.
@@ -77,9 +79,27 @@ struct GoalRing: View {
             Circle()
                 .stroke(Palette.ghostTrack, style: .init(lineWidth: lineWidth, lineCap: .round))
 
-            // One revolution is 60 minutes while scrubbing. This view stays in
-            // place throughout both states, so there is no cross-fade seam.
-            RingArc(turns: turns, color: ringColor, lapColor: lapColor, lineWidth: lineWidth)
+            // The day has the running screen's subject spectrum; the crown
+            // makes the ring a duration control, so it resolves to the action
+            // accent. Keep both arcs alive and crossfade them in place: the
+            // new arc is ready for direct crown updates on the first detent.
+            RingArc(
+                turns: goalTurns,
+                color: Palette.homeRingGradient,
+                lappedColor: Palette.homeRingLappedGradient,
+                lapColor: Palette.homeRingCurrentLapGradient,
+                lineWidth: lineWidth
+            )
+            .opacity(isScrubbing ? 0 : 1)
+
+            RingArc(
+                turns: scrubTurns,
+                color: ringColor,
+                lappedColor: Palette.lapped(ringColor),
+                lapColor: lapColor,
+                lineWidth: lineWidth
+            )
+                .opacity(isScrubbing ? 1 : 0)
         }
         // Named rather than blanketed: a transaction over the whole ring also
         // clears the animation on its own frame and on the colours it is drawn

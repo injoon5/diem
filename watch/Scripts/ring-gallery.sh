@@ -2,10 +2,10 @@
 # Draw the session ring, at every case that is awkward to reach on a wrist, to
 # PNGs you can look at — without a watch, a simulator, or a running session.
 #
-# `core-check.sh` proves the numbers behind the ring. This proves the picture:
-# a subject changed two seconds ago, a dozen of them in an hour, a session past
-# the turn, free time between two subjects, the wrist dropped. Each is a frame
-# in a contact sheet, drawn by the real `SubjectRing` with the real palette.
+# `core-check.sh` proves the numbers behind the rings. This proves the picture:
+# the home spectrum at several amounts, a subject changed two seconds ago, a
+# dozen subjects in an hour, a session past the turn, free time between two
+# subjects, the wrist dropped. Each is drawn by the real ring and palette.
 #
 #   sh Scripts/ring-gallery.sh [out-dir]
 #
@@ -70,6 +70,37 @@ let cases: [Case] = [
     Case(name: "25m goal, nearly there", runs: [run(2, 14), run(5, 9)], perTurn: m(25)),
     Case(name: "25m goal, 4m over", runs: [run(2, 14), run(5, 15)], perTurn: m(25)),
 ]
+
+struct HomeCase {
+    let name: String
+    let turns: Double
+}
+
+let homeCases = [
+    HomeCase(name: "Quarter goal", turns: 0.25),
+    HomeCase(name: "Half goal", turns: 0.5),
+    HomeCase(name: "Goal met", turns: 1),
+    HomeCase(name: "Goal lapped", turns: 1.35),
+]
+
+struct HomeSheet: View {
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(homeCases.enumerated()), id: \.offset) { _, item in
+                VStack(spacing: 6) {
+                    GoalRing(goalTurns: item.turns, lineWidth: 10)
+                        .frame(width: 168, height: 168)
+                    Text(item.name)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                .padding(10)
+            }
+        }
+        .padding(16)
+        .background(.black)
+    }
+}
 
 struct Frame: View {
     let item: Case
@@ -246,6 +277,7 @@ func write(_ view: some View, to path: String) {
 
 let out = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
 MainActor.assumeIsolated {
+    write(HomeSheet(), to: "\(out)/home.png")
     write(Sheet(cases: cases, columns: 5), to: "\(out)/sheet.png")
     write(VariantSheet(), to: "\(out)/lapping.png")
     write(ShadowSheet(), to: "\(out)/shadow.png")
@@ -262,8 +294,12 @@ swiftc -O \
     -target arm64-apple-macos14.0 \
     -o "$WORK/gallery" \
     "$WATCH/Diem/Design/Palette.swift" \
+    "$WATCH/Diem/Design/Motion.swift" \
+    "$WATCH/Diem/Model/Day.swift" \
+    "$WATCH/Diem/Model/Snapshot.swift" \
     "$WATCH/Diem/Views/SubjectBar.swift" \
     "$WATCH/Diem/Views/RingShadow.swift" \
+    "$WATCH/Diem/Views/Ring.swift" \
     "$WATCH/Diem/Views/SubjectRing.swift" \
     "$WORK/main.swift"
 

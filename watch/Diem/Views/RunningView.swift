@@ -8,6 +8,7 @@ struct RunningView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var showingSubjects = false
+    @State private var subjectSwapDirection: CGFloat = 1
     @State private var announcedZero = false
     /// The stop button has been tapped once and is waiting to be confirmed.
     @State private var endConfirm = Confirmation()
@@ -182,6 +183,10 @@ struct RunningView: View {
         // carries about `NameField`, which was fixed there and not here.
         .sheet(isPresented: $showingSubjects) {
             SubjectPicker(selection: store.activeSubjectID) { subjectID in
+                subjectSwapDirection = swapDirection(
+                    from: store.activeSubjectID,
+                    to: subjectID
+                )
                 store.switchSubject(to: subjectID)
             }
         }
@@ -230,6 +235,21 @@ struct RunningView: View {
                 seconds: run.seconds
             )
         }
+    }
+
+    /// Match the transition to the picker's order, including its final Free
+    /// row, so returning to an earlier subject reverses the movement.
+    private func swapDirection(from oldID: UUID?, to newID: UUID?) -> CGFloat {
+        let subjects = store.subjects()
+        func rank(_ id: UUID?) -> Int {
+            guard let id else { return subjects.count }
+            return subjects.firstIndex { $0.id == id } ?? subjects.count
+        }
+
+        let oldRank = rank(oldID)
+        let newRank = rank(newID)
+        guard oldRank != newRank else { return subjectSwapDirection }
+        return newRank > oldRank ? 1 : -1
     }
 
     /// What the ring behind the clock says out loud. It used to say nothing, so
@@ -347,6 +367,8 @@ struct RunningView: View {
                     name: subject?.name,
                     colorIndex: subject?.colorIndex,
                     showsDot: true,
+                    showsChevron: !isLuminanceReduced,
+                    swapDirection: subjectSwapDirection,
                     // Mid-session there is no subject to go and pick — running
                     // without one is what a free session *is*.
                     placeholder: "Free"

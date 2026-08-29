@@ -194,10 +194,12 @@ struct ScrubTests {
         )
     }
 
-    @Test("One revolution is sixty minutes")
+    @Test("One revolution is the goal, or an hour without one")
     func revolution() {
         #expect(DurationScrub.turns(forSeconds: 3600) == 1)
         #expect(DurationScrub.turns(forSeconds: 5400) == 1.5)
+        #expect(DurationScrub.turns(forSeconds: 3600, perTurn: 14400) == 0.25)
+        #expect(DurationScrub.turns(forSeconds: 3600, perTurn: 0) == 1)
     }
 
     @Test("The goal steps in quarter hours")
@@ -879,15 +881,18 @@ struct SubjectBarTests {
         }
     }
 
-    @Test("Free time is a band like any other")
+    @Test("Free time has hard boundaries")
     func freeTime() {
         let runs = [run(2, minutes: 15), run(nil, minutes: 10), run(6, minutes: 15)]
         let bands = SubjectBar.bands(runs)
         #expect(bands.map(\.colorIndex) == [2, nil, 6])
         let stops = SubjectBar.laps(bands).flatMap(\.stops)
-        // It blends into its neighbours: it is a different colour from them,
-        // and the ring has no other way to say a subject ended.
-        #expect(stops[1].location < bands[0].to)
-        #expect(stops[2].location > bands[1].from)
+        // Free is neutral space, so the subject before it ends in its own
+        // colour and Free begins at that exact point. The same hard cut is
+        // made where the next subject begins.
+        #expect(stops[1].location == bands[0].to)
+        #expect(stops[2].location == bands[1].from)
+        #expect(stops[3].location == bands[1].to)
+        #expect(stops[4].location == bands[2].from)
     }
 }

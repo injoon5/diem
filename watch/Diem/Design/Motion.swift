@@ -51,7 +51,7 @@ enum Motion {
     static func ringMode(reduceMotion: Bool) -> Animation {
         reduceMotion
             ? .linear(duration: 0.12)
-            : .spring(response: 0.42, dampingFraction: 0.88, blendDuration: 0.12)
+            : .spring(response: 0.26, dampingFraction: 0.9, blendDuration: 0.08)
     }
 
     /// The crossing into and out of Always-On: the controls fading out of bars
@@ -115,5 +115,19 @@ extension View {
     /// Cross-fading two different strings reads as a double image.
     func labelSwap(reduceMotion: Bool) -> some View {
         transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
+    }
+
+    /// A subject is a position in the picker as well as a label. Later choices
+    /// cross from trailing to leading; earlier choices retrace that movement.
+    /// Blur keeps the outgoing word from remaining legible on top of the one
+    /// arriving, especially in the Running screen's narrow chord.
+    func subjectSwap(direction: CGFloat, reduceMotion: Bool) -> some View {
+        let sign: CGFloat = direction < 0 ? -1 : 1
+        let blur = AnyTransition(.blurReplace)
+        let transition = AnyTransition.asymmetric(
+            insertion: .offset(x: 10 * sign).combined(with: blur),
+            removal: .offset(x: -10 * sign).combined(with: blur)
+        )
+        return self.transition(reduceMotion ? .opacity : transition)
     }
 }

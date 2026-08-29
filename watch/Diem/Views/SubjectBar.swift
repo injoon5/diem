@@ -167,8 +167,13 @@ enum SubjectBar {
     /// colour in. What you saw for the first half-minute of a new subject was
     /// the old one washing out, not the new one starting. A join is one event
     /// and both sides give up the same amount of arc to it.
+    ///
+    /// Free is the absence of a subject, not another subject colour. It keeps
+    /// a hard edge at both ends so neither neighbouring subject bleeds into it
+    /// and the neutral stretch remains exactly as long as the free interval.
     private static func room(_ band: Band, meeting neighbour: Band?) -> Double {
         guard let neighbour, neighbour.colorIndex != band.colorIndex else { return 0 }
+        guard band.colorIndex != nil, neighbour.colorIndex != nil else { return 0 }
         return min(blend / 2, band.length / 3, neighbour.length / 3)
     }
 }
