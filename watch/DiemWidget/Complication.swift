@@ -18,7 +18,9 @@ struct DiemComplication: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: SnapshotStore.widgetKind, provider: SnapshotProvider()) { entry in
             DiemComplicationView(snapshot: entry.snapshot, now: entry.date)
-                .containerBackground(.clear, for: .widget)
+                .containerBackground(for: .widget) {
+                    SmartStackCard(tint: DiemComplicationView.cardTint(for: entry.snapshot))
+                }
         }
         .configurationDisplayName("Today")
         .description("Study time against your daily goal, and the session while one runs.")
@@ -50,6 +52,19 @@ struct DiemComplicationView: View {
     /// colour is stated once, unconditionally, and each mode takes what it can
     /// use — there is no branch here, because there is nothing to decide.
     private var progressTint: Color { Palette.ring }
+
+    /// What the Smart Stack card is tinted with: the subject being studied, or
+    /// the day's copper when nothing is running.
+    ///
+    /// The same rule the app's own surfaces follow — a session is the colour of
+    /// its subject, free time is the absence of one — so the card in the stack
+    /// and the ring on the wrist are the same session in two places. It is a
+    /// `static` on the view rather than a property because the card is applied
+    /// to the container, one level outside the view it belongs to.
+    static func cardTint(for snapshot: DiemSnapshot) -> Color {
+        guard let session = snapshot.session else { return Palette.ring }
+        return Palette.subject(session.subjectColorIndex)
+    }
 
     private var today: String { snapshot.compactToday(asOf: now) }
     private var progress: Double { snapshot.progress(asOf: now) }
@@ -209,6 +224,34 @@ struct DiemComplicationView: View {
                 countsDown: false
             )
         }
+    }
+}
+
+/// The card the Smart Stack draws this widget on.
+///
+/// Clear glass rather than regular: the stack scrolls its cards over the watch
+/// face, and the clear variant is the one that lets what is behind it keep
+/// moving through — a card that reads as a pane over the face rather than as an
+/// opaque tile sitting on top of it. Regular glass frosts that away, which on a
+/// widget the size of a stamp is most of what makes the stack feel like depth
+/// rather than a list.
+///
+/// The tint is carried at low strength on purpose. It is there to say whose
+/// card this is at a glance, from the corner of the eye, before any of the text
+/// is read; at full strength it would be a coloured tile with white writing on
+/// it, and the numeral — the one thing on the card worth reading — would be
+/// competing with its own background for contrast.
+///
+/// Nothing here guards against the watch face: a container background is
+/// removable by default, and the face removes it. On a face the complication is
+/// drawn straight onto the dial with no card at all, which is the only correct
+/// answer there, so this view simply never appears.
+private struct SmartStackCard: View {
+    var tint: Color
+
+    var body: some View {
+        Color.clear
+            .glassEffect(.clear.tint(tint.opacity(0.30)), in: .containerRelative)
     }
 }
 
