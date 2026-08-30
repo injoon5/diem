@@ -13,6 +13,7 @@ xcodegen generate && open Diem.xcodeproj
 | --- | --- |
 | `Diem/Model` | Intervals, subjects, the store, the 4am day, the widget snapshot |
 | `Diem/Design` | Palette, typography, number formats, motion, haptics |
+| `Diem/Diem.icon` | The app icon, as an Icon Composer document — layers, not renders |
 | `Diem/Views` | Start, Running, Done, Settings, Metrics, and the shared parts |
 | `Diem/Intents` | Start / Pause / End, behind every other surface |
 | `Diem/Runtime` | The extended runtime session that holds the foreground |

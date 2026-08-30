@@ -9,7 +9,10 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    DEVELOPMENT_TEAM: ""
+    # Was only ever in the generated project, put there by Xcode and carried
+    # along because the project is tracked; an empty string here meant the next
+    # `xcodegen generate` unsigned the whole thing.
+    DEVELOPMENT_TEAM: Q3V6F4PZ8J
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
@@ -25,6 +28,13 @@ targets:
     platform: watchOS
     sources:
       - path: Diem
+        excludes:
+          - Diem.icon/**
+      # The Icon Composer document, held as one file rather than the tree of
+      # SVGs inside it: `actool` compiles the bundle, and a recursive scan would
+      # hand it over as loose assets instead.
+      - path: Diem/Diem.icon
+        type: file
     dependencies:
       - target: DiemWidget
         embed: true
@@ -64,6 +74,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.injoon5.diem.watchkitapp
         INFOPLIST_KEY_CFBundleDisplayName: Diem
+        ASSETCATALOG_COMPILER_APPICON_NAME: Diem
 
   DiemWidget:
     type: app-extension

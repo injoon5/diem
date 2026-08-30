@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -45,6 +45,7 @@
 		B258B395551BE10C62780F86 /* Format.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ACB09F69A16D15845B39A78 /* Format.swift */; };
 		B4585CB61E618E0CCB12983F /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03D2744555792EAD554FC6D /* Haptics.swift */; };
 		B49EBA3B30767EA5875C7C3B /* Container.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9AD57DC0DA581EFD592A7D6 /* Container.swift */; };
+		B55C70EC8CC713C4E61DFD50 /* Diem.icon in Resources */ = {isa = PBXBuildFile; fileRef = CEEA062730CC46A26F178BAC /* Diem.icon */; };
 		B6486D209E84FE05B76ACEF6 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03D2744555792EAD554FC6D /* Haptics.swift */; };
 		B70E2786F2C7BBE9BABD279A /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A431A00C17F2B16602C52A97 /* SessionStore.swift */; };
 		B70ED183C7D835B6BBF76FA3 /* SubjectRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = D52F0387E69EB6DE2ADD2DFE /* SubjectRing.swift */; };
@@ -138,6 +139,7 @@
 		C2F1A65C6496ACA604C0DEB1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CC07A5D640484D3EC700CC65 /* DiemWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DiemWidget.entitlements; sourceTree = "<group>"; };
 		CDA60C35C368320B2F421887 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		CEEA062730CC46A26F178BAC /* Diem.icon */ = {isa = PBXFileReference; path = Diem.icon; sourceTree = "<group>"; };
 		CF2ADE59FD605940AF33827A /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		CFE0F828464AEA4AD60AE1DE /* DiemApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiemApp.swift; sourceTree = "<group>"; };
 		D03D2744555792EAD554FC6D /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
@@ -155,6 +157,7 @@
 			isa = PBXGroup;
 			children = (
 				26905331B0EEDB29ACC59369 /* Diem.entitlements */,
+				CEEA062730CC46A26F178BAC /* Diem.icon */,
 				CFE0F828464AEA4AD60AE1DE /* DiemApp.swift */,
 				497EB67135A295700F61758D /* Info.plist */,
 				15101824FB97D042EF050EA2 /* Design */,
@@ -320,6 +323,7 @@
 			buildConfigurationList = 96FE1B3AD64D6315ED9B096D /* Build configuration list for PBXNativeTarget "Diem" */;
 			buildPhases = (
 				E4669F8F14A70FD481E2E06C /* Sources */,
+				F60E5907F0879CF40698C9AD /* Resources */,
 				6D9F630701A32CEAD70B9937 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -360,6 +364,17 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					2B944C8E2816BC22DCDCE744 = {
+						DevelopmentTeam = Q3V6F4PZ8J;
+					};
+					3C7A05BFB9FB2312E47D6253 = {
+						DevelopmentTeam = Q3V6F4PZ8J;
+					};
+					8727929C810B49A663B16299 = {
+						DevelopmentTeam = Q3V6F4PZ8J;
+					};
+				};
 			};
 			buildConfigurationList = 7C2C90580456060282A6CF8F /* Build configuration list for PBXProject "Diem" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -371,6 +386,7 @@
 			);
 			mainGroup = 97BAB64FED1CBC4D3E7DBF8B;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -380,6 +396,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F60E5907F0879CF40698C9AD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B55C70EC8CC713C4E61DFD50 /* Diem.icon in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		72ACC62317F8854DBC4CD4C3 /* Sources */ = {
@@ -512,7 +539,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -574,7 +601,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -611,7 +638,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = DiemWidget/DiemWidget.entitlements;
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				INFOPLIST_FILE = DiemWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -628,9 +654,8 @@
 		26EE56AC7F13882C36CCF155 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Diem;
 				CODE_SIGN_ENTITLEMENTS = Diem/Diem.entitlements;
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				INFOPLIST_FILE = Diem/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Diem;
 				PRODUCT_BUNDLE_IDENTIFIER = com.injoon5.diem.watchkitapp;
@@ -644,7 +669,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = DiemWidget/DiemWidget.entitlements;
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				INFOPLIST_FILE = DiemWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -661,9 +685,8 @@
 		7081540C5433092EC5B93316 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Diem;
 				CODE_SIGN_ENTITLEMENTS = Diem/Diem.entitlements;
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				INFOPLIST_FILE = Diem/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Diem;
 				PRODUCT_BUNDLE_IDENTIFIER = com.injoon5.diem.watchkitapp;
@@ -677,7 +700,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -695,7 +717,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				DEVELOPMENT_TEAM = Q3V6F4PZ8J;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
