@@ -1,7 +1,8 @@
 # Diem — product description
 
-What the watch app does, told from the outside in: what is on screen, what you
-can do to it, and exactly what happens when you do. Written from the source and
+What Diem does, told from the outside in: what is on screen, what you can do to
+it, and exactly what happens when you do. The watch app first, and now the web
+dashboard beside it. Written from the source and
 its tests, checked against the running app where that was possible, and
 everything that looked wrong collected in [`bug-triage.md`](bug-triage.md).
 
@@ -12,11 +13,11 @@ moves through with a finger, a crown and a wrist.
 
 | | |
 | --- | --- |
-| **Product** | `watch/` — the standalone watchOS 27 app, its widget extension, and the App Intents behind both. The web dashboard in `web/` is out of scope. |
-| **Surface** | A single Apple Watch, defaults only: 2h daily goal, no subjects, unpaired, notifications not yet asked for. |
-| **Source of truth** | This repository, `watch/`. Drafted against `5ac0e35`; every entry in [`bug-triage.md`](bug-triage.md) has since been fixed, and the documents describe the app after those fixes. |
-| **Where to run it** | `cd watch && xcodegen generate && open Diem.xcodeproj`, then the `Diem` scheme on a watchOS 27 simulator or a paired device. |
-| **Out of scope** | The web app and sync server; the pairing flow past the point where the code is shown; watch faces and complication *placement*; anything on iPhone (there is no companion app). |
+| **Product** | `watch/` — the standalone watchOS 27 app, its widget extension, and the App Intents behind both — **and** `web/`, the dashboard and sync API at `diem.ij5.dev`. The web was originally out of scope and was brought in when the profile and watch-replacement features were added. |
+| **Surface** | A single Apple Watch, defaults only: 2h daily goal, no subjects, unpaired, notifications not yet asked for. For the web: one browser, one paired device, no profile claimed. |
+| **Source of truth** | This repository. The watch documents were drafted against `5ac0e35` and revised after the fixes in [`bug-triage.md`](bug-triage.md); the web documents were drafted against `6213636` and each says so in its footer. The two are not mixed: a document's footer names the commit it was read against. |
+| **Where to run it** | The watch: `cd watch && xcodegen generate && open Diem.xcodeproj`, then the `Diem` scheme on a watchOS 27 simulator or a paired device. The web: `cd web && npm install && npm run db:migrate && npm run dev`. |
+| **Out of scope** | Watch faces and complication *placement*; anything on iPhone (there is no companion app); deployment, hosting and the shape of the database; the marketing site, of which there is none. |
 | **Where this lives** | `watch/description/`, inside the source repo rather than beside it, because that is where it was asked to go. It is documentation, not a second project: no nested `git init`, and it is committed with the repo. |
 
 ## The product's shape
@@ -35,6 +36,13 @@ Diem is a **timer with a log behind it**. The unit of interaction is a
 **Variant axis:** where the action came from — the app's own screens, the Smart
 Stack card, Siri, or the Action Button Control. The same intents sit behind all
 four, and they do not all behave the same.
+
+The web is a fifth place the product is met, but not a fifth place a session can
+come from: it never starts, holds or ends one. Its documents narrate the same
+five phases and say plainly which of them do not apply, because *which phases a
+surface cannot reach* is the most useful thing to know about it. The one arc the
+web has of its own is the profile, and it fits the five phases without
+straining.
 
 **Fixed interrupt list.** Every feature document answers these, in this order,
 even when the answer is "no effect":
@@ -73,6 +81,7 @@ Every feature document follows the same eight sections:
 | [`foundations/input-model.md`](foundations/input-model.md) | Crown, taps, confirmations, haptics. | drafted |
 | [`foundations/day-model.md`](foundations/day-model.md) | The 4am day, the goal, the streak. | drafted |
 | [`foundations/surfaces.md`](foundations/surfaces.md) | App, complications, Smart Stack, intents, and what each process can see. | drafted |
+| [`foundations/sync-model.md`](foundations/sync-model.md) | The device, the token, what crosses the wire, and who wins a disagreement. Owns the ownership rules. | drafted |
 | **The app** | | |
 | [`app/start-screen.md`](app/start-screen.md) | The pilot. Composing and committing a session. | drafted |
 | [`app/running-screen.md`](app/running-screen.md) | The session while it runs. | drafted |
@@ -81,6 +90,11 @@ Every feature document follows the same eight sections:
 | [`app/settings.md`](app/settings.md) | The goal, the subject list, the subject editor, pairing. | drafted |
 | [`app/metrics.md`](app/metrics.md) | Today, this week, twelve weeks. | drafted |
 | [`app/pairing.md`](app/pairing.md) | The code, and what it does not tell you. | drafted |
+| **The web** | | |
+| [`web/dashboard.md`](web/dashboard.md) | The pilot for this area. Pairing from the browser's side, the three numbers, the week, the year, renaming a subject. | drafted |
+| [`web/profile.md`](web/profile.md) | Claiming a handle, the display name, the subjects switch. | drafted |
+| [`web/public-profile.md`](web/public-profile.md) | What a stranger sees at `/{handle}`, and what is withheld. | drafted |
+| [`web/replacing-a-watch.md`](web/replacing-a-watch.md) | Moving a profile and its history onto a new watch. | drafted |
 | **Outside the app** | | |
 | [`outside/smart-stack.md`](outside/smart-stack.md) | The card while a session runs, and how it is surfaced. | drafted |
 | [`outside/complications.md`](outside/complications.md) | One widget, four families of Today. | drafted |
@@ -89,15 +103,24 @@ Every feature document follows the same eight sections:
 | [`verification/README.md`](verification/README.md) | How to run a pass. | drafted |
 | [`verification/app.md`](verification/app.md) | Checklist for the app documents. | drafted |
 | [`verification/outside.md`](verification/outside.md) | Checklist for the widget and intent documents. | drafted |
+| [`verification/web.md`](verification/web.md) | Checklist for the web documents. A first scripted pass has been run. | drafted |
 | [`bug-triage.md`](bug-triage.md) | Every suspected defect, deduplicated. | drafted |
 
-No document is marked `verified`. Nothing here has been observed on a running
-watch — see [`verification/README.md`](verification/README.md) for exactly what
-that means and what was checked instead.
+No document is marked `verified`. Nothing about the watch has been observed on a
+running watch. Most of the web has not been observed in a browser either, though
+four claims now have been — see
+[`verification/README.md`](verification/README.md) and
+[`verification/web.md`](verification/web.md) for exactly what that means and what
+was checked instead. The web did get a first pass: its API was driven against a
+real database and roughly half its rows now carry a result, which is more than
+any watch document can say.
 
-All 31 triage entries are **fixed**. The checklists under `verification/` are
-now regression checks for those fixes as much as they are descriptions of the
-product.
+All 50 triage entries are **fixed**, and the checklists under `verification/` are
+regression checks for those fixes as much as they are descriptions of the
+product. [B-42](bug-triage.md#b-42) onwards came from describing the web: they
+were open for one sitting and closed in the next, and several rows in
+[`verification/web.md`](verification/web.md) that once reproduced a defect now
+assert its opposite.
 
 ## Method
 
@@ -129,3 +152,7 @@ Where the behaviour lives, for whoever reads next:
 | Screens | `Diem/Views/` |
 | Defaults and thresholds | `Settings.swift` (goal), `Scrub.swift` (crown curves), `SessionStore.swift` (the 60s floor, the 12h recovery limit), `SessionAlerts.swift` (the 30m overtime grace), `Confirmation.swift` (the 6s question window) |
 | Outside the app | `DiemWidget/`, `Diem/Intents/Intents.swift` |
+| The wire | `Diem/Sync/SyncClient.swift` and `Diem/Sync/DTO.swift` on the watch; `web/src/routes/api/` on the server |
+| The web's reads | `web/src/lib/server/summarize.ts` — the one aggregation both the dashboard and the public page go through |
+| The web's rules | `web/src/lib/summary.ts` (the day, the streak, the goal rate), `web/src/lib/server/handles.ts` (what a handle may be, and the reserved list) |
+| The web's screens | `web/src/routes/+page.svelte`, `web/src/routes/[handle]/`, `web/src/lib/components/` |

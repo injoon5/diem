@@ -1,21 +1,29 @@
 import type { DaySummary } from './types';
 
 /**
- * Every study-day in a window, oldest first, as YYYY-MM-DD.
+ * Names the study-day an instant falls in, as YYYY-MM-DD.
  *
  * A study-day runs 4am to 4am, so shifting an instant back four hours turns it
- * into the day it belongs to.
+ * into the day it belongs to. The formatter is built once and handed back
+ * closed over: SQLite has no timezone database, so every session is bucketed
+ * here rather than in the query, and constructing an `Intl.DateTimeFormat` per
+ * row is by far the expensive part of doing it.
  */
-export function calendar(zone: string, days: number, now = Date.now()): string[] {
+export function studyDays(zone: string): (at: Date) => string {
 	const formatter = new Intl.DateTimeFormat('en-CA', {
 		timeZone: zone,
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit'
 	});
-	const today = now - 4 * 3_600_000;
+	return (at) => formatter.format(new Date(at.getTime() - 4 * 3_600_000));
+}
+
+/** Every study-day in a window, oldest first. */
+export function calendar(zone: string, days: number, now = Date.now()): string[] {
+	const dayOf = studyDays(zone);
 	return Array.from({ length: days }, (_, index) =>
-		formatter.format(new Date(today - (days - 1 - index) * 86_400_000))
+		dayOf(new Date(now - (days - 1 - index) * 86_400_000))
 	);
 }
 

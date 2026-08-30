@@ -1,8 +1,13 @@
 # Verification
 
-Drafting reads the code. Verification watches the product. Nothing in this repo
-has reached the second stage, and this file exists to say exactly what that
+Drafting reads the code. Verification watches the product. This file covers the
+watch, where nothing has reached the second stage, and says exactly what that
 means.
+
+The web is further along: its API has been driven against a real database and
+about half the rows in [`web.md`](web.md) carry a result. That file has its own
+account of what the pass did and did not cover. Nothing about either surface has
+been observed on screen.
 
 ## What has and has not been checked
 
@@ -30,10 +35,11 @@ animation reads as intentional, whether a colour holds up under a watch face
 tint. A scripted pass cannot see any of it.
 
 No document is marked `verified`, and none should be until a pass is run on
-hardware. Every entry in [`../bug-triage.md`](../bug-triage.md) is fixed, but
-"fixed" and "verified" are different words: most of those fixes were made against
-a reading of the code, and the rows below are what would turn them into
-observations.
+hardware. Entries up to [B-41](../bug-triage.md#b-41) are fixed, but "fixed" and
+"verified" are different words: most of those fixes were made against a reading
+of the code, and the rows below are what would turn them into observations.
+[B-42](../bug-triage.md#b-42) onwards are the web's, are open, and are checked
+against [`web.md`](web.md) rather than here.
 
 ## Bringing the surface up
 

@@ -14,6 +14,7 @@ final class Settings {
         static let lastSubjectID = "lastSubjectID"
         static let deletedIntervals = "deletedIntervalIDs"
         static let subjectsPushedAt = "subjectsPushedAt"
+        static let retired = "syncRetired"
     }
 
     init(defaults: UserDefaults = UserDefaults(suiteName: SnapshotStore.appGroup) ?? .standard) {
@@ -44,6 +45,21 @@ final class Settings {
     /// Minted once, in `init`. A pure read, so it is safe from anywhere.
     var deviceToken: String {
         defaults.string(forKey: Key.deviceToken) ?? ""
+    }
+
+    /// Set when the server stops recognising this watch — which happens when
+    /// the profile was moved to a replacement watch from the web.
+    ///
+    /// The app goes on working: everything here is local, and sync was always
+    /// allowed to fail quietly. But *permanently* refused is not the same as
+    /// offline, and a watch that will never sync again should not look like one
+    /// that is merely out of signal.
+    var isRetired: Bool {
+        get { access(keyPath: \.isRetired); return defaults.bool(forKey: Key.retired) }
+        set {
+            guard newValue != defaults.bool(forKey: Key.retired) else { return }
+            withMutation(keyPath: \.isRetired) { defaults.set(newValue, forKey: Key.retired) }
+        }
     }
 
     /// The subject the next session defaults to.

@@ -69,6 +69,19 @@ struct SettingsView: View {
 
                 Section {
                     NavigationLink("Pair with Web") { PairingView() }
+                } footer: {
+                    // The one place a watch retired from the web is told so.
+                    // Without this it goes on recording perfectly and syncing
+                    // into nothing, which is indistinguishable from being
+                    // offline — and it never stops being that.
+                    if Settings.shared.isRetired {
+                        Text(
+                            "This watch was replaced from the web, so it no longer syncs. "
+                                + "Everything here is still kept on the watch. Pair again to start a new profile."
+                        )
+                        .font(Typography.text(.caption2))
+                        .foregroundStyle(.secondary)
+                    }
                 }
             }
             .navigationTitle("Settings")

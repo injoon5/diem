@@ -1,12 +1,10 @@
-import adapter from '@sveltejs/adapter-vercel';
+import adapter from '@sveltejs/adapter-cloudflare';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
 export default {
 	preprocess: vitePreprocess(),
-	kit: {
-		// Fluid compute keeps instances alive across invocations, which is what
-		// makes a module-level connection pool worth having.
-		adapter: adapter({ runtime: 'nodejs22.x' })
-	}
+	// The adapter reads wrangler.jsonc to emulate the D1 binding during
+	// `vite dev`, so `platform.env.DB` is the same shape locally as deployed.
+	kit: { adapter: adapter() }
 };

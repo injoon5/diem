@@ -1,0 +1,1 @@
+ALTER TABLE `device` ADD `handle_changes` integer DEFAULT 0 NOT NULL;

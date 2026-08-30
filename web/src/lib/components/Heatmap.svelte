@@ -6,8 +6,20 @@
 	let {
 		days,
 		subjects,
-		goalSeconds
-	}: { days: DaySummary[]; subjects: SubjectDTO[]; goalSeconds: number } = $props();
+		goalSeconds,
+		/**
+		 * The hue for a day with no subject to borrow one from. Neutral on the
+		 * dashboard, where a free session sitting quiet among named ones is the
+		 * point; the accent on a public page, where every day is subject-less
+		 * and a whole grey year says nothing.
+		 */
+		fallback = 'var(--muted)'
+	}: {
+		days: DaySummary[];
+		subjects: SubjectDTO[];
+		goalSeconds: number;
+		fallback?: string;
+	} = $props();
 
 	const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -20,7 +32,7 @@
 			// neutral rather than becoming the brightest cell in the grid.
 			const hue = day.dominantSubjectId
 				? subjectColor(byId.get(day.dominantSubjectId) ?? 0)
-				: 'var(--muted)';
+				: fallback;
 			const share = goalSeconds > 0 ? Math.min(day.seconds / goalSeconds, 1) : 1;
 			const strength = Math.round((0.28 + 0.72 * share) * 100);
 			return `color-mix(in srgb, ${hue} ${strength}%, transparent)`;

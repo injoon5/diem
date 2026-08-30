@@ -40,7 +40,10 @@ struct StartView: View {
     /// The same duration without the rounding, so the arc stays welded to the
     /// crown rather than snapping a step behind it.
     private var scrubTurns: Double {
-        DurationScrub.turns(forSeconds: DurationScrub.seconds(forFractionalStep: crownStep))
+        DurationScrub.turns(
+            forSeconds: DurationScrub.seconds(forFractionalStep: crownStep),
+            goalSeconds: store.goalSeconds
+        )
     }
     private var isScrubbing: Bool { crownDetent > 0 }
     private var isPresentingSheet: Bool { showingSubjects || showingSettings || showingMetrics }

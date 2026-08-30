@@ -58,7 +58,7 @@ targets:
         # it is the iOS spelling of the key on a watch-only target besides.
         WKBackgroundModes:
           - mindfulness
-        DiemAPIBaseURL: https://diem.app
+        DiemAPIBaseURL: https://diem.ij5.dev
         NSSupportsLiveActivities: true
     settings:
       base:

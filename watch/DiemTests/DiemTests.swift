@@ -194,10 +194,14 @@ struct ScrubTests {
         )
     }
 
-    @Test("One revolution is sixty minutes")
+    @Test("One revolution is the daily goal")
     func revolution() {
-        #expect(DurationScrub.turns(forSeconds: 3600) == 1)
-        #expect(DurationScrub.turns(forSeconds: 5400) == 1.5)
+        #expect(DurationScrub.turns(forSeconds: 3600, goalSeconds: 3600) == 1)
+        #expect(DurationScrub.turns(forSeconds: 5400, goalSeconds: 3600) == 1.5)
+        // The goal is what a revolution means, so the same duration draws a
+        // different arc under a different goal.
+        #expect(DurationScrub.turns(forSeconds: 3600, goalSeconds: 7200) == 0.5)
+        #expect(DurationScrub.turns(forSeconds: 3600, goalSeconds: 0) == 0)
     }
 
     @Test("The goal steps in quarter hours")

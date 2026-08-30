@@ -25,12 +25,11 @@ enum SubjectBar {
         }
     }
 
-    /// One revolution, when nothing else says otherwise: the hour the crown
-    /// scrubs against, so a turn means the same thing on both screens.
+    /// One revolution, when nothing else says otherwise: an hour.
     ///
     /// A session with a planned time hands its own number in instead, and then
     /// a closed ring is the session done rather than an hour gone — which is
-    /// the reading somebody who set a goal actually wants. Free sessions have
+    /// the reading somebody who set a length actually wants. Free sessions have
     /// no such number and keep the hour.
     static let secondsPerTurn: TimeInterval = 3600
 

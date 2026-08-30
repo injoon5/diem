@@ -47,8 +47,9 @@ struct RingArc: View {
 
 /// Today against the goal, as a ring: one revolution is the goal met.
 ///
-/// It doubles as the duration being scrubbed while the crown turns, where one
-/// revolution is an hour instead.
+/// It doubles as the duration being scrubbed while the crown turns, where a
+/// revolution still means the goal — so the arc the crown draws is the arc that
+/// session would add.
 ///
 /// One persistent arc handles both modes. The crown remains direct while
 /// scrubbing; only the transition into and out of that mode is springed.
@@ -77,7 +78,7 @@ struct GoalRing: View {
             Circle()
                 .stroke(Palette.ghostTrack, style: .init(lineWidth: lineWidth, lineCap: .round))
 
-            // One revolution is 60 minutes while scrubbing. This view stays in
+            // A revolution is the goal in both modes. This view stays in
             // place throughout both states, so there is no cross-fade seam.
             RingArc(turns: turns, color: ringColor, lapColor: lapColor, lineWidth: lineWidth)
         }

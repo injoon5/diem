@@ -7,7 +7,7 @@ boundary.
 
 ```
 watch/   watchOS 27 app + widget extension (SwiftUI, SwiftData)
-web/     SvelteKit dashboard and sync API (Drizzle, PlanetScale Postgres)
+web/     SvelteKit dashboard, sync API and public profiles (Drizzle, Cloudflare D1)
 ```
 
 ## The idea
@@ -53,7 +53,43 @@ this is the choice.
 
 ## Running the web app
 
-See `web/README.md`. `npm run check && npm test && npm run build`.
+See [`web/README.md`](web/README.md). `npm run check && npm test && npm run build`.
+
+## Deploying the web app
+
+Cloudflare Workers, with D1 behind it and the site at `diem.ij5.dev`. Four steps,
+once:
+
+```sh
+cd web
+npx wrangler login
+npx wrangler d1 create diem
+```
+
+`d1 create` prints a `database_id`. Put it in `wrangler.jsonc` in place of
+`PLACEHOLDER` — it is not a secret and belongs in the repo. Then:
+
+```sh
+npm run db:migrate:remote
+npm run deploy
+```
+
+`deploy` builds and ships. The `routes` block in `wrangler.jsonc` provisions
+`diem.ij5.dev` on deploy, which needs the `ij5.dev` zone to be on the same
+Cloudflare account; drop that block to go out on `workers.dev` alone.
+
+Every deploy after the first is `npm run deploy`, plus `npm run db:migrate:remote`
+whenever `drizzle/` has gained a file. There is no environment to configure and
+no connection string to hold: D1 is a binding, so the only secret in the system
+is the device token each watch generates for itself.
+
+The watch points at `diem.ij5.dev` through `DiemAPIBaseURL` in `project.yml`, so
+a different deployment is a one-line change and a rebuild.
+
+> The old PlanetScale database is not migrated by any of this. If it holds
+> anything worth keeping, its four tables come across with a `pg_dump --data-only`
+> and a pass to turn the timestamps into epoch milliseconds and the booleans into
+> 0/1 — ask before assuming it was done.
 
 ## What's verified, and what isn't
 
@@ -87,9 +123,13 @@ arithmetic behind them lives precisely so it can be tested here rather than
 taken on faith. It is checked against `sessions()` — the assembly it stands in
 for — so the fast path can't drift from the slow one unnoticed.
 
-The web side is verified end to end: typecheck, build, unit tests, and a live
-run against a real Postgres covering pairing, idempotent interval push,
-last-write-wins subjects, cursored pull, the 4am bucketing and the 401 paths.
+The web side is verified end to end: typecheck, build, unit tests, and a live run
+against a real D1 covering pairing, idempotent interval push, last-write-wins
+subjects, cursored pull, the 4am bucketing in a non-UTC zone, the 401 paths,
+handle validation, both positions of the public-profile switch, and a full watch
+replacement. `watch/description/verification/web.md` has the row-by-row results
+and says plainly what a scripted pass cannot see — which is everything about what
+is on screen.
 
 **The app holds the foreground while a session runs.** A watchOS app is put away
 the moment the wrist drops, and the raise that follows lands on the watch face;

@@ -1,5 +1,11 @@
+import type { D1Database } from '@cloudflare/workers-types';
+
 declare global {
-	namespace App {}
+	namespace App {
+		interface Platform {
+			env: { DB: D1Database };
+		}
+	}
 }
 
 export {};

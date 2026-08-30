@@ -42,9 +42,14 @@ enum DurationScrub {
         return seconds(forStep: low) * (1 - t) + seconds(forStep: high) * t
     }
 
-    /// One full revolution of the ring is 60 minutes.
-    static func turns(forSeconds seconds: TimeInterval) -> Double {
-        seconds / 3600
+    /// One full revolution of the ring is the daily goal — the same thing a
+    /// revolution means when the ring is showing today's total.
+    ///
+    /// It used to be a flat hour, so entering the scrub silently re-scaled the
+    /// one shape on this screen: a 30-minute session drew half a ring under a
+    /// two-hour goal it is a quarter of.
+    static func turns(forSeconds seconds: TimeInterval, goalSeconds: TimeInterval) -> Double {
+        goalSeconds > 0 ? seconds / goalSeconds : 0
     }
 }
 
