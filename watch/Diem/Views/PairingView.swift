@@ -31,7 +31,7 @@ struct PairingView: View {
                     // uppercased it, so a lowercase code was announced in a
                     // different case from the one being transcribed.
                     .accessibilityLabel(code.map(String.init).joined(separator: " "))
-                Text("Enter this on diem.app")
+                Text("Enter this on diem.ij5.dev")
                     .font(Typography.text(.footnote))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -87,6 +87,9 @@ struct PairingView: View {
             let response = try await SyncClient.live().pair()
             code = response.code.uppercased()
             expiresAt = response.expiresAt
+            // Pairing creates a device row for this token, so whatever the
+            // server thought of it before, it knows it now.
+            Settings.shared.isRetired = false
         } catch {
             failed = true
         }

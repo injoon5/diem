@@ -14,7 +14,8 @@ reading is still a reading, and the verification checklists are what turn it
 into an observation.
 
 **Every entry here is fixed.** Each carries a *Resolution* line saying what
-changed. The diagnosis above it describes the code **as it was found**, in the
+changed. [B-42](#b-42) onwards came from describing the web, were open for one
+sitting, and were fixed in the next. The diagnosis above it describes the code **as it was found**, in the
 present tense it was written in — a triage file is a record of what was wrong,
 and rewriting the diagnoses into the past would lose the only account of why the
 fix looks the way it does. Read the summary table's **State** column for what is
@@ -69,6 +70,15 @@ confirmed, because the type rule it breaks does not need a compiler to settle.
 | [B-29](#b-29) | low | The device token's getter writes, untracked, from two processes | fix | fixed |
 | [B-30](#b-30) | low | A force-try on the fallback container | fix | fixed |
 | [B-31](#b-31) | low | The deadline notification's title and body say the same thing twice | fix | fixed |
+| [B-42](#b-42) | high | A retired watch is never told, and anything unpushed on it is stranded | product call | fixed |
+| [B-43](#b-43) | medium | There is no sign-out anywhere on the web | fix | fixed |
+| [B-44](#b-44) | medium | The dashboard never updates itself, including across 4am | fix | fixed |
+| [B-45](#b-45) | low | A rejected or failed subject rename says nothing | fix | fixed |
+| [B-46](#b-46) | high | Renaming a handle frees it for anyone, so an old link can later resolve to a different person | fix | fixed |
+| [B-47](#b-47) | medium | A public profile's goal rate invites a comparison it cannot support | product call | fixed |
+| [B-48](#b-48) | medium | An irreversible watch replacement has no confirmation and no undo | fix | fixed |
+| [B-49](#b-49) | medium | The handle pattern accepted two characters, which its own docs and form forbid | fix | fixed |
+| [B-50](#b-50) | medium | Devices are free and unlimited, so handles can be squatted at scale | product call | fixed |
 
 ---
 
@@ -1035,6 +1045,374 @@ Severity: **low**, and visible. Decision: **fix**.
 Status: **confirmed** — on the simulator, at 2× and cropped.
 
 **Resolution.** The tracking is given back as trailing padding — to the hidden field that reserves the width and to the value drawn inside it alike, so the digits do not move and the field does not shift. The subject button under the clock is inset further at the same time: it sits below the ring's widest point, where the chord is shorter still than the clock's.
+
+## B-42
+
+**A retired watch is never told, and anything it had not pushed is stranded.**
+
+Where you meet it: you replace your watch from the web
+([`web/replacing-a-watch.md`](web/replacing-a-watch.md)), then pick up the old
+one.
+
+Expected: the old watch says something — that it is no longer syncing, that its
+sessions are going nowhere.
+
+Actual: it looks completely normal. It starts sessions, counts them, banks them
+and shows them in its own metrics. Its next sync is refused with a 401, which
+the sync layer swallows because every call is allowed to fail quietly, and
+nothing surfaces. Anything it had not pushed at the moment of the move — an
+offline week, a session that ended after the last launch — is now on a device
+whose token matches no row, and there is no path that will ever move it.
+
+Reproduction:
+
+1. Pair watch A, log a session, let it sync.
+2. Take watch A offline. Log a second session.
+3. On the web, replace watch A with watch B.
+4. Bring watch A back online and launch the app.
+
+The second session never arrives, and watch A gives no sign.
+
+Cause: `web/src/routes/api/migrate/+server.ts` takes the new watch's token onto
+the device row, so the old token matches nothing; `watch/Diem/Sync/SyncClient.swift`
+maps 401 to `Failure.notPaired` and `SyncEngine.run` returns on any error
+without surfacing it.
+
+Severity: **high** — a person can lose study they can see on their own wrist.
+Decision: **product call**. The cheap half is making a 401 visible on the watch —
+a line in Settings saying this watch is no longer paired. The expensive half is
+draining the old watch before the move, which needs the old watch online at the
+time and changes what the flow can promise.
+Status: **confirmed** — by running the migration against a real database and
+watching the old token get refused while its rows stayed put.
+
+**Resolution.** The watch says so. A refusal is now told apart from being
+offline: `SyncEngine` only ever swallowed errors because *offline is the normal
+case*, which is true — but a 401 is not offline, it is permanent, and it means
+this watch's token was taken over by a replacement. A `notPaired` failure sets a
+flag in `Settings`, a pass that gets all the way through clears it, and pairing
+again clears it too, since pairing creates a device row for the token whatever
+the server thought a moment before.
+
+Settings grows a footer under Pair with Web: "This watch was replaced from the
+web, so it no longer syncs. Everything here is still kept on the watch. Pair
+again to start a new profile."
+
+The expensive half — draining the old watch before the move — is **not** done,
+and is not planned. It needs the old watch online at the time, which is exactly
+what cannot be assumed about a watch someone has stopped wearing, and promising
+it would make the flow fail in the case it exists for. What is stranded is still
+stranded; the difference is that the watch now says so instead of looking
+healthy. Anything unsynced is recoverable by pairing that watch again as a new
+profile.
+
+**Not compiled.** This is Swift touching SwiftUI and it has only been parsed —
+see the note at the top about what that is worth.
+
+## B-43
+
+**There is no sign-out.**
+
+Where you meet it: any browser you have ever paired.
+
+Expected: a way to end a session on a shared or borrowed machine.
+
+Actual: pairing sets a cookie with a 400-day life and there is no control
+anywhere in the interface that clears it. The endpoint to do it exists —
+`DELETE /api/claim` clears the cookie — and nothing calls it.
+
+Severity: **medium**. Decision: **fix** — the endpoint is already written; this
+is a control on the dashboard.
+Status: **confirmed** — by reading `web/src/routes/api/claim/+server.ts` and the
+dashboard, and by checking that a paired cookie still authenticates after a
+device migration.
+
+
+**Resolution.** A footer on the dashboard: "Paired to this browser." and a Sign
+out button, which calls the `DELETE /api/claim` that was already written and
+returns the page to its unpaired state. Checked through the browser: the card
+comes back and `document.cookie` is empty.
+
+## B-44
+
+**The dashboard never updates itself, including across the day boundary.**
+
+Where you meet it: a dashboard left open — on a second monitor, on a phone
+propped up while studying.
+
+Expected: at minimum, that the page does not quietly become wrong.
+
+Actual: the summary is fetched once on mount and never again. A session ending
+on the wrist does not appear. More sharply: the study-day is worked out when the
+request is served, so a page loaded at 03:30 and left open shows yesterday as
+"today" indefinitely — the streak, the week bars and the last cell of the grid
+are all a day stale with nothing saying so.
+
+Reproduction: load the dashboard before 4am local, leave it, look after 4am.
+
+Cause: `web/src/routes/+page.svelte` calls `load()` from `onMount` and has no
+other trigger. The day boundary is `calendar()` in `web/src/lib/summary.ts`,
+evaluated per request.
+
+Severity: **medium** — the watch is the source of truth and a person can always
+reload, but nothing indicates the page has gone stale.
+Decision: **fix** — refetch when the tab regains focus, and again when the next
+4am passes.
+Status: **confirmed** — by reading, and by observing that repeated requests
+re-bucket while an open page does not.
+
+
+**Resolution.** Two triggers, because there are two ways for the page to go
+stale. `visibilitychange` and `focus` refetch when the tab is looked at again,
+which covers a session ending on the wrist. And a timer is armed for the next
+day boundary — found by walking forward in quarter hours until the study-day's
+name changes, rather than doing timezone arithmetic by hand, because some
+offsets are `:30` and `:45` and an hourly step would land the refresh up to an
+hour late in those.
+
+A refresh that fails now leaves what is already drawn alone. Only a first load
+has nothing to fall back to, so only a first load shows the error card.
+
+## B-45
+
+**A rejected or failed subject rename says nothing.**
+
+Where you meet it: renaming a subject on the dashboard while offline, or when
+the watch has renamed it more recently.
+
+Expected: to be told it did not take.
+
+Actual: the handler returns without a message on a failed request, and on a
+stale write the server accepts the request, ignores the row, and returns the
+unchanged list — which the page then draws. The name snaps back with no
+explanation, and the two causes look identical.
+
+Cause: `saveSubject` in `web/src/routes/+page.svelte` returns early on
+`!response.ok`; the last-write-wins guard in
+`web/src/routes/api/subjects/+server.ts` drops the row silently by design.
+
+Severity: **low**. Decision: **fix** — the response already carries the truth;
+the page needs to compare and say so.
+Status: **confirmed** — by sending a stale write against a real database and
+watching it come back unchanged with a 200.
+
+
+**Resolution.** The two cases are separated and both say so. A request that
+fails: "That rename did not reach the server. Nothing changed." A write the
+server dropped as stale: the response already carries the truth, so the name
+that came back is compared against the name that was sent, and the mismatch is
+reported — `Kept "Korean II" — the watch renamed it more recently.` Neither is
+drawn in the accent colour; nothing went wrong, exactly.
+
+## B-46
+
+**Renaming a handle releases it immediately, so an old link can later resolve to a different person.**
+
+Where you meet it: tidying up a handle after sharing the old one.
+
+Expected: at worst, the old address stops working.
+
+Actual: it stops working *and* becomes claimable by anybody. `injoon` renamed to
+`injoon-oh` 404s for as long as nobody wants it, and the moment somebody does,
+every link anyone ever shared to `diem.ij5.dev/injoon` leads to that person's
+study record under the name the original owner was known by. Nothing warns
+before the rename, nothing holds the old handle back, and the original owner has
+no way to know it happened.
+
+This is the impersonation half of a problem whose other half is milder: there is
+also no way to unpublish a profile at all. Claiming a handle is the publish step
+and it has no inverse.
+
+Reproduction:
+
+1. Claim `alpha`. Share `diem.ij5.dev/alpha`.
+2. Rename to `beta`.
+3. From a second device, claim `alpha`.
+4. Open the shared link.
+
+It resolves, to the second device's profile.
+
+Cause: `web/src/routes/api/profile/+server.ts` overwrites `handle` in place and
+keeps no record of previous handles; the uniqueness check only looks at handles
+currently held.
+
+Severity: **high** — it lets one person inherit another's shared links under
+their name, with no action required beyond waiting for a rename.
+Decision: **fix** — retire released handles rather than recycling them, which is
+the smallest change that closes it. Whether old handles should additionally
+redirect, and whether a profile can be taken down, are separate product calls.
+Status: **confirmed** — by claiming `injoon`, renaming to `injoon-oh`, and
+claiming `injoon` from a second device against a real database. All three steps
+succeeded.
+
+**Resolution.** Released handles are retired rather than recycled. A new
+`retired_handle` table takes the old name in the *same batch* that gives it up,
+so there is no instant in which it is free, and a claim checks it after checking
+live holders. A handle is now claimable once, ever — not even by the person who
+gave it up, which is the right answer: the alternative is a rule that has to
+know who you were.
+
+Old links still 404 rather than redirecting, which is the milder half and is
+left alone deliberately: a redirect would have to survive three renames and
+outlive a profile that can never be taken down.
+
+The three-change cap stands alongside it. It was added for this problem and is
+worth keeping for a different one — it is what makes the warning on the change
+form mean something.
+
+## B-47
+
+**A public profile's goal rate invites a comparison it cannot support.**
+
+Where you meet it: looking at somebody else's profile.
+
+Expected: that a percentage next to a streak and a total means the same thing on
+two profiles.
+
+Actual: "Goal hit" is the share of the last thirty days that reached *that
+person's* daily goal, and the goal is nowhere on the page. A profile whose owner
+set fifteen minutes and one who set four hours can both read 80%, side by side,
+with nothing to tell them apart. The streak has the same shape of problem — a
+day counts if anything at all was logged — but it does not present as a
+percentage, which is what makes this one read as a score.
+
+Cause: `web/src/routes/[handle]/+page.server.ts` sends `goalMinutes` in the
+payload; `web/src/routes/[handle]/+page.svelte` uses it only to size the bars and
+never shows it.
+
+Severity: **medium**. Decision: **product call** — show the goal beside the
+rate, or drop the rate from the public page. Showing it discloses one more
+setting; dropping it loses the one number that is about consistency rather than
+volume.
+Status: **confirmed** — by reading the payload the page is given.
+
+
+**Resolution.** The goal is drawn under the rate: "0% / of 1h 30m a day". `Stat`
+gained an optional `note` for exactly this — a qualifier a number is meaningless
+without — and the public page is the only caller. The alternative was dropping
+the rate from the public page, which loses the one reading that is about
+consistency rather than volume; showing the goal costs one more disclosed
+setting on a page whose owner opted into publishing.
+
+## B-48
+
+**An irreversible watch replacement has no confirmation and no undo.**
+
+Where you meet it: the Replace watch card on the dashboard.
+
+Expected: for an action that retires a device and cannot be reversed, a step
+that makes you acknowledge it.
+
+Actual: Move commits as soon as six characters are in the field. The card's
+prose does say the old watch stops syncing, but nothing requires reading it, and
+there is no second step and no way back. A mistyped code is harmless — it is
+refused — but a *valid* code for the wrong watch is not.
+
+There is a smaller second half: if the request fails after the server acted, the
+card reports "Could not reach the server." while the move has in fact happened,
+and cannot tell the two outcomes apart. Retrying is safe, because the code is
+now used and will be refused, but nothing says so.
+
+Cause: `web/src/lib/components/NewWatch.svelte` submits straight to
+`/api/migrate`; the endpoint is atomic but the page has no way to observe a
+response it never received.
+
+Severity: **medium**. Decision: **fix** — a confirmation step naming what is
+about to happen, and a reload-and-check on a failed request rather than a bare
+error.
+Status: **confirmed** — by running the migration end to end against a real
+database.
+
+
+**Resolution.** Move became Continue, and commits nothing. It opens a second
+step headed with the code being moved to — "Move everything to PDT8QQ?" — which
+spells out that the history, streak and profile move, that this watch stops
+syncing from that moment, that anything it has not sent stays on it, and that
+there is no undo. Then "Yes, move it" and "Back".
+
+The ambiguous failure is answered rather than hidden: a request that never came
+back now says "Could not reach the server. Reload the page to see whether the
+move went through." — in the muted colour rather than the accent, because an
+unknown is not a failure. The move is atomic on the server, so reloading is a
+real answer.
+
+## B-49
+
+**The handle pattern accepted two characters, which its own documentation and its own form forbid.**
+
+Where you meet it: not through the interface at all — the claim form disables
+Claim under three characters. Through the API, `ab` was accepted, stored, and
+served at `diem.ij5.dev/ab`.
+
+Expected: three to twenty characters, which is what the error message, the card's
+copy and [`web/profile.md`](web/profile.md) all say.
+
+Actual: the pattern anchored a leading character and a trailing character around
+a middle group of one to eighteen — and made that middle group **optional**. A
+leading character plus a trailing character is then a legal handle at length two.
+The maximum was right; only the floor was wrong.
+
+That the form is stricter than the server is what makes it worth an entry rather
+than a shrug: two-character handles are the scarcest ones there are, and the only
+people who could get one were the people not using the form.
+
+Reproduction: `POST /api/profile` with `{"handle":"ab"}` from any paired device.
+It returns 200 and `GET /ab` serves the profile.
+
+Cause: `web/src/lib/server/handles.ts`, the `SHAPE` pattern.
+
+Severity: **medium**. Decision: **fix**.
+Status: **confirmed** — by claiming `ab` against a real database and fetching the
+page it produced.
+
+**Resolution.** The middle group is no longer optional, which puts the floor at
+three and leaves the ceiling at twenty — what everything else already claimed. Checked at 1, 2, 3, 20 and 21
+characters, and on leading and trailing hyphens.
+
+## B-50
+
+**Devices are free and unlimited, so handles can be squatted at scale.**
+
+Where you meet it: you would not, until every good handle is gone.
+
+Expected: some cost to claiming a name in a shared namespace.
+
+Actual: `POST /api/pair` accepts any token the caller invents, so long as it is 8
+to 128 characters, and creates a device row for it. That device can immediately
+claim a handle. There is no account, no proof of a watch, no rate limit and no
+cost, so a short script can hold every three-letter handle on the site in a few
+minutes.
+
+This is not a flaw in the pairing design — the whole product rests on the watch
+generating its own credential, and that is what makes it work offline and without
+accounts. It is that handles were added *on top of* that design without anything
+to make a device mean something.
+
+Reproduction: three `POST /api/pair` calls with invented tokens each returned a
+device and a code, in one shell loop.
+
+Cause: `web/src/routes/api/pair/+server.ts` creates a device row for any
+well-formed token; `web/src/routes/api/profile/+server.ts` requires nothing more
+than a device.
+
+Severity: **medium** — nobody is harmed today, and the site has one user. It gets
+worse monotonically and cannot be undone once a namespace is taken, which is the
+argument for deciding it early.
+Decision: **product call**. The options are not equal: rate-limiting `/api/pair`
+per IP is cheap and weak; requiring a device to have synced a real session before
+it can claim a handle is nearly free and much stronger, since a squatter would
+have to fabricate study history per handle. Doing nothing is defensible while the
+product is one person.
+Status: **confirmed** — by creating three devices from invented tokens against a
+real database.
+
+
+**Resolution.** A device must have a completed session before it can claim a
+handle: `Log a session on your watch before claiming a handle.` This is the
+option that made a squatter fabricate study history per handle rather than the
+one that rate-limits an IP, and it costs nothing to anybody using a watch, who
+has logged a session before they ever open the web. It applies to renames too,
+which is free — a device that renames has necessarily studied.
 
 ## Appendix: what happened to the repro suite
 

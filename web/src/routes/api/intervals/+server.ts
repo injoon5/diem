@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { and, asc, eq, gt, inArray } from 'drizzle-orm';
-import { db } from '$lib/server/db';
+import { database } from '$lib/server/db';
 import { interval } from '$lib/server/db/schema';
 import { currentDevice } from '$lib/server/auth';
 import { parseInterval } from '$lib/server/validate';
@@ -14,7 +14,8 @@ const PAGE = 500;
  * something already stored is a no-op rather than a merge.
  */
 export const POST: RequestHandler = async (event) => {
-	const device = await currentDevice(event);
+	const db = database(event.platform);
+	const device = await currentDevice(event, db);
 	if (!device) error(401, 'Unknown device');
 
 	const body = (await event.request.json().catch(() => null)) as { intervals?: unknown[] } | null;
@@ -45,7 +46,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * for.
  */
 export const DELETE: RequestHandler = async (event) => {
-	const device = await currentDevice(event);
+	const db = database(event.platform);
+	const device = await currentDevice(event, db);
 	if (!device) error(401, 'Unknown device');
 
 	const body = (await event.request.json().catch(() => null)) as { ids?: unknown[] } | null;
@@ -63,7 +65,8 @@ export const DELETE: RequestHandler = async (event) => {
 };
 
 export const GET: RequestHandler = async (event) => {
-	const device = await currentDevice(event);
+	const db = database(event.platform);
+	const device = await currentDevice(event, db);
 	if (!device) error(401, 'Unknown device');
 
 	const since = event.url.searchParams.get('since');

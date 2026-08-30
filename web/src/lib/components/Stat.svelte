@@ -3,8 +3,10 @@
 		label,
 		value,
 		unit = '',
-		accent = false
-	}: { label: string; value: string; unit?: string; accent?: boolean } = $props();
+		accent = false,
+		/** A qualifier the number is meaningless without. Reserved for that. */
+		note = ''
+	}: { label: string; value: string; unit?: string; accent?: boolean; note?: string } = $props();
 </script>
 
 <div class="stat">
@@ -12,6 +14,7 @@
 	<div class="value numeral" class:accent>
 		{value}{#if unit}<span class="unit" class:word={unit.length > 1}>{unit}</span>{/if}
 	</div>
+	{#if note}<div class="note">{note}</div>{/if}
 </div>
 
 <style>
@@ -39,5 +42,11 @@
 
 	.unit.word {
 		margin-left: 5px;
+	}
+
+	.note {
+		font-size: 11px;
+		color: var(--faint);
+		margin-top: 1px;
 	}
 </style>

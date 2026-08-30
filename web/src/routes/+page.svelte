@@ -1,17 +1,22 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import Heatmap from '$lib/components/Heatmap.svelte';
 	import Stat from '$lib/components/Stat.svelte';
+	import NewWatch from '$lib/components/NewWatch.svelte';
+	import Profile from '$lib/components/Profile.svelte';
 	import Subjects from '$lib/components/Subjects.svelte';
 	import WeekBars from '$lib/components/WeekBars.svelte';
 	import { hours, longDate } from '$lib/format';
-	import type { Summary, SubjectDTO } from '$lib/types';
+	import { studyDays } from '$lib/summary';
+	import type { ProfileDTO, Summary, SubjectDTO } from '$lib/types';
 
 	let phase = $state<'loading' | 'ready' | 'unpaired' | 'error'>('loading');
 	let summary = $state<Summary | null>(null);
 	let code = $state('');
 	let claiming = $state(false);
 	let claimError = $state('');
+	let subjectError = $state('');
+	let signingOut = $state(false);
 
 	const goalSeconds = $derived((summary?.goalMinutes ?? 120) * 60);
 
@@ -20,20 +25,76 @@
 		return first ? `A day at a time, since ${longDate(first.day)}.` : 'Nothing logged yet.';
 	});
 
-	onMount(load);
+	onMount(() => {
+		load();
+		// The summary is worked out when the request is served, so a page left
+		// open goes quietly wrong: a session ending on the wrist never appears,
+		// and past 4am the streak and the last cell of the grid are a day
+		// stale with nothing saying so. Two cheap triggers cover both.
+		document.addEventListener('visibilitychange', refreshIfStale);
+		window.addEventListener('focus', refreshIfStale);
+		armBoundary();
+	});
+
+	onDestroy(() => {
+		if (typeof document === 'undefined') return;
+		document.removeEventListener('visibilitychange', refreshIfStale);
+		window.removeEventListener('focus', refreshIfStale);
+		clearTimeout(boundary);
+	});
+
+	let boundary: ReturnType<typeof setTimeout> | undefined;
+
+	/** Fires once, just after the next 4am in the watch's timezone. */
+	function armBoundary() {
+		clearTimeout(boundary);
+		if (!summary) return;
+		const day = studyDays(summary.timezone);
+		const now = Date.now();
+		// Walk forward rather than doing timezone arithmetic by hand: the day
+		// name is the thing that matters, and it changes exactly once. In
+		// quarter hours, because some offsets are :30 and :45 and an hourly
+		// step would land the refresh up to an hour late in those.
+		const step = 900_000;
+		let ahead = step;
+		while (ahead <= 30 * 3_600_000 && day(new Date(now + ahead)) === day(new Date(now))) {
+			ahead += step;
+		}
+		boundary = setTimeout(() => load(), ahead + 5_000);
+	}
+
+	function refreshIfStale() {
+		if (document.visibilityState !== 'visible' || phase !== 'ready' || !summary) return;
+		load();
+	}
 
 	async function load() {
 		try {
 			const response = await fetch('/api/summary');
 			if (response.status === 401) {
 				phase = 'unpaired';
+				summary = null;
 				return;
 			}
 			if (!response.ok) throw new Error(String(response.status));
 			summary = (await response.json()) as Summary;
 			phase = 'ready';
+			armBoundary();
 		} catch {
-			phase = 'error';
+			// A refresh that fails leaves what is already drawn alone; only a
+			// first load has nothing to fall back to.
+			if (!summary) phase = 'error';
+		}
+	}
+
+	async function signOut() {
+		signingOut = true;
+		try {
+			await fetch('/api/claim', { method: 'DELETE' });
+			summary = null;
+			phase = 'unpaired';
+		} finally {
+			signingOut = false;
 		}
 	}
 
@@ -60,16 +121,42 @@
 		}
 	}
 
-	/** The one write path on the web. */
+	function saveProfile(profile: ProfileDTO) {
+		if (summary) summary = { ...summary, profile };
+	}
+
+	/** A migration swaps the device underneath us, so nothing on-screen holds. */
+	async function reload() {
+		phase = 'loading';
+		summary = null;
+		await load();
+	}
+
+	/** The one write path on the web that the watch also owns. */
 	async function saveSubject(next: SubjectDTO) {
-		const response = await fetch('/api/subjects', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ subjects: [next] })
-		});
-		if (!response.ok || !summary) return;
-		const { subjects } = (await response.json()) as { subjects: SubjectDTO[] };
+		subjectError = '';
+		let subjects: SubjectDTO[];
+		try {
+			const response = await fetch('/api/subjects', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ subjects: [next] })
+			});
+			if (!response.ok) throw new Error(String(response.status));
+			({ subjects } = (await response.json()) as { subjects: SubjectDTO[] });
+		} catch {
+			subjectError = 'That rename did not reach the server. Nothing changed.';
+			return;
+		}
+		if (!summary) return;
 		summary = { ...summary, subjects };
+		// A write older than what the server holds is dropped by design, and
+		// the list comes back unchanged — which looks exactly like the rename
+		// having silently failed. Say which it was.
+		const stored = subjects.find((subject) => subject.id === next.id);
+		if (stored && stored.name !== next.name) {
+			subjectError = `Kept "${stored.name}" — the watch renamed it more recently.`;
+		}
 	}
 </script>
 
@@ -137,7 +224,25 @@
 	<section>
 		<h2 class="label">Subjects</h2>
 		<Subjects subjects={summary.subjects} onchange={saveSubject} />
+		{#if subjectError}<p class="notice">{subjectError}</p>{/if}
 	</section>
+
+	<section>
+		<h2 class="label">Profile</h2>
+		<Profile profile={summary.profile} onchange={saveProfile} />
+	</section>
+
+	<section>
+		<h2 class="label">Watch</h2>
+		<NewWatch ondone={reload} />
+	</section>
+
+	<footer>
+		<span>Paired to this browser.</span>
+		<button type="button" onclick={signOut} disabled={signingOut}>
+			{signingOut ? 'Signing out…' : 'Sign out'}
+		</button>
+	</footer>
 {/if}
 
 <style>
@@ -225,6 +330,42 @@
 		color: var(--accent);
 		font-size: 13px;
 		margin: 12px 0 0;
+	}
+
+	.notice {
+		color: var(--muted);
+		font-size: 13px;
+		margin: 12px 0 0;
+	}
+
+	footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		border-top: 1px solid var(--line);
+		padding-top: 16px;
+		color: var(--faint);
+		font-size: 13px;
+	}
+
+	footer button {
+		background: none;
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		padding: 7px 14px;
+		font-size: 13px;
+		color: var(--muted);
+	}
+
+	footer button:hover:not(:disabled) {
+		color: var(--text);
+		border-color: var(--faint);
+	}
+
+	footer button:disabled {
+		opacity: 0.5;
+		cursor: default;
 	}
 
 	.skeleton {

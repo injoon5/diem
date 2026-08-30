@@ -1,12 +1,33 @@
 {
   "version": "7",
-  "dialect": "postgresql",
+  "dialect": "sqlite",
   "entries": [
     {
       "idx": 0,
-      "version": "7",
-      "when": 1787574203501,
+      "version": "6",
+      "when": 1788102173672,
       "tag": "0000_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788102753359,
+      "tag": "0001_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788103668806,
+      "tag": "0002_handle_changes",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788104415441,
+      "tag": "0003_retired_handles",
       "breakpoints": true
     }
   ]
