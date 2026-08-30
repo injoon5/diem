@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { Cookies, RequestEvent } from '@sveltejs/kit';
-import { db } from './db';
+import type { Database } from './db';
 import { device, type Device } from './db/schema';
 
 export const SESSION_COOKIE = 'diem_device';
@@ -10,7 +10,7 @@ export const SESSION_COOKIE = 'diem_device';
  * browser identifies itself with the cookie it got by entering a pairing code.
  * Either way it resolves to one device row.
  */
-export async function currentDevice(event: RequestEvent): Promise<Device | null> {
+export async function currentDevice(event: RequestEvent, db: Database): Promise<Device | null> {
 	const token =
 		event.request.headers.get('x-diem-device') ?? event.cookies.get(SESSION_COOKIE) ?? null;
 	if (!token) return null;

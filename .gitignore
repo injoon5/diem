@@ -12,3 +12,9 @@ watch/DiemWidget/Info.plist
 
 # Written by `sh Scripts/ring-gallery.sh` — pictures of the ring, not sources.
 watch/.ring-gallery/
+
+# Wrangler's local state and build cache.
+.wrangler/
+
+# Skills installed per-machine, not vendored.
+.claude/

@@ -9,7 +9,7 @@ Pushed from Settings, titled **Pair**. Three states:
 | State | What is on screen |
 | --- | --- |
 | Loading | A spinner |
-| Loaded | The code at 32pt with 2pt tracking, uppercased, "Enter this on diem.app" under it, and a countdown inside the last five minutes |
+| Loaded | The code at 32pt with 2pt tracking, uppercased, "Enter this on diem.ij5.dev" under it, and a countdown inside the last five minutes |
 | Expired | "That code has expired." and a New Code button |
 | Failed | "Couldn't reach the server." and a "Try Again" button |
 

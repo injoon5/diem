@@ -1,0 +1,33 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "diem-web",
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"compatibility_date": "2026-08-30",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "diem",
+			"database_id": "5e2d707a-3879-47b5-909d-dd526798659e",
+			// Drizzle generates into ./drizzle; wrangler applies from the same place.
+			"migrations_dir": "drizzle"
+		}
+	],
+	// Provisions the DNS record on deploy, so long as the zone is on the same
+	// Cloudflare account. Drop this block to deploy to workers.dev alone.
+	"routes": [
+		{
+			"pattern": "diem.ij5.dev",
+			"custom_domain": true
+		}
+	],
+	"observability": {
+		"enabled": true
+	}
+}

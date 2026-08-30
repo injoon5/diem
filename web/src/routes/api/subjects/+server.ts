@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { eq, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
+import { database } from '$lib/server/db';
 import { subject } from '$lib/server/db/schema';
 import { currentDevice } from '$lib/server/auth';
 import { parseSubject } from '$lib/server/validate';
@@ -19,7 +19,8 @@ function toDTO(row: typeof subject.$inferSelect): SubjectDTO {
 }
 
 export const GET: RequestHandler = async (event) => {
-	const device = await currentDevice(event);
+	const db = database(event.platform);
+	const device = await currentDevice(event, db);
 	if (!device) error(401, 'Unknown device');
 
 	const rows = await db.select().from(subject).where(eq(subject.deviceId, device.id));
@@ -28,7 +29,8 @@ export const GET: RequestHandler = async (event) => {
 
 /** Last-write-wins on `updated_at`. An older write is simply ignored. */
 export const POST: RequestHandler = async (event) => {
-	const device = await currentDevice(event);
+	const db = database(event.platform);
+	const device = await currentDevice(event, db);
 	if (!device) error(401, 'Unknown device');
 
 	const body = (await event.request.json().catch(() => null)) as { subjects?: unknown[] } | null;

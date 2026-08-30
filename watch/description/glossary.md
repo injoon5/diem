@@ -141,12 +141,57 @@ raise mid-session returns to the app rather than the watch face.
 
 ## Sync
 
-**Pairing** — claiming a watch from the web by typing a four-character code.
+**Pairing** — claiming a watch from the web by typing the six-character code the
+watch shows. It gives the browser a session; it tells the watch nothing.
 
 **Push** — sending completed intervals and the subject list to the server.
 
 **Pull** — reading subjects back. Intervals are never pulled; see
 [`bug-triage.md`](bug-triage.md#b-25).
+
+**Device** — the server's row for one watch: its token, its timezone, its goal,
+and its profile. Every interval and subject on the server hangs off one. A watch
+that has never paired has no device row and does not need one.
+
+**Device token** — the random string the watch generates on first launch and
+sends with every request. The only credential in the product. There is no
+account, no password and no email; whoever holds the token is the watch.
+
+**Session cookie** — what the browser gets by pairing. It holds the device
+token, so a browser and the watch it paired with are the same caller as far as
+the server is concerned.
+
+## The profile
+
+**Profile** — the public page a device may claim. Optional, and off until a
+handle is taken.
+
+**Handle** — the path segment the profile lives at: three to twenty characters,
+lowercase letters, digits and hyphens. Unique across the product, claimed first
+come, and claimable **once, ever**: a handle given up is retired rather than
+returned to circulation, so an old link can never resolve to somebody else.
+Claiming one requires a logged session.
+
+**Retired handle** — one that has been given up in a rename. Permanently
+unclaimable, by anyone, including whoever released it.
+
+**Change budget** — the three renames a profile gets. The first claim is free
+and does not spend one; a rename refused as taken or reserved does not spend one
+either. Spent, the handle is fixed for good.
+
+**Display name** — an optional name shown instead of the handle. Free text, up
+to forty characters.
+
+**Stats only** — the default a profile is published under: hours, streak, goal
+rate and the shape of the year, with no subject named. **Showing subjects** is
+the opt-in that adds the names and their colours.
+
+**Replacing a watch** — moving a profile and its whole history onto a new watch.
+The only thing the web is in charge of; see
+[`web/replacing-a-watch.md`](web/replacing-a-watch.md).
+
+**Retired** — what the old watch becomes after a replacement. Its token matches
+nothing, so it is refused and stops syncing.
 
 ## Terms this description avoids
 

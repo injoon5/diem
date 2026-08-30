@@ -15,7 +15,7 @@ struct SyncClient: Sendable {
     /// The web shows a goal-hit rate, so it needs a copy of the one setting.
     var goalMinutes: Int
 
-    static let defaultBaseURL = URL(string: "https://diem.app")!
+    static let defaultBaseURL = URL(string: "https://diem.ij5.dev")!
 
     @MainActor
     static func live() -> SyncClient {
@@ -113,12 +113,20 @@ struct SyncClient: Sendable {
 @MainActor
 enum SyncEngine {
     static func run(store: SessionStore, client: SyncClient = .live(), settings: Settings = .shared) async {
+        // Offline is the normal case and stays silent. Being *refused* is not:
+        // it means this watch's token was taken over by a replacement, and it
+        // will never sync again. That is worth saying once, in Settings.
+        func note(_ error: Error, _ settings: Settings) {
+            if case SyncClient.Failure.notPaired = error { settings.isRetired = true }
+        }
+
         let pending = store.unsyncedIntervals()
         if !pending.isEmpty {
             do {
                 let accepted = try await client.push(intervals: pending.map(\.dto))
                 store.markSynced(accepted)
             } catch {
+                note(error, settings)
                 return  // Offline is the normal case; try again next launch.
             }
         }
@@ -133,6 +141,7 @@ enum SyncEngine {
                 try await client.delete(intervalIDs: deleted)
                 settings.clearDeleted(intervalIDs: deleted)
             } catch {
+                note(error, settings)
                 return
             }
         }
@@ -149,7 +158,11 @@ enum SyncEngine {
                 settings.subjectsPushedAt = changed.map(\.updatedAt).max()
             }
             store.merge(subjects: try await client.pullSubjects())
+            // A pass that got all the way through is proof the server still
+            // knows this watch, whatever it thought a moment ago.
+            settings.isRetired = false
         } catch {
+            note(error, settings)
             return
         }
     }

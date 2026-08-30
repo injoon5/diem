@@ -25,6 +25,15 @@ export type DaySummary = {
 	dominantSubjectId: string | null;
 };
 
+/** The profile, as its owner sees it. Null handle means nothing is published. */
+export type ProfileDTO = {
+	handle: string | null;
+	displayName: string | null;
+	publicSubjects: boolean;
+	/** Renames remaining. The first claim is free; after that there are three. */
+	changesLeft: number;
+};
+
 export type Summary = {
 	timezone: string;
 	goalMinutes: number;
@@ -33,4 +42,22 @@ export type Summary = {
 	goalHitRate: number;
 	days: DaySummary[];
 	subjects: SubjectDTO[];
+	profile: ProfileDTO;
+};
+
+/**
+ * What `/{handle}` serves to anyone. Stats only unless the owner opted in:
+ * without `showsSubjects`, `subjects` is empty and no day names the subject it
+ * went to, so the heatmap draws intensity and nothing else.
+ */
+export type PublicProfile = {
+	handle: string;
+	displayName: string | null;
+	streak: number;
+	totalSeconds: number;
+	goalHitRate: number;
+	goalMinutes: number;
+	days: DaySummary[];
+	subjects: SubjectDTO[];
+	showsSubjects: boolean;
 };
