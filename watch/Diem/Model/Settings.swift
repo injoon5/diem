@@ -14,6 +14,7 @@ final class Settings {
         static let lastSubjectID = "lastSubjectID"
         static let deletedIntervals = "deletedIntervalIDs"
         static let subjectsPushedAt = "subjectsPushedAt"
+        static let subjectsPulledAt = "subjectsPulledAt"
         static let retired = "syncRetired"
     }
 
@@ -111,6 +112,20 @@ final class Settings {
             return stored > 0 ? Date(timeIntervalSince1970: stored) : nil
         }
         set { defaults.set(newValue?.timeIntervalSince1970 ?? 0, forKey: Key.subjectsPushedAt) }
+    }
+
+    /// When the subject list was last read back.
+    ///
+    /// The push above is already gated on having something to say; this gates
+    /// the answer. A pass now runs at the end of every session rather than
+    /// twice a day, and a pull on each of them is a radio wake for a list that
+    /// changes when the user renames something.
+    var subjectsPulledAt: Date? {
+        get {
+            let stored = defaults.double(forKey: Key.subjectsPulledAt)
+            return stored > 0 ? Date(timeIntervalSince1970: stored) : nil
+        }
+        set { defaults.set(newValue?.timeIntervalSince1970 ?? 0, forKey: Key.subjectsPulledAt) }
     }
 
     func clearDeleted(intervalIDs ids: [UUID]) {
