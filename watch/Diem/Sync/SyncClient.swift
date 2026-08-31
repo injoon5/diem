@@ -112,7 +112,28 @@ struct SyncClient: Sendable {
 /// Nothing else crosses the wire.
 @MainActor
 enum SyncEngine {
-    static func run(store: SessionStore, client: SyncClient = .live(), settings: Settings = .shared) async {
+    /// How stale the subject list is allowed to get before a pass goes and
+    /// asks for it.
+    ///
+    /// The pull used to run on every pass, which was fine when a pass meant
+    /// launch and backgrounding. Now that a pass also means the end of a
+    /// session, a discard, and a retry, ending a session and then dropping the
+    /// wrist was two full round trips seconds apart — and on a watch the radio
+    /// wake is the whole cost, not the handful of rows it carries back. A push
+    /// still pulls straight after, because that is how the merge sees what the
+    /// server made of it.
+    static let subjectPullInterval: TimeInterval = 30 * 60
+
+    /// Returns whether the whole pass got through. Nothing here reads the
+    /// answer to decide what to show — `SyncScheduler` reads it to decide
+    /// whether to come back.
+    @discardableResult
+    static func run(
+        store: SessionStore,
+        client: SyncClient = .live(),
+        settings: Settings = .shared,
+        now: Date = .now
+    ) async -> Bool {
         // Offline is the normal case and stays silent. Being *refused* is not:
         // it means this watch's token was taken over by a replacement, and it
         // will never sync again. That is worth saying once, in Settings.
@@ -120,14 +141,21 @@ enum SyncEngine {
             if case SyncClient.Failure.notPaired = error { settings.isRetired = true }
         }
 
+        // Whether anything actually crossed the wire. A pass with nothing to
+        // send and a fresh enough subject list does no work at all, and a pass
+        // that did no work is not evidence of anything — least of all that the
+        // server still knows this watch.
+        var reached = false
+
         let pending = store.unsyncedIntervals()
         if !pending.isEmpty {
             do {
                 let accepted = try await client.push(intervals: pending.map(\.dto))
                 store.markSynced(accepted)
+                reached = true
             } catch {
                 note(error, settings)
-                return  // Offline is the normal case; try again next launch.
+                return false  // Offline is the normal case, and retried.
             }
         }
 
@@ -140,9 +168,10 @@ enum SyncEngine {
             do {
                 try await client.delete(intervalIDs: deleted)
                 settings.clearDeleted(intervalIDs: deleted)
+                reached = true
             } catch {
                 note(error, settings)
-                return
+                return false
             }
         }
 
@@ -156,14 +185,23 @@ enum SyncEngine {
             if !changed.isEmpty {
                 try await client.push(subjects: changed.map(\.dto))
                 settings.subjectsPushedAt = changed.map(\.updatedAt).max()
+                reached = true
             }
-            store.merge(subjects: try await client.pullSubjects())
+            let stale = now.timeIntervalSince(settings.subjectsPulledAt ?? .distantPast)
+                >= subjectPullInterval
+            if !changed.isEmpty || stale {
+                store.merge(subjects: try await client.pullSubjects())
+                settings.subjectsPulledAt = now
+                reached = true
+            }
             // A pass that got all the way through is proof the server still
-            // knows this watch, whatever it thought a moment ago.
-            settings.isRetired = false
+            // knows this watch, whatever it thought a moment ago — but only if
+            // it actually asked it something.
+            if reached { settings.isRetired = false }
         } catch {
             note(error, settings)
-            return
+            return false
         }
+        return true
     }
 }

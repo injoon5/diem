@@ -474,7 +474,14 @@ struct RunningView: View {
         endConfirm.withdraw()
         // Under a minute there is no summary to show, so this is the only
         // acknowledgement the session gets.
-        if store.end() == nil { Haptics.sessionAbandoned() }
+        guard store.end() != nil else {
+            Haptics.sessionAbandoned()
+            return
+        }
+        // The interval that just closed is the one thing worth sending, and
+        // this is the moment it closes. Waiting for the app to be backgrounded
+        // meant the last session of the night reached the web the next morning.
+        SyncScheduler.shared.request()
     }
 
     // MARK: - Derived
