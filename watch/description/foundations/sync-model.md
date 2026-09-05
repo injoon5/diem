@@ -25,10 +25,18 @@ No server has heard of it yet, and the app is completely usable in that state.
 **Commit** — the first sync creates the device row. A push, or opening the
 pairing screen, is enough.
 
-**Run** — every launch, the app sends whatever it has not sent: completed
-intervals, the ids of intervals discarded since, and the subject list. It reads
-subjects back. Three headers ride along on every request — the token, the
-watch's timezone, and the daily goal.
+**Run** — a pass sends whatever has not been sent: completed intervals, the ids
+of intervals discarded since, and any subject changed since the server last saw
+one. It reads subjects back, but only when it pushed one or the list is more
+than half an hour old — the read is a radio wake for rows that change when
+somebody renames something. Three headers ride along on every request — the
+token, the watch's timezone, and the daily goal.
+
+A pass runs at launch, when a session ends, when a finished session is
+discarded, when the app is backgrounded, and on returning to it with something
+unsent — that last for sessions ended by the Action Button, Siri or the Smart
+Stack card, which are written by a process with no sync layer in it. Passes are
+coalesced: one is in flight at a time.
 
 **Close** — there is no unpairing. The browser's session can be dropped, and a
 watch can be retired by [replacing it](../web/replacing-a-watch.md), but a
@@ -74,9 +82,13 @@ on the watch cannot both stick, and the later one wins.
 
 ### What a failure looks like
 
-Every call the watch makes is allowed to fail quietly. Being offline is the
-normal case, not an error: the push is retried on the next launch, and nothing
-in the app is gated on it.
+Every call the watch makes is allowed to fail quietly, and no screen reports
+one. Being offline is the normal case, not an error, and nothing in the app is
+gated on it — but quiet is not the same as forgotten. A failed pass is retried
+at thirty seconds, two minutes and five while the app is up, and when that is
+spent a background refresh is booked, which the system runs whether or not
+anyone is looking at the app. Those are a budget rather than a promise: the
+guarantee is still the next launch or the next time the app is opened.
 
 Being *refused* is different, and is the one failure that surfaces. A 401 means
 this watch's token was taken over by a replacement and will never work again —
@@ -106,12 +118,12 @@ once the server has agreed they are gone.
 
 | Interrupt | Effect |
 | --- | --- |
-| Wrist down | None. Sync runs at launch, not continuously. |
+| Wrist down | None. Sync runs on events, not continuously. |
 | Crown press | None. |
 | Session started or ended elsewhere | None until it is closed; only completed intervals are sent. |
 | 4am boundary | None to the record. The day a session lands in was decided when it started, and does not move. |
-| Network loss | The push fails and is retried next launch. Nothing is lost and nothing is shown. |
-| Killed and relaunched | Relaunch is when sync happens, so this is the normal path rather than an interrupt. |
+| Network loss | The push fails, silently, and is retried — three times over the following seven minutes, then by background refresh, then at the next launch. Nothing is lost and nothing is shown. |
+| Killed and relaunched | Launch is one of the moments a pass runs, so this costs nothing beyond the wait. |
 
 ## Cross-cutting
 
@@ -150,4 +162,5 @@ stateDiagram-v2
 - The interval pull is cursored and paged at 500, but the watch never calls it — intervals only travel upward. That remains [B-25](../bug-triage.md#b-25).
 - Verified by running the API against a real database: pairing, idempotent push, last-write-wins subjects, the cursored pull, the 4am bucketing in a non-UTC zone, and the 401 paths. See [`verification/web.md`](../verification/web.md).
 
-Drafted against `6213636`
+Drafted against `6213636`, and revised when sync stopped waiting for the next
+launch.

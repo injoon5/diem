@@ -2,6 +2,7 @@ import SwiftUI
 
 /// The watch shows a code; you enter it once on the web to claim the device.
 struct PairingView: View {
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     @State private var code: String?
     @State private var expiresAt: Date?
     @State private var failed = false
@@ -9,8 +10,24 @@ struct PairingView: View {
     /// A fixed anchor, so the countdown doesn't re-phase on every redraw.
     @State private var anchor = Date.now
 
+    /// A second is the resolution of the countdown, and the countdown is the
+    /// only thing on this screen that moves. Outside the last five minutes
+    /// there is a static six-character code and nothing else, and dimmed the
+    /// display refreshes about once a minute whatever this asks for — so a
+    /// per-second schedule in either case is a timer nobody can see, on the one
+    /// screen people leave lit while they type the code somewhere else.
+    ///
+    /// The flip is decided on a tick, so a countdown can appear up to a minute
+    /// into its window. It has five minutes to run and reads in minutes at that
+    /// end of it; starting at 4:52 rather than 5:00 is not a thing anybody can
+    /// see either.
+    private var cadence: TimeInterval {
+        guard !isLuminanceReduced, let expiresAt else { return 60 }
+        return expiresAt.timeIntervalSinceNow <= Self.warnWithin ? 1 : 60
+    }
+
     var body: some View {
-        TimelineView(.periodic(from: anchor, by: 1)) { context in
+        TimelineView(.periodic(from: anchor, by: cadence)) { context in
             content(now: context.date)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

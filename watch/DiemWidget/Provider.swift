@@ -26,7 +26,16 @@ struct SnapshotProvider: TimelineProvider {
         let entry = SnapshotEntry(date: now, snapshot: SnapshotStore.read())
         // Live counts are rendered by the system via `Text(timerInterval:)`, so
         // the only reason to come back is a change the app didn't publish.
-        let cadence = now.addingTimeInterval(entry.snapshot.session == nil ? 30 * 60 : 15 * 60)
+        //
+        // The same half hour whether or not a session is live. A running
+        // session used to ask for fifteen minutes, which bought nothing it did
+        // not already have: the count on the card is drawn by the system
+        // without waking this extension at all, and every change the app makes
+        // to the snapshot pushes a reload of its own. What it did buy was twice
+        // the reloads on the one day the user is actually studying, out of a
+        // daily budget the system hands out and this was already at the edge
+        // of — so the ones that mattered were the ones being dropped.
+        let cadence = now.addingTimeInterval(30 * 60)
         // …and one change the app cannot publish, because it may be asleep when
         // it happens: 4am. The day's total resets there, and on the ordinary
         // cadence a complication could go on drawing yesterday's closed ring

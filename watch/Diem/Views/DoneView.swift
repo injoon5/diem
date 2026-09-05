@@ -176,6 +176,10 @@ struct DoneView: View {
         discardConfirm.withdraw()
         store.discard(sessionID: session.id)
         Haptics.sessionAbandoned()
+        // A discard of an already-synced session is a deletion the server has
+        // not heard about, and it is the one kind of change that looks wrong on
+        // the web until it lands.
+        SyncScheduler.shared.request()
         onClose()
     }
 }
