@@ -15,9 +15,18 @@ final class SessionStore {
     private let settings: Settings
 
     /// Set while a session is running or paused; cleared on end or discard.
+    ///
+    /// Written through to `Settings` by `commit()`, which every change to it
+    /// goes through. A running session could always be found again in the log,
+    /// but a paused one leaves nothing behind that says so — pausing closes the
+    /// interval — and used to be dropped by the first `refresh()` after it.
     private(set) var activeSessionID: UUID?
     /// A subject picked while paused. Intervals are immutable once ended, so the
     /// choice waits for the next one rather than rewriting the last.
+    ///
+    /// Written through for the same reason as the session it belongs to: a pick
+    /// made while paused has no interval to live on yet, so leaving the app
+    /// between the pick and the resume used to study the old subject.
     private(set) var pendingSubjectID: UUID??
     /// Bumped whenever the log changes.
     ///
@@ -33,7 +42,11 @@ final class SessionStore {
     init(context: ModelContext, settings: Settings = .shared) {
         self.context = context
         self.settings = settings
-        self.activeSessionID = Self.recoverActiveSession(in: context)
+        let recovered = Self.recoverActiveSession(in: context, settings: settings)
+        self.activeSessionID = recovered
+        // A pick only outlives the session it was made in if the session did.
+        self.pendingSubjectID = recovered == nil ? nil : settings.pendingSubjectID
+        persistSession()
         publishSnapshot()
     }
 
@@ -199,23 +212,35 @@ final class SessionStore {
     /// fetch happens once per change and the live part is added on top.
     @ObservationIgnored private var todayCache: (dayStart: Date, banked: TimeInterval)?
 
-    func todaySeconds(asOf now: Date = .now) -> TimeInterval {
+    /// Today's closed intervals, and nothing that is still running.
+    ///
+    /// Exposed because it is exactly what the widget snapshot carries: the part
+    /// of the day that only changes when the log does, with the running count
+    /// added on top by whoever is drawing it.
+    func bankedTodaySeconds(asOf now: Date = .now) -> TimeInterval {
         observe()
         let dayStart = Day.start(of: now)
-        let banked: TimeInterval
-        if let todayCache, todayCache.dayStart == dayStart {
-            banked = todayCache.banked
-        } else {
-            // Open-ended upper bound rather than `now`: no interval is ever
-            // recorded in the future, so this is the same set of rows and the
-            // answer no longer depends on the instant it was asked.
-            banked = intervals(startingIn: dayStart..<Date.distantFuture)
-                .reduce(into: 0) { total, interval in
-                    if !interval.isOpen { total += interval.duration() }
-                }
-            todayCache = (dayStart, banked)
-        }
-        guard let live = live(), let openedAt = live.openedAt, openedAt >= dayStart else {
+        if let todayCache, todayCache.dayStart == dayStart { return todayCache.banked }
+        // Open-ended upper bound rather than `now`: no interval is ever
+        // recorded in the future, so this is the same set of rows and the
+        // answer no longer depends on the instant it was asked.
+        let banked = intervals(startingIn: dayStart..<Date.distantFuture)
+            .reduce(into: TimeInterval.zero) { total, interval in
+                if !interval.isOpen { total += interval.duration() }
+            }
+        todayCache = (dayStart, banked)
+        return banked
+    }
+
+    /// Everything studied today, the running interval included.
+    ///
+    /// An interval counts toward the day it started in — the rule the log, the
+    /// history grid and the server's day buckets all use — so a run that began
+    /// before 4am belongs to the day before it, whole. The widget reads the
+    /// same rule out of the snapshot rather than a second one of its own.
+    func todaySeconds(asOf now: Date = .now) -> TimeInterval {
+        let banked = bankedTodaySeconds(asOf: now)
+        guard let openedAt = live()?.openedAt, openedAt >= Day.start(of: now) else {
             return banked
         }
         return banked + max(0, now.timeIntervalSince(openedAt))
@@ -412,7 +437,7 @@ final class SessionStore {
         for interval in unsyncedIntervals(limit: 1000) where wanted.contains(interval.id) {
             interval.syncedAt = now
         }
-        try? context.save()
+        save()
     }
 
     /// Applies subjects pulled from the server. Last-write-wins on `updatedAt`.
@@ -457,11 +482,28 @@ final class SessionStore {
     ///
     /// There is no row left to carry a tombstone once it is gone, and the
     /// interval API has no delete for something it was never told about — so
-    /// only what was actually pushed is recorded, and the next sync un-tells it.
+    /// only what the server has been offered is recorded, and the next sync
+    /// un-tells it. Offered, not accepted: a push still in the air counts, or a
+    /// discard timed against it deletes the rows here while the request that
+    /// carries them is on its way, and the web keeps the session for good.
     private func forget(_ intervals: [Interval]) {
-        settings.recordDeleted(intervalIDs: intervals.filter { $0.syncedAt != nil }.map(\.id))
+        let told = intervals.filter { $0.syncedAt != nil || uploading.contains($0.id) }
+        settings.recordDeleted(intervalIDs: told.map(\.id))
         for interval in intervals { context.delete(interval) }
     }
+
+    /// Intervals handed to a push that hasn't come back yet.
+    ///
+    /// A row is marked synced only once the server has answered, so between the
+    /// request and the answer it looks like something the server was never told
+    /// about. Discarding in that window deleted the rows with no tombstone, and
+    /// the upload — already on its way — landed them on the web for good.
+    @ObservationIgnored private var uploading: Set<UUID> = []
+
+    /// Called either side of a push. Not a token or a scope, because the ids
+    /// are what `forget` needs to ask about.
+    func beginUpload(_ ids: [UUID]) { uploading.formUnion(ids) }
+    func endUpload(_ ids: [UUID]) { uploading.subtract(ids) }
 
     private func openInterval() -> Interval? {
         guard let activeSessionID else { return nil }
@@ -492,13 +534,44 @@ final class SessionStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    /// Keeps the two bits of session state that the log cannot answer for
+    /// where the next launch — and the other process — can find them.
+    ///
+    /// Called from `commit()`, which every change to either of them goes
+    /// through, and from the two places that change them without one.
+    private func persistSession() {
+        settings.activeSessionID = activeSessionID
+        settings.pendingSubjectID = pendingSubjectID
+    }
+
     /// Registers the caller's dependency on the log. Reading a tracked property
     /// inside a fetch is what makes an `@Observable` store work at all when the
     /// data itself lives in SwiftData.
     private func observe() { _ = revision }
 
+    /// Set when a write to the store did not land.
+    ///
+    /// The change is still in memory and still on screen, so without saying so
+    /// a failed save looks exactly like a successful one right up until the
+    /// next `refresh()` rolls it back. The Start screen's storage banner covers
+    /// a store that could not be *opened*; this is the one that opened and then
+    /// refused a write.
+    private(set) var saveFailed = false
+
+    /// The only place `context.save()` is called on a live write, so the only
+    /// place that has to notice it failing.
+    private func save() {
+        do {
+            try context.save()
+            saveFailed = false
+        } catch {
+            saveFailed = true
+        }
+    }
+
     private func commit() {
-        try? context.save()
+        save()
+        persistSession()
         revision &+= 1
         invalidateCaches()
         publishSnapshot()
@@ -552,7 +625,7 @@ final class SessionStore {
         // store rather than answering from memory. There is never anything
         // unsaved to lose — every write here saves immediately.
         context.rollback()
-        let recovered = Self.recoverActiveSession(in: context)
+        let recovered = Self.recoverActiveSession(in: context, settings: settings)
         let changed = recovered != activeSessionID
         activeSessionID = recovered
         revision &+= 1
@@ -565,7 +638,15 @@ final class SessionStore {
             // in front of a session that is running, which is the one thing
             // `start()` goes out of its way to prevent.
             finished = nil
+        } else if recovered == nil {
+            pendingSubjectID = nil
+        } else {
+            // Same session as before, and the pick may have been made in the
+            // other process. Both write it through, so whichever one is reading
+            // takes what is stored.
+            pendingSubjectID = settings.pendingSubjectID
         }
+        persistSession()
         publishSnapshot()
         rescheduleAlert()
     }
@@ -580,12 +661,17 @@ final class SessionStore {
 
     private func publishSnapshot() {
         let now = Date.now
-        // What's already banked today, excluding the live session — the widget
-        // adds the running count itself, so its gauge doesn't freeze between
-        // timeline refreshes.
+        // What's already banked today, excluding the interval still running —
+        // the widget adds that count itself, so its gauge doesn't freeze
+        // between timeline refreshes.
+        //
+        // The live session's *closed* intervals stay in this total rather than
+        // being subtracted with the rest of it: they are banked, they are
+        // today's, and taking them out here while the widget only ever added
+        // back the running part is what made a session with a pause in it read
+        // short on the complication.
         let summary = live()
-        let banked = todaySeconds(asOf: now) - (summary?.studied(asOf: now) ?? 0)
-        var snapshot = DiemSnapshot(todaySec: max(0, banked), goalSec: goalSeconds)
+        var snapshot = DiemSnapshot(todaySec: bankedTodaySeconds(asOf: now), goalSec: goalSeconds)
         // Which day that total belongs to. Without it a complication holding a
         // snapshot written before 4am has no way to tell that the day has
         // turned, and draws yesterday's closed ring on a day that just started.
@@ -595,6 +681,9 @@ final class SessionStore {
             let subject = subject(activeSubjectID)
             snapshot.session = DiemSnapshot.Live(
                 startedAt: session.startedAt,
+                // Which day the running count belongs to is decided by the
+                // interval it is in, not the session around it.
+                openedAt: session.openedAt,
                 // The instant a clock started at zero would have to have begun
                 // to read `studied` right now — earlier than the session start
                 // by however long it spent paused.
@@ -625,7 +714,15 @@ final class SessionStore {
         // Writing the file and waking `chronod` are both blocking calls, and
         // `commit()` runs them on the same tap that started the session. Off
         // the main actor they cost the tap nothing.
-        Task.detached(priority: .utility) {
+        //
+        // Chained rather than detached one per change: independent tasks race,
+        // and start-pause-end in quick succession could leave the last write to
+        // land first — a stopped session still counting on the complication.
+        // Each publication waits for the one before it, so the file ends up
+        // holding the newest state whatever order the tasks were started in.
+        let previous = snapshotWrites
+        snapshotWrites = Task.detached(priority: .utility) {
+            await previous?.value
             SnapshotStore.write(snapshot)
             WidgetCenter.shared.reloadAllTimelines()
             if relevanceChanged {
@@ -633,6 +730,9 @@ final class SessionStore {
             }
         }
     }
+
+    /// The snapshot write in flight, so the next one can queue behind it.
+    @ObservationIgnored private var snapshotWrites: Task<Void, Never>?
 
     /// The longest an interval can plausibly run before the only explanation is
     /// that the app went away while it was open.
@@ -650,21 +750,44 @@ final class SessionStore {
     /// it, and an orphan is not harmless: an open interval is measured against
     /// `now` wherever the log is read whole, so it would go on growing against
     /// today's per-subject totals for as long as the install lasts.
-    private static func recoverActiveSession(in context: ModelContext) -> UUID? {
+    private static func recoverActiveSession(in context: ModelContext, settings: Settings) -> UUID? {
         let descriptor = FetchDescriptor<Interval>(
             predicate: #Predicate { $0.endedAt == nil },
             sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
         )
         let open = (try? context.fetch(descriptor)) ?? []
-        guard let latest = open.first else { return nil }
 
-        let isStale = Date.now.timeIntervalSince(latest.startedAt) > maxPlausibleInterval
-        let survivor = isStale ? nil : latest
-        for interval in open where interval.id != survivor?.id {
-            interval.endedAt = interval.startedAt
+        if let latest = open.first {
+            let isStale = Date.now.timeIntervalSince(latest.startedAt) > maxPlausibleInterval
+            let survivor = isStale ? nil : latest
+            for interval in open where interval.id != survivor?.id {
+                interval.endedAt = interval.startedAt
+            }
+            if survivor == nil || open.count > 1 { try? context.save() }
+            if let survivor { return survivor.sessionID }
         }
-        if survivor == nil || open.count > 1 { try? context.save() }
 
-        return survivor?.sessionID
+        return recoverPausedSession(in: context, settings: settings)
+    }
+
+    /// Reopens a session that was on hold rather than running.
+    ///
+    /// Nothing in the log distinguishes a held session from one that ended —
+    /// both are a run of closed intervals — so this is the one place that takes
+    /// the store's word for it, from the id written through on every change.
+    ///
+    /// Checked against the log rather than trusted: the id must still have rows
+    /// (a discard from the other process deletes them), and the hold has to be
+    /// recent. A session paused half a day ago is not one anybody is coming
+    /// back to, and resuming it would splice tonight's studying onto a session
+    /// that belongs to this morning.
+    private static func recoverPausedSession(in context: ModelContext, settings: Settings) -> UUID? {
+        guard let held = settings.activeSessionID else { return nil }
+        let descriptor = FetchDescriptor<Interval>(predicate: #Predicate { $0.sessionID == held })
+        let intervals = (try? context.fetch(descriptor)) ?? []
+        guard let lastEnded = intervals.compactMap(\.endedAt).max(),
+              Date.now.timeIntervalSince(lastEnded) <= maxPlausibleInterval
+        else { return nil }
+        return held
     }
 }

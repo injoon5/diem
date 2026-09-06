@@ -124,6 +124,11 @@ enum SyncEngine {
     /// server made of it.
     static let subjectPullInterval: TimeInterval = 30 * 60
 
+    /// A bound on one pass, so a server that keeps refusing rows cannot turn a
+    /// sync into an unbounded loop. Two hundred intervals to a batch, which is
+    /// years of studying before a backlog could reach the end of it.
+    static let maxBatchesPerPass = 25
+
     /// Returns whether the whole pass got through. Nothing here reads the
     /// answer to decide what to show — `SyncScheduler` reads it to decide
     /// whether to come back.
@@ -147,12 +152,33 @@ enum SyncEngine {
         // server still knows this watch.
         var reached = false
 
-        let pending = store.unsyncedIntervals()
-        if !pending.isEmpty {
+        // A batch at a time until the backlog is gone. One batch used to be the
+        // whole pass, so a watch that had been offline for a fortnight reported
+        // a clean sync with two hundred intervals sent and the rest still
+        // waiting on somebody to trigger another pass.
+        var lastBatch: [UUID] = []
+        for _ in 0..<maxBatchesPerPass {
+            let pending = store.unsyncedIntervals()
+            guard !pending.isEmpty else { break }
+            let ids = pending.map(\.id)
+            // The same rows twice running means the marks are not sticking —
+            // a store that has stopped accepting writes. Sending them again is
+            // no more likely to work the third time.
+            guard ids != lastBatch else { break }
+            lastBatch = ids
+            // Discarding a session while its push is in flight has to leave a
+            // tombstone behind, and only the store knows which rows are up in
+            // the air.
+            store.beginUpload(ids)
+            defer { store.endUpload(ids) }
             do {
                 let accepted = try await client.push(intervals: pending.map(\.dto))
                 store.markSynced(accepted)
                 reached = true
+                // Something in the batch was refused. The next round would
+                // offer it again and hear the same answer, so leave the rest
+                // for a later pass rather than spinning on it here.
+                guard accepted.count == pending.count else { break }
             } catch {
                 note(error, settings)
                 return false  // Offline is the normal case, and retried.
@@ -182,9 +208,16 @@ enum SyncEngine {
             // this used to be a full table push on every launch.
             let local = store.subjectsForSync()
             let changed = local.filter { $0.updatedAt > (settings.subjectsPushedAt ?? .distantPast) }
-            if !changed.isEmpty {
-                try await client.push(subjects: changed.map(\.dto))
-                settings.subjectsPushedAt = changed.map(\.updatedAt).max()
+            // Both the payload and the watermark are taken from the same values
+            // before the request goes out. They used to be read either side of
+            // it, off model objects that a rename during the round trip could
+            // move underneath — which marked the edit pushed without ever
+            // having sent it, and no later pass would look at it again.
+            let payload = changed.map(\.dto)
+            let watermark = payload.map(\.updatedAt).max()
+            if !payload.isEmpty {
+                try await client.push(subjects: payload)
+                settings.subjectsPushedAt = watermark
                 reached = true
             }
             let stale = now.timeIntervalSince(settings.subjectsPulledAt ?? .distantPast)

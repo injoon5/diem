@@ -32,7 +32,9 @@ struct Lap: Equatable {
 /// the shared App Group container instead. It is rewritten on every state
 /// change, so a complication never has to open the database.
 struct DiemSnapshot: Codable, Equatable, Sendable {
-    /// Study banked today, not counting the live session.
+    /// Study banked today by the intervals that have already closed — the live
+    /// session's own closed intervals included. Only the one still running is
+    /// left out, because that is the part the reader counts for itself.
     var todaySec: Double = 0
     var goalSec: Double = 2 * 3600
     /// Set while a session is running or paused.
@@ -48,6 +50,15 @@ struct DiemSnapshot: Codable, Equatable, Sendable {
 
     struct Live: Codable, Equatable, Sendable {
         var startedAt: Date
+        /// Start of the interval currently running — `nil` while paused.
+        ///
+        /// Which study-day the running count belongs to is decided by this and
+        /// not by `startedAt`: an interval counts toward the day it began in,
+        /// the same rule the app's own totals and the server's day buckets use.
+        /// Optional so a snapshot written by an older build still decodes; a
+        /// session with no interval named contributes nothing to the day, which
+        /// is the answer that cannot invent time.
+        var openedAt: Date?
         /// The instant the count should read now — start of the running
         /// interval minus everything already banked in this session.
         var countingFrom: Date
@@ -67,18 +78,17 @@ struct DiemSnapshot: Codable, Equatable, Sendable {
             isPaused ? pausedElapsedSec : max(0, now.timeIntervalSince(countingFrom))
         }
 
-        /// The part of this session's count that falls after `floor`.
+        /// What this session adds to the study-day beginning at `dayStart`.
         ///
-        /// A session counts toward the day it started in, so when the reader has
-        /// crossed a day boundary the session has not — only the seconds on this
-        /// side of it belong to the new day. A held session stopped counting at
-        /// `countingFrom + pausedElapsedSec`, so its share is whatever of that
-        /// lies past the floor, which for a hold that began before the boundary
-        /// is nothing.
-        func elapsed(asOf now: Date = .now, notBefore floor: Date) -> TimeInterval {
-            let from = max(countingFrom, floor)
-            let to = isPaused ? countingFrom.addingTimeInterval(pausedElapsedSec) : now
-            return max(0, to.timeIntervalSince(from))
+        /// Only the interval still running: everything else it has studied is
+        /// already banked in `todaySec`, under whichever day each interval
+        /// began in. A run that started before the boundary belongs to the day
+        /// before it whole — the same allocation the app draws on its own ring,
+        /// so the two now agree across 4am instead of splitting the session
+        /// three ways between the app, a stale complication and a fresh one.
+        func today(asOf now: Date = .now, notBefore dayStart: Date) -> TimeInterval {
+            guard let openedAt, openedAt >= dayStart else { return 0 }
+            return max(0, now.timeIntervalSince(openedAt))
         }
 
         /// The window the Smart Stack is asked to hold the session card in.
@@ -116,15 +126,15 @@ struct DiemSnapshot: Codable, Equatable, Sendable {
 
     /// Everything studied today, including whatever is running right now.
     ///
-    /// Past the day boundary nothing banked belongs to today any more, and only
-    /// the part of a live session on this side of it does. A widget holding a
-    /// stale snapshot therefore reads zero rather than yesterday's total, which
-    /// is the truthful answer until the app is next able to republish.
+    /// Past the day boundary nothing banked belongs to today any more, so a
+    /// widget holding a stale snapshot reads zero rather than yesterday's
+    /// total — the truthful answer until the app is next able to republish. The
+    /// running interval is counted against the day it started in either way,
+    /// which is the same question `dayStart` settles for the banked half.
     func today(asOf now: Date = .now, calendar: Calendar = .current) -> TimeInterval {
-        guard isStale(asOf: now, calendar: calendar) else {
-            return todaySec + (session?.elapsed(asOf: now) ?? 0)
-        }
-        return session?.elapsed(asOf: now, notBefore: Day.start(of: now, calendar: calendar)) ?? 0
+        let today = Day.start(of: now, calendar: calendar)
+        let banked = isStale(asOf: now, calendar: calendar) ? 0 : todaySec
+        return banked + (session?.today(asOf: now, notBefore: today) ?? 0)
     }
 
     /// The reading a ring or a bar draws, overflow included.
