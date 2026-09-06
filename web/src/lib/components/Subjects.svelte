@@ -10,10 +10,54 @@
 	let editing = $state<string | null>(null);
 	let draft = $state('');
 
-	const visible = $derived(subjects.filter((subject) => subject.deletedAt === null));
+	/**
+	 * What has been asked for and not yet come back, per subject.
+	 *
+	 * Every write sends the whole subject, so two of them in quick succession
+	 * used to undo each other: a colour picked while a rename was still in
+	 * flight sent the old name with a newer timestamp, and last-write-wins put
+	 * the old name back. The patches are kept here until the server has the
+	 * lot, and the rows on screen are drawn through them.
+	 */
+	let pending = $state<Record<string, Partial<SubjectDTO>>>({});
 
-	async function save(subject: SubjectDTO, patch: Partial<SubjectDTO>) {
-		await onchange({ ...subject, ...patch, updatedAt: new Date().toISOString() });
+	/** The write in flight for a subject, so the next one queues behind it. */
+	const queues = new Map<string, Promise<void>>();
+
+	const visible = $derived(
+		subjects
+			.filter((subject) => subject.deletedAt === null)
+			.map((subject) => ({ ...subject, ...pending[subject.id] }))
+	);
+
+	function save(subject: SubjectDTO, patch: Partial<SubjectDTO>) {
+		const id = subject.id;
+		pending = { ...pending, [id]: { ...pending[id], ...patch } };
+		const queued = (queues.get(id) ?? Promise.resolve())
+			.then(async () => {
+				// Looked up again rather than closed over: an earlier write in
+				// this queue has been answered since it was made, and its
+				// answer is what this one has to build on.
+				const current = subjects.find((row) => row.id === id) ?? subject;
+				await onchange({
+					...current,
+					...pending[id],
+					updatedAt: new Date().toISOString()
+				});
+			})
+			// Never left rejected: a failed write must not strand the ones
+			// queued behind it. The page says what went wrong.
+			.catch(() => {})
+			.finally(() => {
+				// Only the last write in the queue clears the overlay — until
+				// then the newer patches are still waiting to be sent.
+				if (queues.get(id) !== queued) return;
+				queues.delete(id);
+				const rest = { ...pending };
+				delete rest[id];
+				pending = rest;
+			});
+		queues.set(id, queued);
 	}
 
 	function commit(subject: SubjectDTO) {

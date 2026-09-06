@@ -65,30 +65,42 @@ struct RootView: View {
             // depending on how the store had opened. The banner carries its own
             // ground for exactly this reason: it can sit over the arc.
             .overlay(alignment: .top) {
-                switch DiemContainer.storage {
-                case .group:
-                    EmptyView()
-                case .local:
-                    // The day is safe; only the shared half is not. Said in the
-                    // same place and quieter, because nothing is being lost.
+                // A write that was refused outranks where the store opened: the
+                // store below is fine, and the tap that just happened is not in
+                // it. Silently carrying on was the worst of the three — the
+                // screen showed the change, and the next refresh took it back.
+                if store.saveFailed {
                     StatusBanner(
-                        // Short enough to set on one line at full size. The
-                        // long spelling of this truncated at "not updati…",
-                        // and a truncated warning is worse than a terse one.
-                        "Complication stale",
-                        urgent: false,
-                        spoken: "Diem is saving, but cannot reach the shared container, "
-                            + "so the complication is not updating."
-                    )
-                case .memory:
-                    StatusBanner(
-                        // The app's own name, on its own screen, was the word
-                        // that pushed this past the width of the pill.
-                        "Not saving — reopen",
+                        "Not saved — reopen",
                         urgent: true,
-                        spoken: "Diem could not open its history and is not saving. "
-                            + "Reopen the app."
+                        spoken: "Diem could not save your last change. Reopen the app."
                     )
+                } else {
+                    switch DiemContainer.storage {
+                    case .group:
+                        EmptyView()
+                    case .local:
+                        // The day is safe; only the shared half is not. Said in
+                        // the same place and quieter, because nothing is lost.
+                        StatusBanner(
+                            // Short enough to set on one line at full size. The
+                            // long spelling of this truncated at "not updati…",
+                            // and a truncated warning is worse than a terse one.
+                            "Complication stale",
+                            urgent: false,
+                            spoken: "Diem is saving, but cannot reach the shared container, "
+                                + "so the complication is not updating."
+                        )
+                    case .memory:
+                        StatusBanner(
+                            // The app's own name, on its own screen, was the
+                            // word that pushed this past the width of the pill.
+                            "Not saving — reopen",
+                            urgent: true,
+                            spoken: "Diem could not open its history and is not saving. "
+                                + "Reopen the app."
+                        )
+                    }
                 }
             }
             .containerBackground(.black, for: .navigation)

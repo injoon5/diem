@@ -17,6 +17,7 @@
 	let claimError = $state('');
 	let subjectError = $state('');
 	let signingOut = $state(false);
+	let signOutError = $state('');
 
 	const goalSeconds = $derived((summary?.goalMinutes ?? 120) * 60);
 
@@ -89,10 +90,17 @@
 
 	async function signOut() {
 		signingOut = true;
+		signOutError = '';
 		try {
-			await fetch('/api/claim', { method: 'DELETE' });
+			const response = await fetch('/api/claim', { method: 'DELETE' });
+			// The session cookie is cleared by the server, not here. Clearing
+			// the screen whatever came back showed an unpaired browser that was
+			// still signed in, and one reload put the dashboard straight back.
+			if (!response.ok) throw new Error(String(response.status));
 			summary = null;
 			phase = 'unpaired';
+		} catch {
+			signOutError = 'Could not sign out. Still signed in.';
 		} finally {
 			signingOut = false;
 		}
@@ -238,7 +246,7 @@
 	</section>
 
 	<footer>
-		<span>Paired to this browser.</span>
+		<span>{signOutError || 'Paired to this browser.'}</span>
 		<button type="button" onclick={signOut} disabled={signingOut}>
 			{signingOut ? 'Signing out…' : 'Sign out'}
 		</button>

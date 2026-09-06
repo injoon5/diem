@@ -16,6 +16,11 @@ final class Settings {
         static let subjectsPushedAt = "subjectsPushedAt"
         static let subjectsPulledAt = "subjectsPulledAt"
         static let retired = "syncRetired"
+        static let activeSession = "activeSessionID"
+        static let pendingSubject = "pendingSubjectID"
+        /// What a pending choice of *no* subject is written as. Anything that
+        /// isn't a UUID would do; this one reads.
+        static let noSubject = "none"
     }
 
     init(defaults: UserDefaults = UserDefaults(suiteName: SnapshotStore.appGroup) ?? .standard) {
@@ -60,6 +65,43 @@ final class Settings {
         set {
             guard newValue != defaults.bool(forKey: Key.retired) else { return }
             withMutation(keyPath: \.isRetired) { defaults.set(newValue, forKey: Key.retired) }
+        }
+    }
+
+    /// The session that was live when this process last wrote to the log.
+    ///
+    /// A running session can be found again in the log — its interval is still
+    /// open. A paused one cannot: pausing closes the interval, so a held
+    /// session and a session that ended look exactly alike from the rows
+    /// alone, and the held one used to be gone the next time the app came up.
+    /// This is the one bit of session state that isn't derivable, so it is the
+    /// one bit that is stored. In the App Group, because the widget's intents
+    /// end and resume sessions too.
+    ///
+    /// Not tracked by observation: the store owns the live value, and this is
+    /// only how it survives the process.
+    var activeSessionID: UUID? {
+        get { defaults.string(forKey: Key.activeSession).flatMap(UUID.init(uuidString:)) }
+        set { defaults.set(newValue?.uuidString, forKey: Key.activeSession) }
+    }
+
+    /// A subject picked while paused, waiting for the next interval to open.
+    ///
+    /// Doubly optional like the store's own copy: the outer `nil` is "nothing
+    /// pending", the inner one is a pending choice of free time — which is a
+    /// choice, and lost if the two are flattened.
+    var pendingSubjectID: UUID?? {
+        get {
+            guard let raw = defaults.string(forKey: Key.pendingSubject) else { return nil }
+            return .some(UUID(uuidString: raw))
+        }
+        set {
+            switch newValue {
+            case .none:
+                defaults.removeObject(forKey: Key.pendingSubject)
+            case .some(let id):
+                defaults.set(id?.uuidString ?? Key.noSubject, forKey: Key.pendingSubject)
+            }
         }
     }
 

@@ -300,9 +300,12 @@ struct SnapshotDayTests {
 
     private func date(_ iso: String) -> Date { ISO8601.parse(iso)! }
 
+    /// A session whose one interval opened at `countingFrom`, or — held — one
+    /// that opened there and has since closed.
     private func live(countingFrom: Date, isPaused: Bool = false, studied: Double = 0) -> DiemSnapshot.Live {
         DiemSnapshot.Live(
             startedAt: countingFrom,
+            openedAt: isPaused ? nil : countingFrom,
             countingFrom: countingFrom,
             plannedSec: nil,
             isPaused: isPaused,
@@ -344,19 +347,21 @@ struct SnapshotDayTests {
         #expect(snapshot.lap(asOf: read, calendar: utc).turns == 0)
     }
 
-    @Test("A session running across the boundary keeps only its new-day seconds")
-    func liveSessionSplitsAtTheBoundary() {
+    @Test("A run that began before the boundary belongs to the day it began in")
+    func liveRunBelongsToTheDayItStarted() {
         let written = date("2026-03-04T03:30:00Z")
         let read = date("2026-03-04T04:10:00Z")
         var snapshot = DiemSnapshot(todaySec: 3600, goalSec: 2 * 3600)
         snapshot.dayStart = Day.start(of: written, calendar: utc)
-        // Counting since 03:30, read at 04:10: forty minutes on the clock, ten
-        // of them on this side of 04:00.
-        snapshot.session = live(countingFrom: date("2026-03-04T03:30:00Z"))
-        let onTheClock = snapshot.session?.elapsed(asOf: read) ?? 0
-        let countedToday = snapshot.today(asOf: read, calendar: utc)
-        #expect(onTheClock == 2400)
-        #expect(countedToday == 600)
+        // Counting since 03:30, read at 04:10: forty minutes on the clock, and
+        // none of them today's — an interval counts toward the day it opened
+        // in, which is the rule the app's own ring and the server both apply.
+        // Splitting it here was the disagreement: the same session read zero in
+        // the app, ten minutes on a stale complication, and twenty on a fresh
+        // one.
+        snapshot.session = live(countingFrom: written)
+        #expect(snapshot.session?.elapsed(asOf: read) == 2400)
+        #expect(snapshot.today(asOf: read, calendar: utc) == 0)
     }
 
     @Test("A session held before the boundary contributes nothing after it")
@@ -364,7 +369,8 @@ struct SnapshotDayTests {
         let read = date("2026-03-04T04:10:00Z")
         var snapshot = DiemSnapshot(todaySec: 3600, goalSec: 2 * 3600)
         snapshot.dayStart = Day.start(of: date("2026-03-04T03:30:00Z"), calendar: utc)
-        // Held at 03:40 with ten minutes on the clock — all of it yesterday's.
+        // Held at 03:40 with ten minutes on the clock — all of it yesterday's,
+        // and banked where it belongs rather than counted again here.
         snapshot.session = live(
             countingFrom: date("2026-03-04T03:30:00Z"),
             isPaused: true,
@@ -373,13 +379,26 @@ struct SnapshotDayTests {
         #expect(snapshot.today(asOf: read, calendar: utc) == 0)
     }
 
-    @Test("A session that started after the boundary is counted in full")
+    @Test("A run that opened after the boundary is counted in full")
     func startedAfterTheBoundary() {
         let read = date("2026-03-04T04:30:00Z")
         var snapshot = DiemSnapshot(todaySec: 3600, goalSec: 2 * 3600)
         snapshot.dayStart = Day.start(of: date("2026-03-04T03:30:00Z"), calendar: utc)
         snapshot.session = live(countingFrom: date("2026-03-04T04:10:00Z"))
         #expect(snapshot.today(asOf: read, calendar: utc) == 20 * 60)
+    }
+
+    @Test("Within the day, the running interval is added to what is banked")
+    func bankedPlusTheRunningInterval() {
+        let now = date("2026-03-04T09:00:00Z")
+        var snapshot = DiemSnapshot(todaySec: 3600, goalSec: 2 * 3600)
+        snapshot.dayStart = Day.start(of: now, calendar: utc)
+        // An hour banked — the session's own closed intervals included — and
+        // fifteen minutes running on top of it. The banked half used to have
+        // the whole live session taken out of it while only the running part
+        // was added back, so a session with a pause in it read short.
+        snapshot.session = live(countingFrom: date("2026-03-04T08:45:00Z"))
+        #expect(snapshot.today(asOf: now, calendar: utc) == 3600 + 15 * 60)
     }
 }
 
@@ -390,6 +409,7 @@ struct RelevanceTests {
     private func live(plannedSec: Int?, isPaused: Bool = false) -> DiemSnapshot.Live {
         DiemSnapshot.Live(
             startedAt: now,
+            openedAt: isPaused ? nil : now,
             countingFrom: now,
             plannedSec: plannedSec,
             isPaused: isPaused,
